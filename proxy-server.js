@@ -231,6 +231,41 @@ app.post('/writeToSheet', async (req, res) => {
   }
 });
 
+/**
+ * Read from Google Sheets endpoint
+ */
+app.get('/readSheet', async (req, res) => {
+  try {
+    console.log('📖 Sheet read request');
+
+    // Get Google Sheets client
+    const sheets = await getGoogleSheetsClient();
+
+    // Read all data from Sheet1
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Sheet1!A:E', // Columns A to E (Invoice Number, Date, Total, Payment, Data)
+    });
+
+    const rows = result.data.values || [];
+    
+    console.log(`✅ Read successful: ${rows.length} rows`);
+
+    return res.status(200).json({
+      success: true,
+      rows: rows,
+      count: rows.length,
+    });
+  } catch (error) {
+    console.error('❌ Sheet read failed:', error.message);
+
+    return res.status(500).json({
+      error: 'Failed to read from sheet',
+      details: error.message,
+    });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`
