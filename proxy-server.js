@@ -234,28 +234,50 @@ app.post('/writeToSheet', async (req, res) => {
 /**
  * Read from Google Sheets endpoint
  */
-app.get('/readSheet', async (req, res) => {
+app.post('/readSheet', async (req, res) => {
   try {
-    console.log('📖 Sheet read request');
+    const { range, ranges } = req.body;
+
+    console.log('📖 Sheet read request:', { range, ranges });
 
     // Get Google Sheets client
     const sheets = await getGoogleSheetsClient();
 
-    // Read all data from Sheet1
-    const result = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: 'Sheet1!A:E', // Columns A to E (Invoice Number, Date, Total, Payment, Data)
+    // Handle batch read (multiple ranges)
+    if (ranges && Array.isArray(ranges)) {
+      const result = await sheets.spreadsheets.values.batchGet({
+        spreadsheetId: SPREADSHEET_ID,
+        ranges: ranges.map(r => `Sheet1!${r}`),
+      });
+
+      console.log(`✅ Batch read successful: ${result.data.valueRanges.length} ranges`);
+
+      return res.status(200).json({
+        success: true,
+        valueRanges: result.data.valueRanges,
+      });
+    }
+
+    // Handle single range read
+    if (range) {
+      const result = await sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `Sheet1!${range}`,
+      });
+
+      console.log(`✅ Read successful: ${result.data.values?.length || 0} rows`);
+
+      return res.status(200).json({
+        success: true,
+        values: result.data.values || [],
+      });
+    }
+
+    // No range specified, return error
+    return res.status(400).json({
+      error: 'Missing required field: range or ranges',
     });
 
-    const rows = result.data.values || [];
-    
-    console.log(`✅ Read successful: ${rows.length} rows`);
-
-    return res.status(200).json({
-      success: true,
-      rows: rows,
-      count: rows.length,
-    });
   } catch (error) {
     console.error('❌ Sheet read failed:', error.message);
 
