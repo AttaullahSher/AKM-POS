@@ -1231,6 +1231,11 @@ select:disabled {
     margin: 0;
   }
 
+  /* HIDE EVERYTHING FIRST */
+  body:not(.printing-daily-report) * {
+    display: none !important;
+  }
+
   /* Use a single font and size everywhere */
   body:not(.printing-daily-report) {
     font-family: 'Arial', 'Helvetica', sans-serif !important;
@@ -1240,6 +1245,47 @@ select:disabled {
     margin: 0 !important;
     padding: 0 !important;
     background: #fff !important;
+    display: block !important;
+  }
+
+  /* SHOW ONLY PRINT CONTENT */
+  body:not(.printing-daily-report) .invoice-container,
+  body:not(.printing-daily-report) .invoice-container *,
+  body:not(.printing-daily-report) .invoice-header,
+  body:not(.printing-daily-report) .invoice-header *,
+  body:not(.printing-daily-report) .invoice-title,
+  body:not(.printing-daily-report) .invoice-meta,
+  body:not(.printing-daily-report) .invoice-meta-compact,
+  body:not(.printing-daily-report) .invoice-meta-compact *,
+  body:not(.printing-daily-report) .items-section,
+  body:not(.printing-daily-report) .items-section *,
+  body:not(.printing-daily-report) .items-table,
+  body:not(.printing-daily-report) .items-table *,
+  body:not(.printing-daily-report) .totals-section,
+  body:not(.printing-daily-report) .totals-section *,
+  body:not(.printing-daily-report) .print-footer,
+  body:not(.printing-daily-report) .print-footer *,
+  body:not(.printing-daily-report) .barcode-area,
+  body:not(.printing-daily-report) .barcode-area * {
+    display: block !important;
+  }
+  /* HIDE SCREEN-ONLY ELEMENTS */
+  body:not(.printing-daily-report) .sidebar,
+  body:not(.printing-daily-report) .main-content,
+  body:not(.printing-daily-report) .btn-add-item,
+  body:not(.printing-daily-report) .action-buttons,
+  body:not(.printing-daily-report) .payment-section,
+  body:not(.printing-daily-report) .payment-buttons,
+  body:not(.printing-daily-report) .payment-label,
+  body:not(.printing-daily-report) button,
+  body:not(.printing-daily-report) label {
+    display: none !important;
+  }
+
+  /* SHOW input values for meta fields and items */
+  body:not(.printing-daily-report) .meta-field input,
+  body:not(.printing-daily-report) .items-table input {
+    display: inline !important;
   }
 
   /* Exact safe content width: 74mm with 3mm margins each side (prevents cutting) */
