@@ -21,7 +21,7 @@
         <h1>🎵 AKM-POS</h1>
         <p>Point of Sale System</p>
       </div>
-      <button id="googleSignInBtn" class="google-signin-btn">
+      <button id="googleSignInBtn" class="google-signin-btn" aria-label="Sign in with Google" title="Sign in with Google">
         <svg viewBox="0 0 24 24" width="20" height="20">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -40,7 +40,7 @@
     <aside class="sidebar">
       <div class="sidebar-header">
         <h3>📊 Today's Sales</h3>
-        <button id="logoutBtn" class="logout-btn" title="Logout">🚪</button>
+        <button id="logoutBtn" class="logout-btn" title="Logout" aria-label="Logout">🚪</button>
       </div>
       
       <div class="metrics">
@@ -67,9 +67,9 @@
       </div>
 
       <div class="sidebar-actions">
-        <button onclick="openDepositModal()">🏦 Deposit</button>
-        <button onclick="openExpenseModal()">💸 Expense</button>
-        <button onclick="printDailyReport()">📄 Daily Report</button>
+        <button onclick="openDepositModal()" aria-label="Open deposit modal" title="Deposit">🏦 Deposit</button>
+        <button onclick="openExpenseModal()" aria-label="Open expense modal" title="Add Expense">💸 Expense</button>
+        <button onclick="printDailyReport()" aria-label="Print daily report" title="Daily Report">📄 Daily Report</button>
       </div>
 
       <div class="recent-wrapper">
@@ -103,19 +103,19 @@
           </div>
           <div class="meta-field">
             <label>Date</label>
-            <input type="date" id="invDate" required>
+            <input type="date" id="invDate" required aria-label="Invoice date">
           </div>
           <div class="meta-field">
             <label>Customer</label>
-            <input type="text" id="custName" placeholder="Walk-in Customer">
+            <input type="text" id="custName" placeholder="Walk-in Customer" aria-label="Customer name">
           </div>
           <div class="meta-field">
             <label>Mobile</label>
-            <input type="tel" id="custPhone" placeholder="05x xxx xxxx">
+            <input type="tel" id="custPhone" placeholder="05x xxx xxxx" aria-label="Customer mobile number">
           </div>
           <div class="meta-field">
             <label>TRN</label>
-            <input type="text" id="custTRN" placeholder="Customer TRN">
+            <input type="text" id="custTRN" placeholder="Customer TRN" aria-label="Customer tax registration number">
           </div>
         </div>
 
@@ -129,10 +129,9 @@
                 <th style="width: 10%">Qty</th>
                 <th style="width: 14%">Price</th>
                 <th style="width: 14%">Amount</th>
-                <th style="width: 6%"></th>
               </tr>
             </thead>
-            <tbody id="itemsBody">
+            <tbody id="itemsBody" aria-live="polite" aria-label="Invoice items list">
               <!-- Items will be added here -->
             </tbody>
           </table>
@@ -160,17 +159,17 @@
         <div class="payment-section">
           <label class="payment-label">Payment Method *</label>
           <div class="payment-buttons">
-            <button class="payment-btn" data-method="Cash" onclick="selectPayment(this, 'Cash')">💵 Cash</button>
-            <button class="payment-btn" data-method="Card" onclick="selectPayment(this, 'Card')">💳 Card</button>
-            <button class="payment-btn" data-method="Tabby" onclick="selectPayment(this, 'Tabby')">📱 Tabby</button>
-            <button class="payment-btn" data-method="Cheque" onclick="selectPayment(this, 'Cheque')">📝 Cheque</button>
+            <button class="payment-btn" data-method="Cash" onclick="selectPayment(this, 'Cash')" aria-label="Pay by Cash" title="Cash">💵 Cash</button>
+            <button class="payment-btn" data-method="Card" onclick="selectPayment(this, 'Card')" aria-label="Pay by Card" title="Card">💳 Card</button>
+            <button class="payment-btn" data-method="Tabby" onclick="selectPayment(this, 'Tabby')" aria-label="Pay by Tabby" title="Tabby">📱 Tabby</button>
+            <button class="payment-btn" data-method="Cheque" onclick="selectPayment(this, 'Cheque')" aria-label="Pay by Cheque" title="Cheque">📝 Cheque</button>
           </div>
         </div>
 
         <!-- Action Buttons -->
         <div class="action-buttons">
-          <button class="btn btn-print" onclick="saveAndPrint()" id="printBtn">🖨️ Print Invoice</button>
-          <button class="btn btn-clear" onclick="clearForm()">🗑️ Clear</button>
+          <button class="btn btn-clear" onclick="clearForm()" aria-label="Clear form" title="Clear Form">🗑️ Reset</button>
+          <button class="btn btn-print" onclick="saveAndPrint()" id="printBtn" aria-label="Print invoice" title="Print Invoice">🖨️ Print Invoice</button>
         </div>
 
         <!-- Print-only sections -->
@@ -200,11 +199,11 @@
       <div class="modal-body">
         <div class="form-group">
           <label>Amount (AED)</label>
-          <input type="number" id="depositAmount" step="0.01" min="0" placeholder="0.00">
+          <input type="number" id="depositAmount" step="0.01" min="0" placeholder="0.00" aria-label="Deposit amount">
         </div>
         <div class="form-group">
           <label>Bank Reference / Slip Number</label>
-          <input type="text" id="depositRef" placeholder="SLIP-12345">
+          <input type="text" id="depositRef" placeholder="SLIP-12345" aria-label="Bank reference or slip number">
         </div>
       </div>
       <div class="modal-footer">
@@ -223,15 +222,15 @@
       <div class="modal-body">
         <div class="form-group">
           <label>Description</label>
-          <input type="text" id="expenseDesc" placeholder="e.g. Office Supplies">
+          <input type="text" id="expenseDesc" placeholder="e.g. Office Supplies" aria-label="Expense description">
         </div>
         <div class="form-group">
           <label>Amount (AED)</label>
-          <input type="number" id="expenseAmount" step="0.01" min="0" placeholder="0.00">
+          <input type="number" id="expenseAmount" step="0.01" min="0" placeholder="0.00" aria-label="Expense amount">
         </div>
         <div class="form-group">
           <label>Receipt Number (Optional)</label>
-          <input type="text" id="expenseReceipt" placeholder="RCT-12345">
+          <input type="text" id="expenseReceipt" placeholder="RCT-12345" aria-label="Expense receipt number">
         </div>
       </div>
       <div class="modal-footer">

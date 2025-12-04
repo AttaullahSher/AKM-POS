@@ -38,6 +38,8 @@ let currentUser = null;
 let currentPaymentMethod = null; // No default payment method
 let invoiceCounter = 15001; // Starting invoice number (YYYY-Sequence format)
 let recentInvoicesDays = 7;
+let isReprintMode = false;
+let reprintInvoiceId = null;
 
 // ===== Initialize App =====
 document.addEventListener('DOMContentLoaded', async () => {
@@ -519,12 +521,11 @@ window.addItemRow = function() {
   
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><input type="text" class="item-model" placeholder="Model"></td>
-    <td><input type="text" class="item-desc" placeholder="Description"></td>
-    <td><input type="number" class="item-qty" min="1" value="1"></td>
-    <td><input type="number" class="item-price" min="0" step="0.01" placeholder="0.00"></td>
-    <td><span class="amount-display">0.00</span></td>
-    <td><button class="btn-remove-item" onclick="removeItemRow(this)">×</button></td>
+    <td><input type="text" class="item-model" placeholder="Model" aria-label="Item model"></td>
+    <td><input type="text" class="item-desc" placeholder="Description" aria-label="Item description"></td>
+    <td><input type="number" class="item-qty" min="1" value="1" aria-label="Item quantity"></td>
+    <td><input type="number" class="item-price" min="0" step="0.01" placeholder="0.00" aria-label="Item unit price"></td>
+    <td><span class="amount-display" aria-label="Item amount">0.00</span></td>
   `;
   tbody.appendChild(tr);
 };
@@ -580,118 +581,116 @@ window.selectPayment = function(btn, method) {
 
 // ===== Save and Print Invoice =====
 window.saveAndPrint = async function() {
-  // Check if payment method is selected
   if (!currentPaymentMethod) {
     showToast('Please select a payment method', 'error');
     return;
   }
-  
   const items = collectItems();
-  
   const validation = validateInvoiceForm();
-  if (!validation.isValid) {
-    return;
-  }
-  
+  if (!validation.isValid) { return; }
   const custName = document.getElementById('custName').value.trim() || 'Walk-in Customer';
   const custPhone = document.getElementById('custPhone').value.trim();
   const custTRN = document.getElementById('custTRN').value.trim();
   const invDate = document.getElementById('invDate').value;
-  
-  // Calculate totals
-  let subtotal = 0;
-  items.forEach(item => {
-    subtotal += item.qty * item.price;
-  });
-  const vat = subtotal * 0.05;
-  const grandTotal = subtotal + vat;
-  
-  // Generate invoice number
+  let subtotal = 0; items.forEach(i => { subtotal += i.qty * i.price; });
+  const vat = subtotal * 0.05; const grandTotal = subtotal + vat;
   const invNum = document.getElementById('invNum').textContent;
-  const today = new Date();
-  const timestamp = formatDate(today, 'YYYY-MM-DD HH:mm:ss');
-  
-  // Prepare invoice data
-  const itemsJSON = JSON.stringify(items.map(item => ({
-    model: item.model,
-    desc: item.desc,
-    qty: item.qty,
-    price: item.price,
-    amount: item.qty * item.price
-  })));
-  
-  // Calculate cash impact
-  let cashImpact = 0;
-  let cardImpact = 0;
-  let tabbyImpact = 0;
-  let chequeImpact = 0;
-  
+  const today = new Date(); const timestamp = formatDate(today, 'YYYY-MM-DD HH:mm:ss');
+  const itemsJSON = JSON.stringify(items.map(item => ({ model: item.model, desc: item.desc, qty: item.qty, price: item.price, amount: item.qty * item.price })));
+  let cashImpact = 0, cardImpact = 0, tabbyImpact = 0, chequeImpact = 0;
   if (currentPaymentMethod === 'Cash') cashImpact = grandTotal;
   else if (currentPaymentMethod === 'Card') cardImpact = grandTotal;
   else if (currentPaymentMethod === 'Tabby') tabbyImpact = grandTotal;
   else if (currentPaymentMethod === 'Cheque') chequeImpact = grandTotal;
-  
-  const invoiceRow = [
-    invNum,
-    invDate,
-    timestamp,
-    custName,
-    custPhone,
-    custTRN,
-    currentPaymentMethod,
-    subtotal.toFixed(2),
-    vat.toFixed(2),
-    grandTotal.toFixed(2),
-    itemsJSON,
-    today.getDate(),
-    today.getMonth() + 1,
-    today.getFullYear(),
-    'Paid',
-    cashImpact.toFixed(2),
-    cardImpact.toFixed(2),
-    tabbyImpact.toFixed(2),
-    chequeImpact.toFixed(2),
-    ''
-  ];
-    // Save to sheet
-  const btn = document.getElementById('printBtn');
-  btn.disabled = true;
-  btn.textContent = '💾 Saving...';
-  
-  const success = await appendToSheet("'AKM-POS'!A:T", [invoiceRow]);
-  
+
+  const btn = document.getElementById('printBtn'); btn.disabled = true; btn.textContent = '💾 Saving...';
+
+  let success = false;
+  if (isReprintMode && reprintInvoiceId === invNum) {
+    // Update existing record (no new append)
+    // Find row index and update columns A:T
+    const data = await readSheet("'AKM-POS'!A:T");
+    if (data && data.length > 1) {
+      let rowIndex = null;
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === invNum) { rowIndex = i + 1; break; }
+      }
+      if (rowIndex) {
+        // Build values array matching A:T
+        const values = [
+          invNum,
+          invDate,
+          timestamp,
+          custName,
+          custPhone,
+          custTRN,
+          currentPaymentMethod,
+          subtotal.toFixed(2),
+          vat.toFixed(2),
+          grandTotal.toFixed(2),
+          itemsJSON,
+          today.getDate(),
+          today.getMonth() + 1,
+          today.getFullYear(),
+          'Paid',
+          cashImpact.toFixed(2),
+          cardImpact.toFixed(2),
+          tabbyImpact.toFixed(2),
+          chequeImpact.toFixed(2),
+          ''
+        ];
+        success = await updateSheet(`'AKM-POS'!A${rowIndex}:T${rowIndex}`, values);
+        // Replace InvoiceItems for this invoice
+        if (success) {
+          // Clear existing rows in client-visible sheet is non-trivial; append updated items for now
+          const itemRows = items.map((item, index) => [
+            `ITM-${invNum.split('-')[1]}-${String(index + 1).padStart(3, '0')}`,
+            invNum,
+            item.model,
+            item.desc,
+            item.qty,
+            item.price,
+            (item.qty * item.price).toFixed(2),
+            invDate
+          ]);
+          await appendToSheet('InvoiceItems!A:H', itemRows);
+        }
+      }
+    }
+  } else {
+    // New invoice append
+    const invoiceRow = [
+      invNum, invDate, timestamp, custName, custPhone, custTRN, currentPaymentMethod,
+      subtotal.toFixed(2), vat.toFixed(2), grandTotal.toFixed(2), itemsJSON,
+      today.getDate(), today.getMonth() + 1, today.getFullYear(), 'Paid',
+      cashImpact.toFixed(2), cardImpact.toFixed(2), tabbyImpact.toFixed(2), chequeImpact.toFixed(2), ''
+    ];
+    success = await appendToSheet("'AKM-POS'!A:T", [invoiceRow]);
+    if (success) {
+      const itemRows = items.map((item, index) => [
+        `ITM-${invNum.split('-')[1]}-${String(index + 1).padStart(3, '0')}`,
+        invNum, item.model, item.desc, item.qty, item.price, (item.qty * item.price).toFixed(2), invDate
+      ]);
+      await appendToSheet('InvoiceItems!A:H', itemRows);
+    }
+  }
+
   if (success) {
-    // Also save to InvoiceItems sheet
-    const itemRows = items.map((item, index) => [
-      `ITM-${invNum.split('-')[1]}-${String(index + 1).padStart(3, '0')}`,
-      invNum,
-      item.model,
-      item.desc,
-      item.qty,
-      item.price,
-      (item.qty * item.price).toFixed(2),
-      invDate
-    ]);
-    await appendToSheet('InvoiceItems!A:H', itemRows);
-    
-    showToast('Invoice saved successfully!', 'success');
-    
-    // Print invoice
+    showToast(isReprintMode ? 'Invoice updated successfully' : 'Invoice saved successfully!', 'success');
     printInvoice(invNum);
-    
-    // Reset form and reload data
     setTimeout(() => {
-      clearForm();
-      loadNextInvoiceNumber();
-      loadDashboardData();
-      loadRecentInvoices();
-    }, 1000);
+      if (isReprintMode) {
+        // Exit reprint mode but keep same inv number sequence
+        isReprintMode = false; reprintInvoiceId = null;
+      } else {
+        clearForm(); loadNextInvoiceNumber();
+      }
+      loadDashboardData(); loadRecentInvoices();
+    }, 600);
   } else {
     showToast('Failed to save invoice', 'error');
   }
-  
-  btn.disabled = false;
-  btn.textContent = '🖨️ Print Invoice';
+  btn.disabled = false; btn.textContent = '🖨️ Print Invoice';
 };
 
 function collectItems() {
@@ -751,50 +750,36 @@ function printInvoice(invNum) {
 // ===== Reprint Invoice =====
 window.reprintInvoice = async function(invId) {
   const data = await readSheet("'AKM-POS'!A:S");
-  
   if (!data) return;
-  
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === invId) {
       const row = data[i];
-      
       document.getElementById('invNum').textContent = row[0];
       document.getElementById('invDate').value = row[1];
       document.getElementById('custName').value = row[3] || '';
       document.getElementById('custPhone').value = row[4] || '';
       document.getElementById('custTRN').value = row[5] || '';
-      
-      // Parse items
       const itemsJSON = JSON.parse(row[10] || '[]');
-      const tbody = document.getElementById('itemsBody');
-      tbody.innerHTML = '';
-      
+      const tbody = document.getElementById('itemsBody'); tbody.innerHTML = '';
       itemsJSON.forEach(item => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td><input type="text" class="item-model" value="${item.model}" readonly></td>
-          <td><input type="text" class="item-desc" value="${item.desc}" readonly></td>
-          <td><input type="number" class="item-qty" value="${item.qty}" readonly></td>
-          <td><input type="number" class="item-price" value="${item.price}" readonly></td>
-          <td><span class="amount-display">${item.amount.toFixed(2)}</span></td>
-          <td><button class="btn-remove-item" disabled style="opacity:0.5;">×</button></td>
+          <td><input type="text" class="item-model" value="${item.model}" aria-label="Item model"></td>
+          <td><input type="text" class="item-desc" value="${item.desc}" aria-label="Item description"></td>
+          <td><input type="number" class="item-qty" value="${item.qty}" aria-label="Item quantity"></td>
+          <td><input type="number" class="item-price" value="${item.price}" aria-label="Item unit price"></td>
+          <td><span class="amount-display" aria-label="Item amount">${(item.qty * item.price).toFixed(2)}</span></td>
         `;
         tbody.appendChild(tr);
       });
-      
-      // Set payment method
       currentPaymentMethod = row[6];
       document.querySelectorAll('.payment-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.method === currentPaymentMethod);
-        btn.disabled = true;
+        btn.disabled = false; // allow change
       });
-      
       calculateTotals();
-      showToast('Invoice loaded for reprint', 'success');
-      
-      // Print after a short delay
-      setTimeout(() => printInvoice(invId), 500);
-      
+      showToast('Invoice loaded. You can edit and reprint to update.', 'success');
+      isReprintMode = true; reprintInvoiceId = invId;
       break;
     }
   }

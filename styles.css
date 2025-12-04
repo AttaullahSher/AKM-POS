@@ -803,6 +803,12 @@ select:disabled {
   text-align: left;
 }
 
+.items-table thead th:nth-child(1) { width: 18%; }
+.items-table thead th:nth-child(2) { width: 46%; }
+.items-table thead th:nth-child(3) { width: 10%; text-align: center; }
+.items-table thead th:nth-child(4) { width: 12%; }
+.items-table thead th:nth-child(5) { width: 14%; }
+
 .items-table tbody td {
   border: 1px solid var(--gray-300);
   padding: 0;
@@ -824,6 +830,14 @@ select:disabled {
   background: var(--primary-light);
   box-shadow: inset 0 0 0 1px var(--primary);
 }
+
+.items-table tbody td:nth-child(3),
+.items-table tbody td:nth-child(5) {
+  text-align: center;
+}
+
+.items-table tbody td:nth-child(1) input { max-width: 24ch; overflow: hidden; text-overflow: ellipsis; }
+.items-table tbody td:nth-child(2) input { max-width: 64ch; overflow: hidden; text-overflow: ellipsis; }
 
 .amount-display {
   display: block;
@@ -934,20 +948,22 @@ select:disabled {
 .payment-buttons {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: var(--spacing-sm);
+  gap: 6px;
 }
 
 .payment-btn {
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: white;
   border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: var(--shadow-xs);
 }
+
+.payment-btn span { display: none; }
 
 .payment-btn:hover {
   border-color: var(--primary);
@@ -1552,6 +1568,46 @@ select:disabled {
     padding: 0 !important;
     color: #000 !important;
     background: none !important;
+  }
+
+  /* Unify base print font to match Sub Total & VAT (11px) */
+  body:not(.printing-daily-report) .invoice-container {
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+
+  /* Slight left shift to correct right offset */
+  body:not(.printing-daily-report) .invoice-container {
+    /* previously margin: 3mm; */
+    margin: 2mm !important;
+    width: 76mm !important; /* keep content width ~74mm with 2mm margins */
+  }
+
+  /* Ensure all text same size, only selected elements bold */
+  .invoice-header,
+  .company-details,
+  .invoice-title,
+  .invoice-meta-compact,
+  .items-table,
+  .totals-section,
+  .print-footer,
+  .barcode-area,
+  #barcodeText {
+    font-size: 11px !important;
+  }
+
+  /* Bold ONLY these elements */
+  .company-name-ar,
+  .company-name { font-weight: 700 !important; }
+  .company-details strong { font-weight: 700 !important; } /* TRN */
+  .invoice-title { font-weight: 700 !important; } /* TAX INVOICE */
+  .inv-num { font-weight: 700 !important; } /* invoice number value */
+  .grand-total-row td { font-weight: 700 !important; }
+  .print-footer div:nth-last-child(2) { font-weight: 700 !important; } /* THANK YOU FOR YOUR BUSINESS! */
+
+  /* Prevent visually empty rows from appearing (inputs empty and amount 0) */
+  .items-table tbody tr:has(input.item-model[value=""], input.item-desc[value=""], .amount-display:contains("0.00")) {
+    display: none !important;
   }
 }
 
