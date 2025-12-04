@@ -1352,80 +1352,71 @@ select:disabled {
   .print-only {
     display: block !important;
   }
-  /* Header styling for thermal print - Optimized */
-  .invoice-header {
+  /* Header styling for thermal print - Optimized */  .invoice-header {
     text-align: center;
-    border-bottom: 2px solid #000;
-    padding-bottom: 1.5mm;
-    margin-bottom: 1.5mm;
+    border-bottom: 1px dashed #000;
+    padding-bottom: 1mm;
+    margin-bottom: 1mm;
   }
 
   .company-name-ar {
-    font-size: 15px !important;
+    font-size: 14px !important;
     font-weight: 700 !important;
     line-height: 1.2 !important;
-    margin: 0.3mm 0 !important;
+    margin: 0 !important;
     color: #000 !important;
   }
 
   .company-name {
-    font-size: 15px !important;
+    font-size: 14px !important;
     font-weight: 700 !important;
     line-height: 1.2 !important;
-    margin: 0.3mm 0 !important;
+    margin: 0 !important;
     color: #000 !important;
   }
 
   .company-details {
-    font-size: 11px !important;
-    line-height: 1.3 !important;
-    margin: 0.5mm 0 !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    margin: 0.5mm 0 0 0 !important;
     color: #000 !important;
   }
 
   .company-details strong {
-    font-weight: 900 !important;
+    font-weight: 700 !important;
   }
 
   .invoice-title {
-    font-size: 15px !important;
-    font-weight: 900 !important;
-    margin: 1.5mm 0 1mm 0 !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    margin: 1mm 0 !important;
     text-decoration: none !important;
     border: none !important;
+    background: none !important;
     color: #000 !important;
-    letter-spacing: 1px !important;
-  }
-  /* Meta fields for thermal - Optimized spacing */
+    letter-spacing: 0 !important;
+    padding: 0 !important;
+  }/* Meta fields - SIMPLE thermal style */
   .invoice-meta,
   .invoice-meta-row,
   .invoice-meta-compact {
     display: block !important;
-    border-top: 2px solid #000;
-    border-bottom: 1px solid #000;
+    border-top: 1px dashed #000;
+    border-bottom: 1px dashed #000;
     padding: 1mm 0 !important;
-    margin: 0 0 1mm 0 !important;
-    font-size: 12px !important;
-    line-height: 1.4 !important;
+    margin: 1mm 0 !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
   }
 
   .meta-field {
     display: block !important;
-    margin: 0.3mm 0 !important;
+    margin: 0 !important;
     padding: 0 !important;
-    color: #000 !important;
   }
 
   .meta-field label {
-    display: inline !important;
-    font-size: 12px !important;
-    font-weight: 700 !important;
-    color: #000 !important;
-    margin-right: 2mm !important;
-  }
-
-  .meta-field label::after {
-    content: ':';
+    display: none !important;
   }
 
   .meta-field input,
@@ -1435,9 +1426,40 @@ select:disabled {
     background: transparent !important;
     padding: 0 !important;
     margin: 0 !important;
-    font-size: 12px !important;
-    font-weight: 500 !important;
+    font-size: 11px !important;
+    font-weight: 400 !important;
     color: #000 !important;
+  }
+
+  /* Show only values, no labels */
+  .meta-field:nth-child(1)::before {
+    content: 'Inv: ';
+    font-weight: 700;
+  }
+
+  .meta-field:nth-child(2)::before {
+    content: 'Date: ';
+    font-weight: 700;
+  }
+
+  .meta-field:nth-child(3)::before {
+    content: 'Customer: ';
+    font-weight: 700;
+  }
+
+  .meta-field:nth-child(4)::before {
+    content: 'Mobile: ';
+    font-weight: 700;
+  }
+
+  .meta-field:nth-child(5)::before {
+    content: 'TRN: ';
+    font-weight: 700;
+  }
+
+  /* Hide validation messages */
+  .validation-message {
+    display: none !important;
   }
   /* Items table for thermal - Optimized 4-line compact format */
   .items-table {
@@ -1452,12 +1474,11 @@ select:disabled {
   .items-table tbody {
     display: block !important;
   }
-
   .items-table tbody tr {
     display: block !important;
-    border-bottom: 1px solid #000;
-    padding: 1.5mm 0;
-    margin: 0 0 1mm 0;
+    border-bottom: 1px dashed #000;
+    padding: 1mm 0;
+    margin: 0;
     page-break-inside: avoid;
   }
 
@@ -1466,65 +1487,55 @@ select:disabled {
     border: none !important;
     padding: 0 !important;
     margin: 0 !important;
-    line-height: 1.3 !important;
+    line-height: 1.2 !important;
   }
 
-  /* Line 1: Model — Qty — Price (fixed positions) */
+  /* Line 1: Model — Qty — Price */
   .items-table tbody tr td:nth-child(1),
   .items-table tbody tr td:nth-child(3),
   .items-table tbody tr td:nth-child(4) {
     display: inline-block !important;
-    font-size: 13px !important;
+    font-size: 11px !important;
     font-weight: 700 !important;
     color: #000 !important;
   }
 
   .items-table tbody tr td:nth-child(1) {
-    /* Model */
-    width: 40% !important;
+    width: 35% !important;
   }
 
   .items-table tbody tr td:nth-child(3) {
-    /* Qty */
-    width: 20% !important;
+    width: 25% !important;
     text-align: center !important;
   }
 
   .items-table tbody tr td:nth-child(4) {
-    /* Price */
     width: 40% !important;
     text-align: right !important;
   }
 
-  /* Add "x" prefix to Qty for clarity */
-  .items-table tbody tr td:nth-child(3) input::before {
-    content: 'x';
+  /* Line 2: Description */
+  .items-table tbody tr td:nth-child(2) {
+    display: block !important;
+    font-size: 10px !important;
+    color: #000 !important;
+    margin: 0.3mm 0 !important;
+    line-height: 1.2 !important;
+    max-height: 6mm !important;
+    overflow: hidden !important;
   }
 
-  /* Line 2: Amount (right-aligned, bold) */
+  /* Line 3: Amount */
   .items-table tbody tr td:nth-child(5) {
     display: block !important;
     text-align: right !important;
-    margin-top: 0.5mm !important;
+    margin: 0.3mm 0 0 0 !important;
   }
 
   .amount-display {
-    font-size: 15px !important;
-    font-weight: 900 !important;
-    color: #000 !important;
-    letter-spacing: 0.3px !important;
-  }
-
-  /* Line 3-4: Description (wrapped, max 2 lines) */
-  .items-table tbody tr td:nth-child(2) {
-    display: block !important;
     font-size: 12px !important;
+    font-weight: 700 !important;
     color: #000 !important;
-    margin-top: 0.5mm !important;
-    line-height: 1.4 !important;
-    max-height: 8mm !important;
-    overflow: hidden !important;
-    word-wrap: break-word !important;
   }
 
   /* Input fields styling for thermal print */
@@ -1543,33 +1554,27 @@ select:disabled {
   /* Hide remove button in print */
   .items-table tbody tr td:nth-child(6) {
     display: none !important;
-  }
-  /* Totals for thermal - Bold and clear */
+  }  /* Totals - SIMPLE */
   .totals-section {
-    border-top: 2px solid #000;
-    padding-top: 1.5mm;
-    margin-top: 1.5mm;
+    border-top: 1px dashed #000;
+    padding-top: 1mm;
+    margin-top: 1mm;
   }
 
   .totals-table {
     width: 100% !important;
     border: none !important;
-    border-collapse: collapse !important;
-  }
-
-  .totals-table tr {
-    line-height: 1.3 !important;
   }
 
   .totals-table td {
     border: none !important;
-    padding: 0.7mm 0 !important;
-    font-size: 14px !important;
+    padding: 0.5mm 0 !important;
+    font-size: 11px !important;
     color: #000 !important;
   }
 
   .totals-table td.label {
-    font-weight: 600 !important;
+    font-weight: 400 !important;
     text-align: left !important;
   }
 
@@ -1578,52 +1583,43 @@ select:disabled {
     text-align: right !important;
   }
 
-  /* Grand Total - Emphasized */
+  /* Grand Total */
   .grand-total-row td {
-    font-size: 18px !important;
-    font-weight: 900 !important;
-    padding-top: 1.5mm !important;
-    padding-bottom: 0.5mm !important;
-    border-top: 2px solid #000 !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    padding-top: 1mm !important;
+    border-top: 1px solid #000 !important;
     color: #000 !important;
-    letter-spacing: 0.5px !important;
-  }
-
-  .grand-total-row td.label {
-    text-transform: uppercase !important;
-  }
-  /* Print footer - Optimized spacing */
+  }  /* Print footer - SIMPLE */
   .print-footer {
     margin-top: 2mm;
-    padding-top: 1.5mm;
-    border-top: 2px solid #000;
-    font-size: 11px !important;
-    line-height: 1.3 !important;
+    padding-top: 1mm;
+    border-top: 1px dashed #000;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
     text-align: center;
     color: #000 !important;
   }
 
   .print-footer div {
-    margin: 0.3mm 0 !important;
+    margin: 0 !important;
   }
 
   .barcode-area {
     text-align: center;
     margin-top: 2mm;
-    padding-top: 1mm;
   }
 
   .barcode-area svg {
-    max-width: 60mm !important;
+    max-width: 55mm !important;
     height: auto !important;
   }
 
   #barcodeText {
-    font-size: 12px !important;
+    font-size: 11px !important;
     font-weight: 700 !important;
-    margin-top: 1mm !important;
+    margin-top: 0.5mm !important;
     color: #000 !important;
-    letter-spacing: 1px !important;
   }
 }
 
