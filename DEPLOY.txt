@@ -1,0 +1,26 @@
+# AKM-POS DEPLOYMENT INFO
+
+## 🌐 Production URL
+https://akm-daily.web.app
+
+## 📊 Google Sheet
+https://docs.google.com/spreadsheets/d/1QS7iSSq1sd948l2qQ-nI_qYuOWNsXs6UFkFAOd72QKM
+
+## 🔐 Login
+sales@akm-music.com
+
+## ⚠️ CURRENT STATUS
+- Using LOCAL PROXY SERVER (http://localhost:3000)
+- Need to keep proxy server running to use the deployed site
+- After Blaze plan approval, deploy Cloud Function to remove proxy dependency
+
+## 🚀 AFTER BLAZE APPROVAL
+```bash
+firebase deploy --only functions
+```
+Then system will work standalone without local proxy!
+
+## 📱 LOCAL USE
+1. Run: npm start
+2. Open: http://localhost:3000
+3. Sign in and create invoices

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AKM-POS | Point of Sale System</title>
+  <link rel="icon" href="Favicon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div id="loadingScreen" class="loading-screen">
+    <div class="loading-spinner"></div>
+    <p>Loading AKM-POS...</p>
+  </div>
+
+  <!-- Login Screen -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-container">
+      <div class="login-header">
+        <h1>🎵 AKM-POS</h1>
+        <p>Point of Sale System</p>
+      </div>
+      <button id="googleSignInBtn" class="google-signin-btn">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Sign in with Google
+      </button>
+      <p class="login-note">Only sales@akm-music.com can access</p>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="mainApp" class="main-app" style="display: none;">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h3>📊 Today's Sales</h3>
+        <button id="logoutBtn" class="logout-btn" title="Logout">🚪</button>
+      </div>
+      
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-label">Cash</div>
+          <div class="metric-value" id="cashSales">0.00</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Card</div>
+          <div class="metric-value" id="cardSales">0.00</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Tabby</div>
+          <div class="metric-value" id="tabbySales">0.00</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Cheque</div>
+          <div class="metric-value" id="chequeSales">0.00</div>
+        </div>
+        <div class="metric metric-full">
+          <div class="metric-label">💰 Cash in Hand</div>
+          <div class="metric-value" id="cashInHand">0.00</div>
+        </div>
+      </div>
+
+      <div class="sidebar-actions">
+        <button onclick="openDepositModal()">🏦 Deposit</button>
+        <button onclick="openExpenseModal()">💸 Expense</button>
+        <button onclick="printDailyReport()">📄 Daily Report</button>
+      </div>
+
+      <div class="recent-wrapper">
+        <h4 class="recent-title">Recent Invoices</h4>
+        <div id="recentInvoices">
+          <div class="loading-text">Loading...</div>
+        </div>
+        <button class="btn-load-more" onclick="loadMoreInvoices()">Show More Days</button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="invoice-container">
+        <!-- Header -->
+        <div class="invoice-header">
+          <div class="company-name-ar">مركز أجمل خان محمد للموسيقى ذ.م.م</div>
+          <div class="company-name">Ajmal Khan Mohammed Music Centre LLC.</div>
+          <div class="company-details">
+            Po 8227, E3-02, AbuDhabi<br>
+            02-6219929 | Sales@akm-music.com<br>
+            <strong>TRN: 100241997400003</strong>
+          </div>
+        </div>        <div class="invoice-title">TAX INVOICE</div>
+
+        <!-- Invoice Meta - Compact 3-row layout -->
+        <div class="invoice-meta-compact">
+          <div class="meta-field">
+            <label>Invoice No</label>
+            <div class="inv-num" id="invNum">Loading...</div>
+          </div>
+          <div class="meta-field">
+            <label>Date</label>
+            <input type="date" id="invDate" required>
+          </div>
+          <div class="meta-field">
+            <label>Customer</label>
+            <input type="text" id="custName" placeholder="Walk-in Customer">
+          </div>
+          <div class="meta-field">
+            <label>Mobile</label>
+            <input type="tel" id="custPhone" placeholder="05x xxx xxxx">
+          </div>
+          <div class="meta-field">
+            <label>TRN</label>
+            <input type="text" id="custTRN" placeholder="Customer TRN">
+          </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="items-section">
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th style="width: 16%">Model</th>
+                <th style="width: 44%">Description</th>
+                <th style="width: 10%">Qty</th>
+                <th style="width: 14%">Price</th>
+                <th style="width: 14%">Amount</th>
+                <th style="width: 6%"></th>
+              </tr>
+            </thead>
+            <tbody id="itemsBody">
+              <!-- Items will be added here -->
+            </tbody>
+          </table>
+        </div>
+
+        <button class="btn btn-add-item" onclick="addItemRow()">➕ Add Item</button>
+
+        <!-- Totals -->
+        <div class="totals-section">
+          <table class="totals-table">
+            <tr>
+              <td class="label">Sub Total</td>
+              <td class="value" id="subTotal">0.00</td>
+            </tr>
+            <tr>
+              <td class="label">VAT 5%</td>
+              <td class="value" id="vatAmount">0.00</td>
+            </tr>
+            <tr class="grand-total-row">
+              <td class="label">Grand Total</td>
+              <td class="value" id="grandTotal">0.00</td>
+            </tr>
+          </table>
+        </div>        <!-- Payment Method -->
+        <div class="payment-section">
+          <label class="payment-label">Payment Method *</label>
+          <div class="payment-buttons">
+            <button class="payment-btn" data-method="Cash" onclick="selectPayment(this, 'Cash')">💵 Cash</button>
+            <button class="payment-btn" data-method="Card" onclick="selectPayment(this, 'Card')">💳 Card</button>
+            <button class="payment-btn" data-method="Tabby" onclick="selectPayment(this, 'Tabby')">📱 Tabby</button>
+            <button class="payment-btn" data-method="Cheque" onclick="selectPayment(this, 'Cheque')">📝 Cheque</button>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+          <button class="btn btn-print" onclick="saveAndPrint()" id="printBtn">🖨️ Print Invoice</button>
+          <button class="btn btn-clear" onclick="clearForm()">🗑️ Clear</button>
+        </div>
+
+        <!-- Print-only sections -->
+        <div class="print-only print-footer">
+          <div style="font-weight: bold; margin-bottom: 5px;">TERMS & CONDITIONS</div>
+          <div>Goods comes with brand warranty</div>
+          <div>For Manufacture defects</div>
+          <div style="margin-top: 8px; font-weight: bold;">THANK YOU FOR YOUR BUSINESS!</div>
+          <div style="margin-top: 5px;">Visit us: www.akm-music.com</div>
+        </div>
+
+        <div class="print-only barcode-area">
+          <svg id="barcode"></svg>
+          <div id="barcodeText"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modals -->
+  <div id="depositModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🏦 Bank Deposit</h3>
+        <button class="modal-close" onclick="closeDepositModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Amount (AED)</label>
+          <input type="number" id="depositAmount" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Bank Reference / Slip Number</label>
+          <input type="text" id="depositRef" placeholder="SLIP-12345">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeDepositModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitDeposit()">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="expenseModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>💸 Add Expense</h3>
+        <button class="modal-close" onclick="closeExpenseModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Description</label>
+          <input type="text" id="expenseDesc" placeholder="e.g. Office Supplies">
+        </div>
+        <div class="form-group">
+          <label>Amount (AED)</label>
+          <input type="number" id="expenseAmount" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Receipt Number (Optional)</label>
+          <input type="text" id="expenseReceipt" placeholder="RCT-12345">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeExpenseModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitExpense()">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Daily Report Container (hidden, used for printing) -->
+  <div id="dailyReportContainer" class="daily-report-container"></div>  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  
+  <!-- Firebase SDK -->
+  <script type="module" src="app.js?v=31"></script>
+</body>
+</html>
