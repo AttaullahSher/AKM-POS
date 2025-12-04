@@ -16,7 +16,7 @@ const ALLOWED_EMAIL = "sales@akm-music.com";
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const API_BASE_URL = IS_LOCAL 
   ? 'http://localhost:3000' 
-  : 'https://us-central1-akm-pos-480210.cloudfunctions.net';
+  : 'https://akm-pos-api.onrender.com';
 
 const WRITE_ENDPOINT = `${API_BASE_URL}/writeToSheet`;
 const READ_ENDPOINT = `${API_BASE_URL}/readSheet`;
