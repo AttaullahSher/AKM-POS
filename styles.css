@@ -1351,12 +1351,13 @@ select:disabled {
   /* Show print-only elements */
   .print-only {
     display: block !important;
-  }
-  /* Header styling for thermal print - Optimized */  .invoice-header {
+  }  /* Header styling for thermal print - Optimized */
+  .invoice-header {
     text-align: center;
     border-bottom: 1px dashed #000;
-    padding-bottom: 1mm;
-    margin-bottom: 1mm;
+    padding: 0 0 1mm 0 !important;
+    margin: 0 0 1mm 0 !important;
+    background: none !important;
   }
 
   .company-name-ar {
@@ -1364,7 +1365,9 @@ select:disabled {
     font-weight: 700 !important;
     line-height: 1.2 !important;
     margin: 0 !important;
+    padding: 0 !important;
     color: #000 !important;
+    background: none !important;
   }
 
   .company-name {
@@ -1372,14 +1375,18 @@ select:disabled {
     font-weight: 700 !important;
     line-height: 1.2 !important;
     margin: 0 !important;
+    padding: 0 !important;
     color: #000 !important;
+    background: none !important;
   }
 
   .company-details {
     font-size: 10px !important;
     line-height: 1.2 !important;
     margin: 0.5mm 0 0 0 !important;
+    padding: 0 !important;
     color: #000 !important;
+    background: none !important;
   }
 
   .company-details strong {
@@ -1390,13 +1397,13 @@ select:disabled {
     font-size: 13px !important;
     font-weight: 700 !important;
     margin: 1mm 0 !important;
+    padding: 0 !important;
     text-decoration: none !important;
     border: none !important;
     background: none !important;
     color: #000 !important;
     letter-spacing: 0 !important;
-    padding: 0 !important;
-  }/* Meta fields - SIMPLE thermal style */
+  }/* Meta fields - SIMPLE thermal style with 3 row layout */
   .invoice-meta,
   .invoice-meta-row,
   .invoice-meta-compact {
@@ -1405,14 +1412,16 @@ select:disabled {
     border-bottom: 1px dashed #000;
     padding: 1mm 0 !important;
     margin: 1mm 0 !important;
-    font-size: 11px !important;
+    font-size: 10px !important;
     line-height: 1.3 !important;
+    background: none !important;
   }
 
   .meta-field {
     display: block !important;
-    margin: 0 !important;
+    margin: 0.5mm 0 !important;
     padding: 0 !important;
+    background: none !important;
   }
 
   .meta-field label {
@@ -1421,37 +1430,69 @@ select:disabled {
 
   .meta-field input,
   .inv-num {
-    display: inline !important;
     border: none !important;
     background: transparent !important;
     padding: 0 !important;
     margin: 0 !important;
-    font-size: 11px !important;
+    font-size: 10px !important;
     font-weight: 400 !important;
     color: #000 !important;
   }
 
-  /* Show only values, no labels */
+  /* Row 1: Invoice# (left) and Date (right) */
+  .meta-field:nth-child(1) {
+    display: inline-block !important;
+    width: 49% !important;
+    text-align: left !important;
+  }
+  
   .meta-field:nth-child(1)::before {
     content: 'Inv: ';
     font-weight: 700;
   }
 
+  .meta-field:nth-child(2) {
+    display: inline-block !important;
+    width: 49% !important;
+    text-align: right !important;
+  }
+  
   .meta-field:nth-child(2)::before {
     content: 'Date: ';
     font-weight: 700;
   }
 
+  /* Row 2: Customer Name (centered) */
+  .meta-field:nth-child(3) {
+    display: block !important;
+    width: 100% !important;
+    text-align: center !important;
+    font-weight: 600 !important;
+    clear: both !important;
+  }
+
   .meta-field:nth-child(3)::before {
-    content: 'Customer: ';
-    font-weight: 700;
+    content: '';
   }
 
+  /* Row 3: Mobile (left) and TRN (right) */
+  .meta-field:nth-child(4) {
+    display: inline-block !important;
+    width: 49% !important;
+    text-align: left !important;
+  }
+  
   .meta-field:nth-child(4)::before {
-    content: 'Mobile: ';
+    content: 'M: ';
     font-weight: 700;
   }
 
+  .meta-field:nth-child(5) {
+    display: inline-block !important;
+    width: 49% !important;
+    text-align: right !important;
+  }
+  
   .meta-field:nth-child(5)::before {
     content: 'TRN: ';
     font-weight: 700;
@@ -1558,57 +1599,74 @@ select:disabled {
   }  /* Totals - SIMPLE */
   .totals-section {
     border-top: 1px dashed #000;
-    padding-top: 1mm;
-    margin-top: 1mm;
+    padding: 1mm 0 0 0 !important;
+    margin: 1mm 0 0 0 !important;
+    background: none !important;
   }
 
   .totals-table {
     width: 100% !important;
     border: none !important;
+    background: none !important;
   }
 
   .totals-table td {
     border: none !important;
     padding: 0.5mm 0 !important;
+    margin: 0 !important;
     font-size: 11px !important;
     color: #000 !important;
+    background: none !important;
   }
 
   .totals-table td.label {
     font-weight: 400 !important;
     text-align: left !important;
+    background: none !important;
   }
 
   .totals-table td.value {
     font-weight: 700 !important;
     text-align: right !important;
+    background: none !important;
   }
 
   /* Grand Total */
+  .grand-total-row {
+    background: none !important;
+  }
+  
   .grand-total-row td {
     font-size: 14px !important;
     font-weight: 700 !important;
-    padding-top: 1mm !important;
+    padding: 1mm 0 0 0 !important;
+    margin: 0 !important;
     border-top: 1px solid #000 !important;
     color: #000 !important;
-  }  /* Print footer - SIMPLE */
+    background: none !important;
+  }/* Print footer - SIMPLE */
   .print-footer {
-    margin-top: 2mm;
-    padding-top: 1mm;
+    margin: 2mm 0 0 0 !important;
+    padding: 1mm 0 0 0 !important;
     border-top: 1px dashed #000;
     font-size: 10px !important;
     line-height: 1.2 !important;
     text-align: center;
     color: #000 !important;
+    background: none !important;
   }
 
   .print-footer div {
     margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
   }
 
   .barcode-area {
     text-align: center;
-    margin-top: 2mm;
+    margin: 2mm 0 0 0 !important;
+    padding: 0 !important;
+    background: none !important;
   }
 
   .barcode-area svg {
@@ -1619,8 +1677,10 @@ select:disabled {
   #barcodeText {
     font-size: 11px !important;
     font-weight: 700 !important;
-    margin-top: 0.5mm !important;
+    margin: 0.5mm 0 0 0 !important;
+    padding: 0 !important;
     color: #000 !important;
+    background: none !important;
   }
 }
 
