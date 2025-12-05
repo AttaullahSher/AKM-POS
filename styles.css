@@ -1641,6 +1641,38 @@ select:disabled {
   }
 }
 
+/* VAT Report Print Styles */
+@media print {
+  body.printing-vat-report .main-app,
+  body.printing-vat-report .main-content,
+  body.printing-vat-report .invoice-container {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  body.printing-vat-report {
+    width: 80mm !important;
+    background: white !important;
+  }
+
+  body.printing-vat-report #vatReportContainer {
+    display: block !important;
+    visibility: visible !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 74mm !important;
+    margin: 3mm !important;
+    font-size: 12px !important;
+    color: #000 !important;
+  }
+
+  body.printing-vat-report #vatReportContainer * {
+    display: block !important;
+    visibility: visible !important;
+  }
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 1200px) {
   .sidebar {

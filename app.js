@@ -86,6 +86,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Set up real-time validation
   setupRealtimeValidation();
+
+  // Hook up VAT Report button
+  const btnVat = document.getElementById('btnVatReport');
+  if (btnVat) {
+    btnVat.addEventListener('click', () => printVatReport('day'));
+  }
 });
 
 // ===== Authentication =====
@@ -104,12 +110,24 @@ async function signInWithGoogle() {
 
 async function logout() {
   try {
+    // Disable main UI immediately
+    document.getElementById('mainApp').style.display = 'none';
+    document.getElementById('loadingScreen').style.display = 'flex';
+
     await signOut(auth);
+    // Clear state
+    currentUser = null;
+    isReprintMode = false;
+    reprintInvoiceId = null;
+    requestQueue = [];
+
     showLoginScreen();
     showToast('Logged out successfully', 'success');
   } catch (error) {
     console.error('Logout error:', error);
-    showToast('Logout failed', 'error');
+    // Fallback: force reload to clear any stale auth state
+    try { showToast('Logout issue, reloading...', 'error'); } catch {}
+    window.location.href = window.location.origin;
   }
 }
 
@@ -1055,6 +1073,86 @@ window.printDailyReport = async function() {
   
   setTimeout(() => {
     document.body.classList.remove('printing-daily-report');
+  }, 500);
+};
+
+// ===== VAT Report =====
+window.printVatReport = async function(period = 'day') {
+  // period: 'day' or 'month'
+  const today = new Date();
+  const dayKey = formatDate(today, 'YYYY-MM-DD');
+  const monthKey = formatDate(today, 'YYYY-MM');
+
+  const data = await readSheet("'AKM-POS'!A:S");
+  if (!data || data.length <= 1) {
+    showToast('No data available', 'error');
+    return;
+  }
+
+  // Aggregate VAT by payment method for selected period
+  let base = 0, vat = 0, total = 0;
+  let byMethod = { Cash: { base: 0, vat: 0, total: 0 }, Card: { base: 0, vat: 0, total: 0 }, Tabby: { base: 0, vat: 0, total: 0 }, Cheque: { base: 0, vat: 0, total: 0 } };
+  let invoicesCount = 0;
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const date = row[1];
+    const payment = row[6];
+    const subTotal = parseFloat(row[7]) || 0;
+    const vatAmt = parseFloat(row[8]) || 0;
+    const grand = parseFloat(row[9]) || 0;
+    const status = row[14] || 'Paid';
+
+    // Skip refunded
+    if (status === 'Refunded') continue;
+
+    const isMatch = period === 'day' ? date === dayKey : (date || '').startsWith(monthKey);
+    if (!isMatch) continue;
+
+    base += subTotal;
+    vat += vatAmt;
+    total += grand;
+    invoicesCount++;
+
+    if (byMethod[payment]) {
+      byMethod[payment].base += subTotal;
+      byMethod[payment].vat += vatAmt;
+      byMethod[payment].total += grand;
+    }
+  }
+
+  if (invoicesCount === 0) {
+    showToast(period === 'day' ? 'No invoices today' : 'No invoices this month', 'error');
+    return;
+  }
+
+  const title = period === 'day' ? `VAT Report - ${formatDate(today, 'DD MMM YYYY')}` : `VAT Report - ${formatDate(today, 'MMM YYYY')}`;
+  const reportHTML = `
+    <div style="text-align:center;font-weight:bold;font-size:16px;margin-bottom:8px;">${title}</div>
+    <div style="display:flex;justify-content:space-between;margin:4px 0;"><span>Invoices:</span><span>${invoicesCount}</span></div>
+    <div style="border-bottom:2px dashed #000;margin:8px 0;"></div>
+    <div style="display:flex;justify-content:space-between;margin:4px 0;"><span>Taxable Amount (Base):</span><span>AED ${base.toFixed(2)}</span></div>
+    <div style="display:flex;justify-content:space-between;margin:4px 0;"><span>VAT 5%:</span><span style="font-weight:bold;">AED ${vat.toFixed(2)}</span></div>
+    <div style="display:flex;justify-content:space-between;margin:4px 0;"><span>Total (Incl. VAT):</span><span>AED ${total.toFixed(2)}</span></div>
+    <div style="border-bottom:2px dashed #000;margin:8px 0;"></div>
+    <div style="font-weight:bold;margin:4px 0;">By Payment Method</div>
+    ${['Cash','Card','Tabby','Cheque'].map(m => {
+      const s = byMethod[m];
+      return `<div style=\"display:flex;justify-content:space-between;margin:2px 0;\"><span>${m}:</span><span>AED ${s.base.toFixed(2)} / VAT ${s.vat.toFixed(2)} / Total ${s.total.toFixed(2)}</span></div>`;
+    }).join('')}
+  `;
+
+  const container = document.getElementById('vatReportContainer');
+  container.innerHTML = reportHTML;
+  container.style.display = 'block';
+
+  document.body.classList.add('printing-vat-report');
+  window.print();
+
+  setTimeout(() => {
+    document.body.classList.remove('printing-vat-report');
+    container.style.display = 'none';
+    container.innerHTML = '';
   }, 500);
 };
 

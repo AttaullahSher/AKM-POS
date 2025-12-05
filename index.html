@@ -70,6 +70,7 @@
         <button onclick="openDepositModal()" aria-label="Open deposit modal" title="Deposit">🏦 Deposit</button>
         <button onclick="openExpenseModal()" aria-label="Open expense modal" title="Add Expense">💸 Expense</button>
         <button onclick="printDailyReport()" aria-label="Print daily report" title="Daily Report">📄 Daily Report</button>
+        <button id="btnVatReport" title="VAT Report">VAT Report</button>
       </div>
 
       <div class="recent-wrapper">
@@ -244,7 +245,14 @@
   <div id="toast" class="toast"></div>
 
   <!-- Daily Report Container (hidden, used for printing) -->
-  <div id="dailyReportContainer" class="daily-report-container"></div>  <!-- Scripts -->
+  <div id="dailyReportContainer" class="daily-report-container"></div>  
+  
+  <!-- Print-only containers -->
+  <div class="vat-report-container print-only" id="vatReportContainer" style="display:none">
+    <!-- Filled dynamically by app.js -->
+  </div>
+
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   
   <!-- Firebase SDK -->
