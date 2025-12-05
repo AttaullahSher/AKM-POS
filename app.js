@@ -741,23 +741,39 @@ window.reprintInvoice = async function(invId) {
       } else {
         for (let j = 0; j < 3; j++) addItemRow();
       }
-      
-      currentPaymentMethod = row[6];
+        // Set payment method and mark as active
+      currentPaymentMethod = row[6] || null;
+      console.log('💳 Payment method loaded:', currentPaymentMethod);
       document.querySelectorAll('.payment-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.method === currentPaymentMethod);
+        const isActive = btn.dataset.method === currentPaymentMethod;
+        btn.classList.toggle('active', isActive);
+        if (isActive) {
+          console.log('✅ Payment button activated:', btn.dataset.method);
+        }
       });
-        calculateTotals();
+      
+      calculateTotals();
       isReprintMode = true;
       reprintInvoiceId = invId;
       
+      // Customer details editable, date and items locked
       document.getElementById('custName').disabled = false;
       document.getElementById('custPhone').disabled = false;
       document.getElementById('custTRN').disabled = false;
       document.getElementById('invDate').disabled = true;
       
+      // Ensure print button is enabled and ready
       const printBtn = document.getElementById('printBtn');
       printBtn.disabled = false;
       printBtn.textContent = '🖨️ Reprint Invoice';
+      console.log('🖨️ Print button enabled for reprint');
+      
+      // Hide Reset button in reprint mode (items are locked)
+      const clearBtn = document.querySelector('.btn-clear');
+      if (clearBtn) {
+        clearBtn.style.display = 'none';
+        console.log('🗑️ Reset button hidden (reprint mode)');
+      }
       
       console.log('✅ Invoice loaded for reprint. Customer details and payment method can be changed.');
       showToast('Invoice loaded. Update customer details/payment method if needed, then reprint.', 'success');
@@ -805,8 +821,7 @@ window.clearForm = function() {
   const tbody = document.getElementById('itemsBody');
   tbody.innerHTML = '';
   for (let i = 0; i < 3; i++) addItemRow();
-  
-  currentPaymentMethod = null;
+    currentPaymentMethod = null;
   isReprintMode = false;
   reprintInvoiceId = null;
   
@@ -816,6 +831,10 @@ window.clearForm = function() {
   const printBtn = document.getElementById('printBtn');
   printBtn.disabled = false;
   printBtn.textContent = '🖨️ Print Invoice';
+  
+  // Show Reset button again
+  const clearBtn = document.querySelector('.btn-clear');
+  if (clearBtn) clearBtn.style.display = '';
   
   document.getElementById('custName').focus();
 };
