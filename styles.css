@@ -1559,7 +1559,6 @@ select:disabled {
   .meta-field:nth-child(2) label::after {
     content: '' !important;
   }
-
   .meta-field input,
   .meta-field .inv-num {
     display: inline !important;
@@ -1572,11 +1571,56 @@ select:disabled {
     font-weight: 400 !important;
     color: #000 !important;
     width: auto !important;
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
+  }
+
+  /* Hide empty mobile field (including label) */
+  .meta-field:nth-child(4):has(input:placeholder-shown) {
+    display: none !important;
+  }
+
+  .meta-field:nth-child(4) input:placeholder-shown {
+    display: none !important;
+  }
+
+  .meta-field:nth-child(4) input[value=""] {
+    display: none !important;
+  }
+
+  .meta-field:nth-child(4):has(input[value=""]) label {
+    display: none !important;
+  }
+
+  /* Hide empty TRN field (including label) */
+  .meta-field:nth-child(5):has(input:placeholder-shown) {
+    display: none !important;
+  }
+
+  .meta-field:nth-child(5) input:placeholder-shown {
+    display: none !important;
+  }
+
+  .meta-field:nth-child(5) input[value=""] {
+    display: none !important;
+  }
+
+  .meta-field:nth-child(5):has(input[value=""]) label {
+    display: none !important;
+  }
+
+  /* Date value styling */
+  .meta-field:nth-child(2) input {
+    font-weight: 400 !important;
+    font-size: 10px !important;
+    color: #000 !important;
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
   }
 
   #invNum {
     font-weight: 700 !important;
     color: #000 !important;
+    font-size: 10px !important;
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
   }
 
   /* Items Section */
@@ -1648,7 +1692,6 @@ select:disabled {
     color: #000 !important;
     background: none !important;
   }
-
   .items-table tbody td input {
     display: inline !important;
     visibility: visible !important;
@@ -1660,6 +1703,7 @@ select:disabled {
     font-weight: 400 !important;
     color: #000 !important;
     width: 100% !important;
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
   }
 
   .items-table tbody td:nth-child(3),
@@ -1671,7 +1715,10 @@ select:disabled {
   .items-table tbody td:nth-child(3) input,
   .items-table tbody td:nth-child(4) input {
     text-align: right !important;
+    color: #000 !important;
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
   }
+
   .amount-display {
     display: inline !important;
     visibility: visible !important;
@@ -1680,6 +1727,7 @@ select:disabled {
     padding: 0 !important;
     text-align: right !important;
     color: #000 !important;
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
   }
 
   /* Totals Section */
@@ -1703,8 +1751,7 @@ select:disabled {
   .totals-table tr {
     display: table-row !important;
     visibility: visible !important;
-  }
-  .totals-table td {
+  }  .totals-table td {
     display: table-cell !important;
     visibility: visible !important;
     padding: 0.5mm 0 !important;
@@ -1713,18 +1760,21 @@ select:disabled {
     font-weight: 400 !important;
     color: #000 !important;
     background: none !important;
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
   }
 
   .totals-table td.label {
     text-align: left !important;
     font-weight: 400 !important;
     color: #000 !important;
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
   }
 
   .totals-table td.value {
     text-align: right !important;
     font-weight: 400 !important;
     color: #000 !important;
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
   }
 
   .grand-total-row {
@@ -1736,14 +1786,17 @@ select:disabled {
     padding-top: 1mm !important;
     border-top: 1px solid #000 !important;
     color: #000 !important;
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
   }
 
   .grand-total-row td.label {
     font-weight: 400 !important;
+    color: #000 !important;
   }
 
   .grand-total-row td.value {
     font-weight: 700 !important;
+    color: #000 !important;
   }
   /* Print Footer */
   .print-footer {
