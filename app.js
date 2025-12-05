@@ -491,11 +491,44 @@ window.saveAndPrint = async function() {
   items.forEach(i => { subtotal += i.qty * i.price; });
   const vat = subtotal * 0.05;
   const grandTotal = subtotal + vat;
-  
-  btn.disabled = true;
+    btn.disabled = true;
     if (isReprintMode && reprintInvoiceId === invNum) {
     console.log('🔁 Reprint mode: Printing existing invoice');
     btn.textContent = '🖨️ Printing...';
+    
+    const data = await readSheet("'AKM-POS'!A:S");
+    if (data) {
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === invNum) {
+          const rowIndex = i + 1;
+          const oldPaymentMethod = data[i][6];
+          
+          if (oldPaymentMethod !== currentPaymentMethod) {
+            console.log(`💳 Payment method changed: ${oldPaymentMethod} → ${currentPaymentMethod}`);
+            
+            const grandTotal = parseFloat(data[i][9]) || 0;
+            let cashImpact = 0, cardImpact = 0, tabbyImpact = 0, chequeImpact = 0;
+            
+            if (currentPaymentMethod === 'Cash') cashImpact = grandTotal;
+            else if (currentPaymentMethod === 'Card') cardImpact = grandTotal;
+            else if (currentPaymentMethod === 'Tabby') tabbyImpact = grandTotal;
+            else if (currentPaymentMethod === 'Cheque') chequeImpact = grandTotal;
+            
+            await updateSheet(`'AKM-POS'!G${rowIndex}`, [[currentPaymentMethod]]);
+            await updateSheet(`'AKM-POS'!P${rowIndex}:S${rowIndex}`, [[
+              cashImpact.toFixed(2),
+              cardImpact.toFixed(2),
+              tabbyImpact.toFixed(2),
+              chequeImpact.toFixed(2)
+            ]]);
+            
+            showToast(`Payment method updated to ${currentPaymentMethod}`, 'success');
+          }
+          break;
+        }
+      }
+    }
+    
     lockInvoiceFields();
     printInvoice(invNum);
     setTimeout(() => {
@@ -503,6 +536,8 @@ window.saveAndPrint = async function() {
       reprintInvoiceId = null;
       clearForm();
       loadNextInvoiceNumber();
+      loadDashboardData();
+      loadRecentInvoices();
       btn.disabled = false;
       btn.textContent = '🖨️ Print Invoice';
     }, 600);
@@ -635,9 +670,11 @@ function printInvoice(invNum) {
 }
 
 window.reprintInvoice = async function(invId) {
+  console.log('🔄 Loading invoice for reprint:', invId);
   showToast('Loading invoice...', 'success');
   const data = await readSheet("'AKM-POS'!A:S");
   if (!data) {
+    console.error('❌ Failed to load sheet data for reprint');
     showToast('Failed to load invoice', 'error');
     return;
   }
@@ -654,7 +691,9 @@ window.reprintInvoice = async function(invId) {
       let itemsJSON = [];
       try {
         itemsJSON = JSON.parse(row[10] || '[]');
-      } catch (e) {}
+      } catch (e) {
+        console.error('❌ Failed to parse items JSON:', e);
+      }
       
       const tbody = document.getElementById('itemsBody');
       tbody.innerHTML = '';
@@ -663,10 +702,10 @@ window.reprintInvoice = async function(invId) {
         itemsJSON.forEach(item => {
           const tr = document.createElement('tr');
           tr.innerHTML = `
-            <td><input type="text" class="item-model" value="${item.model || ''}"></td>
-            <td><input type="text" class="item-desc" value="${item.desc || ''}"></td>
-            <td><input type="number" class="item-qty" value="${item.qty || 1}"></td>
-            <td><input type="number" class="item-price" value="${item.price || 0}"></td>
+            <td><input type="text" class="item-model" value="${item.model || ''}" disabled></td>
+            <td><input type="text" class="item-desc" value="${item.desc || ''}" disabled></td>
+            <td><input type="number" class="item-qty" value="${item.qty || 1}" disabled></td>
+            <td><input type="number" class="item-price" value="${item.price || 0}" disabled></td>
             <td><span class="amount-display">${((item.qty || 0) * (item.price || 0)).toFixed(2)}</span></td>
           `;
           tbody.appendChild(tr);
@@ -684,11 +723,17 @@ window.reprintInvoice = async function(invId) {
       isReprintMode = true;
       reprintInvoiceId = invId;
       
+      document.getElementById('custName').disabled = true;
+      document.getElementById('custPhone').disabled = true;
+      document.getElementById('custTRN').disabled = true;
+      document.getElementById('invDate').disabled = true;
+      
       const printBtn = document.getElementById('printBtn');
       printBtn.disabled = false;
       printBtn.textContent = '🖨️ Reprint Invoice';
       
-      showToast('Invoice loaded for reprint. Click "Reprint Invoice" to print.', 'success');
+      console.log('✅ Invoice loaded for reprint. Payment method can be changed.');
+      showToast('Invoice loaded. Change payment method if needed, then reprint.', 'success');
       document.querySelector('.main-content').scrollTop = 0;
       break;
     }
