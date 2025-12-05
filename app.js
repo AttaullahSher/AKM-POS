@@ -491,7 +491,7 @@ window.saveAndPrint = async function() {
   items.forEach(i => { subtotal += i.qty * i.price; });
   const vat = subtotal * 0.05;
   const grandTotal = subtotal + vat;
-    btn.disabled = true;
+  btn.disabled = true;
     if (isReprintMode && reprintInvoiceId === invNum) {
     console.log('🔁 Reprint mode: Printing existing invoice');
     btn.textContent = '🖨️ Printing...';
@@ -502,6 +502,29 @@ window.saveAndPrint = async function() {
         if (data[i][0] === invNum) {
           const rowIndex = i + 1;
           const oldPaymentMethod = data[i][6];
+          const oldCustName = data[i][3] || '';
+          const oldCustPhone = data[i][4] || '';
+          const oldCustTRN = data[i][5] || '';
+          
+          let hasChanges = false;
+          
+          if (oldCustName !== custName) {
+            console.log(`👤 Customer name changed: ${oldCustName} → ${custName}`);
+            await updateSheet(`'AKM-POS'!D${rowIndex}`, [[custName]]);
+            hasChanges = true;
+          }
+          
+          if (oldCustPhone !== custPhone) {
+            console.log(`📱 Phone changed: ${oldCustPhone} → ${custPhone}`);
+            await updateSheet(`'AKM-POS'!E${rowIndex}`, [[custPhone]]);
+            hasChanges = true;
+          }
+          
+          if (oldCustTRN !== custTRN) {
+            console.log(`🆔 TRN changed: ${oldCustTRN} → ${custTRN}`);
+            await updateSheet(`'AKM-POS'!F${rowIndex}`, [[custTRN]]);
+            hasChanges = true;
+          }
           
           if (oldPaymentMethod !== currentPaymentMethod) {
             console.log(`💳 Payment method changed: ${oldPaymentMethod} → ${currentPaymentMethod}`);
@@ -521,8 +544,11 @@ window.saveAndPrint = async function() {
               tabbyImpact.toFixed(2),
               chequeImpact.toFixed(2)
             ]]);
-            
-            showToast(`Payment method updated to ${currentPaymentMethod}`, 'success');
+            hasChanges = true;
+          }
+          
+          if (hasChanges) {
+            showToast('Invoice updated successfully', 'success');
           }
           break;
         }
@@ -607,7 +633,9 @@ function lockInvoiceFields() {
     input.disabled = true;
   });
   
-  document.getElementById('printBtn').textContent = '🖨️ Print Again';
+  const printBtn = document.getElementById('printBtn');
+  printBtn.textContent = '🖨️ Print Again';
+  printBtn.disabled = false;
 }
 
 function unlockInvoiceFields() {
@@ -718,22 +746,21 @@ window.reprintInvoice = async function(invId) {
       document.querySelectorAll('.payment-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.method === currentPaymentMethod);
       });
-      
-      calculateTotals();
+        calculateTotals();
       isReprintMode = true;
       reprintInvoiceId = invId;
       
-      document.getElementById('custName').disabled = true;
-      document.getElementById('custPhone').disabled = true;
-      document.getElementById('custTRN').disabled = true;
+      document.getElementById('custName').disabled = false;
+      document.getElementById('custPhone').disabled = false;
+      document.getElementById('custTRN').disabled = false;
       document.getElementById('invDate').disabled = true;
       
       const printBtn = document.getElementById('printBtn');
       printBtn.disabled = false;
       printBtn.textContent = '🖨️ Reprint Invoice';
       
-      console.log('✅ Invoice loaded for reprint. Payment method can be changed.');
-      showToast('Invoice loaded. Change payment method if needed, then reprint.', 'success');
+      console.log('✅ Invoice loaded for reprint. Customer details and payment method can be changed.');
+      showToast('Invoice loaded. Update customer details/payment method if needed, then reprint.', 'success');
       document.querySelector('.main-content').scrollTop = 0;
       break;
     }

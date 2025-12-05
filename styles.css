@@ -987,13 +987,13 @@ select:disabled {
 }
 
 .payment-buttons {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .payment-btn {
-  padding: 6px 8px;
+  padding: 6px 10px;
   background: white;
   border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
@@ -1002,6 +1002,8 @@ select:disabled {
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: var(--shadow-xs);
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .payment-btn span { display: none; }
@@ -1707,9 +1709,8 @@ select:disabled {
   .invoice-meta-row {
     grid-template-columns: 1fr;
   }
-
   .payment-buttons {
-    grid-template-columns: repeat(2, 1fr);
+    justify-content: flex-start;
   }
 
   .sidebar-actions {
