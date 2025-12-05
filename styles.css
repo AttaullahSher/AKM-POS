@@ -1296,16 +1296,16 @@ select:disabled {
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-  }
-  html, body {
+  }  html, body {
     width: 80mm !important;
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
     font-family: 'Arial', 'Helvetica', sans-serif !important;
-    font-size: 11px !important;
+    font-size: 10px !important;
     line-height: 1.3 !important;
     color: #000 !important;
+    font-weight: 400 !important;
   }
 
   /* Hide all screen-only elements */
@@ -1372,25 +1372,29 @@ select:disabled {
     padding-bottom: 2mm !important;
     margin-bottom: 2mm !important;
   }
-
   /* Row 1: English (left) + Arabic (right) */
   .company-name-row {
     display: flex !important;
     justify-content: space-between !important;
     align-items: center !important;
     visibility: visible !important;
-    font-size: 13px !important;
+    font-size: 10px !important;
     font-weight: 700 !important;
     line-height: 1.3 !important;
     margin: 0 0 1mm 0 !important;
+    color: #000 !important;
   }
 
   .company-name-en {
     text-align: left !important;
+    font-weight: 700 !important;
+    color: #000 !important;
   }
 
   .company-name-ar {
     text-align: right !important;
+    font-weight: 700 !important;
+    color: #000 !important;
   }
 
   /* Row 2: Address (center) */
@@ -1399,8 +1403,10 @@ select:disabled {
     visibility: visible !important;
     text-align: center !important;
     font-size: 10px !important;
+    font-weight: 400 !important;
     line-height: 1.4 !important;
     margin: 1mm 0 !important;
+    color: #000 !important;
   }
 
   /* Row 3: TRN (center) */
@@ -1412,14 +1418,14 @@ select:disabled {
     font-weight: 700 !important;
     line-height: 1.4 !important;
     margin: 1mm 0 0 0 !important;
+    color: #000 !important;
   }
-
   /* Invoice Title */
   .invoice-title {
     display: block !important;
     visibility: visible !important;
     text-align: center !important;
-    font-size: 12px !important;
+    font-size: 10px !important;
     font-weight: 700 !important;
     background: none !important;
     border: none !important;
@@ -1427,6 +1433,7 @@ select:disabled {
     padding: 1mm 0 !important;
     margin: 1mm 0 !important;
     letter-spacing: 1px !important;
+    color: #000 !important;
   }
 
   /* Invoice Meta Section */
@@ -1461,7 +1468,6 @@ select:disabled {
   .meta-field label::after {
     content: ': ' !important;
   }
-
   .meta-field input,
   .meta-field .inv-num {
     display: inline !important;
@@ -1471,13 +1477,14 @@ select:disabled {
     padding: 0 !important;
     margin: 0 !important;
     font-size: 10px !important;
-    font-weight: 600 !important;
+    font-weight: 400 !important;
     color: #000 !important;
     width: auto !important;
   }
 
   #invNum {
     font-weight: 700 !important;
+    color: #000 !important;
   }
 
   /* Items Section */
@@ -1506,12 +1513,11 @@ select:disabled {
     display: table-row !important;
     visibility: visible !important;
   }
-
   .items-table thead th {
     display: table-cell !important;
     visibility: visible !important;
-    font-size: 9px !important;
-    font-weight: 700 !important;
+    font-size: 10px !important;
+    font-weight: 400 !important;
     padding: 1mm !important;
     border-bottom: 1px solid #000 !important;
     background: none !important;
@@ -1539,13 +1545,13 @@ select:disabled {
   .items-table tbody tr.empty-row {
     display: none !important;
   }
-
   .items-table tbody td {
     display: table-cell !important;
     visibility: visible !important;
     padding: 1mm !important;
-    border-bottom: 1px dotted #999 !important;
+    border-bottom: 1px dotted #000 !important;
     font-size: 10px !important;
+    font-weight: 400 !important;
     vertical-align: top !important;
     color: #000 !important;
     background: none !important;
@@ -1559,6 +1565,7 @@ select:disabled {
     padding: 0 !important;
     margin: 0 !important;
     font-size: 10px !important;
+    font-weight: 400 !important;
     color: #000 !important;
     width: 100% !important;
   }
@@ -1573,12 +1580,11 @@ select:disabled {
   .items-table tbody td:nth-child(4) input {
     text-align: right !important;
   }
-
   .amount-display {
     display: inline !important;
     visibility: visible !important;
     font-size: 10px !important;
-    font-weight: 600 !important;
+    font-weight: 400 !important;
     padding: 0 !important;
     text-align: right !important;
     color: #000 !important;
@@ -1606,13 +1612,13 @@ select:disabled {
     display: table-row !important;
     visibility: visible !important;
   }
-
   .totals-table td {
     display: table-cell !important;
     visibility: visible !important;
     padding: 0.5mm 0 !important;
     border: none !important;
     font-size: 10px !important;
+    font-weight: 400 !important;
     color: #000 !important;
     background: none !important;
   }
@@ -1620,11 +1626,13 @@ select:disabled {
   .totals-table td.label {
     text-align: left !important;
     font-weight: 400 !important;
+    color: #000 !important;
   }
 
   .totals-table td.value {
     text-align: right !important;
-    font-weight: 600 !important;
+    font-weight: 400 !important;
+    color: #000 !important;
   }
 
   .grand-total-row {
@@ -1632,12 +1640,19 @@ select:disabled {
   }
 
   .grand-total-row td {
-    font-size: 12px !important;
-    font-weight: 700 !important;
+    font-size: 10px !important;
     padding-top: 1mm !important;
     border-top: 1px solid #000 !important;
+    color: #000 !important;
   }
 
+  .grand-total-row td.label {
+    font-weight: 400 !important;
+  }
+
+  .grand-total-row td.value {
+    font-weight: 700 !important;
+  }
   /* Print Footer */
   .print-footer {
     display: block !important;
@@ -1646,13 +1661,22 @@ select:disabled {
     padding-top: 2mm !important;
     border-top: 1px solid #000 !important;
     text-align: center !important;
-    font-size: 9px !important;
+    font-size: 10px !important;
+    font-weight: 400 !important;
     line-height: 1.4 !important;
+    color: #000 !important;
   }
 
   .print-footer div {
     display: block !important;
     visibility: visible !important;
+    font-weight: 400 !important;
+    color: #000 !important;
+  }
+
+  .print-footer div:first-child,
+  .print-footer div:nth-child(4) {
+    font-weight: 700 !important;
   }
 
   /* Barcode Area */
@@ -1671,13 +1695,13 @@ select:disabled {
     max-width: 60mm !important;
     height: auto !important;
   }
-
   #barcodeText {
     display: block !important;
     visibility: visible !important;
     font-size: 10px !important;
     font-weight: 700 !important;
     margin-top: 1mm !important;
+    color: #000 !important;
   }
 }
 
