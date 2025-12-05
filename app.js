@@ -1158,28 +1158,60 @@ function setupKeyboardNavigation() {
   document.addEventListener('keydown', (e) => {
     const activeElement = document.activeElement;
     
+    // Handle payment button navigation (Left/Right arrows)
+    if (activeElement.classList.contains('payment-btn')) {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const paymentButtons = Array.from(document.querySelectorAll('.payment-btn'));
+        const currentIndex = paymentButtons.indexOf(activeElement);
+        
+        if (e.key === 'ArrowRight') {
+          const nextIndex = (currentIndex + 1) % paymentButtons.length;
+          paymentButtons[nextIndex].focus();
+        } else if (e.key === 'ArrowLeft') {
+          const prevIndex = (currentIndex - 1 + paymentButtons.length) % paymentButtons.length;
+          paymentButtons[prevIndex].focus();
+        }
+        return;
+      }
+      
+      // Enter on payment button: select it and move to print
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        activeElement.click(); // Select the payment method
+        printBtn.focus();
+        return;
+      }
+    }
+    
     if (e.key === 'Enter') {
+      // Enter on print button: trigger save and print
       if (activeElement.id === 'printBtn') {
         e.preventDefault();
         saveAndPrint();
         return;
       }
       
+      // Navigation within items table
       if (activeElement.closest('#itemsBody')) {
         e.preventDefault();
         const currentRow = activeElement.closest('tr');
         const allRows = Array.from(document.querySelectorAll('#itemsBody tr'));
         const currentRowIndex = allRows.indexOf(currentRow);
         
+        // Last field in last row: move to first payment button
         if (activeElement.classList.contains('item-price')) {
           if (currentRowIndex < allRows.length - 1) {
             const nextRow = allRows[currentRowIndex + 1];
             const firstInput = nextRow.querySelector('.item-model');
             if (firstInput) firstInput.focus();
           } else {
-            printBtn.focus();
+            // Move to first payment button instead of print
+            const firstPaymentBtn = document.querySelector('.payment-btn');
+            if (firstPaymentBtn) firstPaymentBtn.focus();
           }
         } else {
+          // Move to next field in current row
           const inputs = Array.from(currentRow.querySelectorAll('input'));
           const currentIndex = inputs.indexOf(activeElement);
           if (currentIndex < inputs.length - 1) {
