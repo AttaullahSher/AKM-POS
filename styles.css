@@ -607,6 +607,11 @@ body {
   min-width: 80px;
 }
 
+.meta-field .inv-num {
+  color: var(--dark);
+  font-weight: 600;
+}
+
 .meta-field label.required::after {
   content: '*';
   color: var(--danger);
@@ -623,7 +628,7 @@ body {
   border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
   background: white;
-  color: var(--dark);
+  color: #000;
   transition: border-color 0.2s;
   font-family: var(--font-sans);
   flex: 1;
@@ -837,6 +842,7 @@ select:disabled {
   font-family: var(--font-sans);
   background: transparent;
   font-weight: 500;
+  color: #000;
   text-align: inherit;
 }
 
@@ -867,7 +873,7 @@ select:disabled {
   padding: 8px 10px;
   font-weight: 600;
   font-family: var(--font-mono);
-  color: var(--dark);
+  color: #000;
   font-size: 13px;
 }
 
@@ -1247,9 +1253,27 @@ select:disabled {
   font-weight: 700;
   line-height: 1.4;
   margin-bottom: var(--spacing-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.company-name-ar {
+  color: var(--dark);
+}
+
+.company-name-en {
+  color: var(--dark);
 }
 
 .company-address {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: var(--spacing-xs) 0;
+  color: var(--gray-700);
+}
+
+.company-contact {
   font-size: 12px;
   line-height: 1.5;
   margin: var(--spacing-xs) 0;
@@ -1450,61 +1474,67 @@ select:disabled {
     margin: 1mm 0 !important;
     letter-spacing: 1px !important;
     color: #000 !important;
-  }
-  /* Invoice Meta Section */
+  }  /* Invoice Meta Section */
   .invoice-meta-compact {
-    display: block !important;
+    display: flex !important;
+    justify-content: space-between !important;
     visibility: visible !important;
     border-bottom: 2px solid #000 !important;
     padding-bottom: 2mm !important;
     margin-bottom: 2mm !important;
     background: none !important;
     border-radius: 0 !important;
+    flex-wrap: wrap !important;
+  }
+
+  /* Row 1: Invoice number left, Date right */
+  .meta-field:nth-child(1) {
+    display: inline-block !important;
+    order: 1 !important;
+  }
+
+  .meta-field:nth-child(2) {
+    display: inline-block !important;
+    order: 2 !important;
+    margin-left: auto !important;
+  }
+
+  /* Row 2: Name full width */
+  .meta-field:nth-child(3) {
+    display: block !important;
+    width: 100% !important;
+    order: 3 !important;
+    margin-top: 1mm !important;
+  }
+
+  /* Row 3: Mobile full width (only if has value) */
+  .meta-field:nth-child(4) {
+    display: block !important;
+    width: 100% !important;
+    order: 4 !important;
+  }
+
+  .meta-field:nth-child(4):has(input[value=""]) {
+    display: none !important;
+  }
+
+  /* Row 4: TRN full width (only if has value) */
+  .meta-field:nth-child(5) {
+    display: block !important;
+    width: 100% !important;
+    order: 5 !important;
+  }
+
+  .meta-field:nth-child(5):has(input[value=""]) {
+    display: none !important;
   }
 
   .meta-field {
-    display: inline !important;
     visibility: visible !important;
     margin: 0 !important;
     padding: 0 !important;
     font-size: 10px !important;
     color: #000 !important;
-  }
-
-  /* First row: Inv and Date on same line */
-  .meta-field:nth-child(1),
-  .meta-field:nth-child(2) {
-    display: inline !important;
-  }
-
-  .meta-field:nth-child(1)::after {
-    content: '    ' !important;
-  }
-
-  .meta-field:nth-child(2)::after {
-    content: '\A' !important;
-    white-space: pre !important;
-  }
-
-  /* Second row: Name on its own line */
-  .meta-field:nth-child(3) {
-    display: block !important;
-    margin-top: 1mm !important;
-  }
-
-  .meta-field:nth-child(3)::after {
-    content: '\A' !important;
-    white-space: pre !important;
-  }
-
-  /* Third row: Mobile and TRN on same line */
-  .meta-field:nth-child(4),
-  .meta-field:nth-child(5) {
-    display: inline !important;
-  }
-
-  .meta-field:nth-child(4)::after {
-    content: ' ' !important;
   }
 
   .meta-field label {
@@ -1519,6 +1549,15 @@ select:disabled {
 
   .meta-field label::after {
     content: ': ' !important;
+  }
+
+  /* Hide date label */
+  .meta-field:nth-child(2) label {
+    display: none !important;
+  }
+
+  .meta-field:nth-child(2) label::after {
+    content: '' !important;
   }
 
   .meta-field input,
