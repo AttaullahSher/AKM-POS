@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AKM-POS | Point of Sale System</title>
   <link rel="icon" href="Favicon.png">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=48">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
 <body>
@@ -65,13 +65,10 @@
           <div class="metric-label">💰 Cash in Hand</div>
           <div class="metric-value" id="cashInHand">0.00</div>
         </div>
-      </div>
-
-      <div class="sidebar-actions">
+      </div>      <div class="sidebar-actions">
         <button onclick="openDepositModal()" aria-label="Open deposit modal" title="Deposit">🏦 Deposit</button>
         <button onclick="openExpenseModal()" aria-label="Open expense modal" title="Add Expense">💸 Expense</button>
-        <button onclick="printDailyReport()" aria-label="Print daily report" title="Daily Report">📄 Daily Report</button>
-        <button id="btnVatReport" title="VAT Report">VAT Report</button>
+        <button onclick="printDailyReport()" aria-label="Print daily report" title="Report">📄 Report</button>
       </div>
 
       <div class="recent-wrapper">
@@ -190,8 +187,7 @@
     </main>
   </div>
 
-  <!-- Modals -->
-  <div id="depositModal" class="modal-overlay">
+  <!-- Modals -->  <div id="depositModal" class="modal-overlay">
     <div class="modal-content">
       <div class="modal-header">
         <h3>🏦 Bank Deposit</h3>
@@ -199,12 +195,20 @@
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label>Amount (AED)</label>
-          <input type="number" id="depositAmount" step="0.01" min="0" placeholder="0.00" aria-label="Deposit amount">
+          <label>Name of Depositor <span style="color: red;">*</span></label>
+          <input type="text" id="depositName" placeholder="Enter depositor name" aria-label="Name of depositor" required>
         </div>
         <div class="form-group">
-          <label>Bank Reference / Slip Number</label>
-          <input type="text" id="depositRef" placeholder="SLIP-12345" aria-label="Bank reference or slip number">
+          <label>Amount (AED) <span style="color: red;">*</span></label>
+          <input type="number" id="depositAmount" step="0.01" min="0" placeholder="0.00" aria-label="Deposit amount" required>
+        </div>
+        <div class="form-group">
+          <label>Bank Name <span style="color: red;">*</span></label>
+          <input type="text" id="depositBank" placeholder="e.g., UBL/NBD" aria-label="Bank name" required>
+        </div>
+        <div class="form-group">
+          <label>Slip Number <span style="color: red;">*</span></label>
+          <input type="text" id="depositRef" placeholder="Enter slip number" aria-label="Slip number" required>
         </div>
       </div>
       <div class="modal-footer">
@@ -213,7 +217,6 @@
       </div>
     </div>
   </div>
-
   <div id="expenseModal" class="modal-overlay">
     <div class="modal-content">
       <div class="modal-header">
@@ -222,16 +225,36 @@
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label>Description</label>
-          <input type="text" id="expenseDesc" placeholder="e.g. Office Supplies" aria-label="Expense description">
+          <label>Category <span style="color: red;">*</span></label>
+          <select id="expenseCategory" aria-label="Expense category" required>
+            <option value="">-- Select Category --</option>
+            <option value="Local Purchase">Local Purchase</option>
+            <option value="Grocery">Grocery</option>
+            <option value="Refund">Refund</option>
+            <option value="Transport">Transport</option>
+            <option value="Salary">Salary</option>
+            <option value="Bills">Bills</option>
+            <option value="Cash given">Cash given</option>
+          </select>
         </div>
         <div class="form-group">
-          <label>Amount (AED)</label>
-          <input type="number" id="expenseAmount" step="0.01" min="0" placeholder="0.00" aria-label="Expense amount">
+          <label>Description <span style="color: red;">*</span></label>
+          <textarea id="expenseDesc" rows="3" placeholder="Enter detailed description" aria-label="Expense description" required></textarea>
         </div>
         <div class="form-group">
-          <label>Receipt Number (Optional)</label>
-          <input type="text" id="expenseReceipt" placeholder="RCT-12345" aria-label="Expense receipt number">
+          <label>Amount (AED) <span style="color: red;">*</span></label>
+          <input type="number" id="expenseAmount" step="0.01" min="0" placeholder="0.00" aria-label="Expense amount" required>
+        </div>
+        <div class="form-group">
+          <label>Payment Method <span style="color: red;">*</span></label>
+          <div class="payment-buttons">
+            <button type="button" class="payment-btn expense-method-btn" data-method="Cash">💵 Cash</button>
+            <button type="button" class="payment-btn expense-method-btn" data-method="Cheque">📝 Cheque</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Receipt Number <span style="color: red;">*</span></label>
+          <input type="text" id="expenseReceipt" placeholder="Enter receipt number" aria-label="Expense receipt number" required>
         </div>
       </div>
       <div class="modal-footer">
@@ -243,14 +266,9 @@
 
   <!-- Toast Notification -->
   <div id="toast" class="toast"></div>
-
   <!-- Daily Report Container (hidden, used for printing) -->
-  <div id="dailyReportContainer" class="daily-report-container"></div>  
-    <!-- Print-only containers -->
-  <div class="vat-report-container print-only" id="vatReportContainer" style="display:none">
-    <!-- Filled dynamically by app.js -->
-  </div>
+  <div id="dailyReportContainer" class="daily-report-container"></div>
   
-  <script type="module" src="app.js?v=46"></script>
+  <script type="module" src="app.js?v=48"></script>
 </body>
 </html>

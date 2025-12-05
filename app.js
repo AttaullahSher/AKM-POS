@@ -60,12 +60,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('input', (e) => {
     if (e.target.matches('.item-qty, .item-price')) calculateTotals();
   });
-
   setupRealtimeValidation();
   setupKeyboardNavigation();
-  
-  const btnVat = document.getElementById('btnVatReport');
-  if (btnVat) btnVat.addEventListener('click', () => printVatReport('day'));
 });
 
 async function signInWithGoogle() {
@@ -841,93 +837,224 @@ window.clearForm = function() {
 
 window.openDepositModal = function() {
   document.getElementById('depositModal').classList.add('show');
-  document.getElementById('depositAmount').focus();
+  document.getElementById('depositName').focus();
 };
 
 window.closeDepositModal = function() {
   document.getElementById('depositModal').classList.remove('show');
+  document.getElementById('depositName').value = '';
   document.getElementById('depositAmount').value = '';
+  document.getElementById('depositBank').value = '';
   document.getElementById('depositRef').value = '';
 };
 
+async function getNextDepositID() {
+  try {
+    const data = await readSheet("Deposits!A:A");
+    const today = new Date();
+    const yearMonth = `${String(today.getFullYear()).slice(-2)}${String(today.getMonth() + 1).padStart(2, '0')}`;
+    
+    if (!data || data.length <= 1) {
+      return `${yearMonth}-01`;
+    }
+    
+    const lastDepositID = data[data.length - 1][0];
+    const match = lastDepositID.match(/(\d{4})-(\d+)/);
+    
+    if (match) {
+      const lastYearMonth = match[1];
+      const lastSequence = parseInt(match[2]);
+      
+      if (lastYearMonth === yearMonth) {
+        const nextSequence = String(lastSequence + 1).padStart(2, '0');
+        return `${yearMonth}-${nextSequence}`;
+      }
+    }
+    
+    return `${yearMonth}-01`;
+  } catch (error) {
+    console.error('❌ Error generating deposit ID:', error);
+    const today = new Date();
+    const yearMonth = `${String(today.getFullYear()).slice(-2)}${String(today.getMonth() + 1).padStart(2, '0')}`;
+    return `${yearMonth}-01`;
+  }
+}
+
 window.submitDeposit = async function() {
+  const depositorName = document.getElementById('depositName').value.trim();
   const amount = parseFloat(document.getElementById('depositAmount').value);
-  const reference = document.getElementById('depositRef').value.trim();
+  const bankName = document.getElementById('depositBank').value.trim();
+  const slipNumber = document.getElementById('depositRef').value.trim();
   
-  if (!amount || amount <= 0) {
-    showToast('Please enter a valid amount', 'error');
+  if (!depositorName) {
+    showToast('Please enter depositor name', 'error');
+    document.getElementById('depositName').focus();
     return;
   }
-  if (!reference) {
-    showToast('Please enter a reference number', 'error');
+  if (!amount || amount <= 0) {
+    showToast('Please enter a valid amount', 'error');
+    document.getElementById('depositAmount').focus();
+    return;
+  }
+  if (!bankName) {
+    showToast('Please enter bank name', 'error');
+    document.getElementById('depositBank').focus();
+    return;
+  }
+  if (!slipNumber) {
+    showToast('Please enter slip number', 'error');
+    document.getElementById('depositRef').focus();
     return;
   }
   
   const today = new Date();
+  const depositID = await getNextDepositID();
+  
+  // Deposits sheet columns: DepositID, Date, TimeStamp, Amount, Bank, ReferenceNumber, CashImpact, Notes
   const depositRow = [
-    `DEP-${formatDate(today, 'YYYYMMDD')}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
-    formatDate(today, 'YYYY-MM-DD'),
-    formatDate(today, 'YYYY-MM-DD HH:mm:ss'),
-    amount.toFixed(2),
-    'FAB',
-    reference,
-    (-amount).toFixed(2),
-    ''
+    depositID,                                          // DepositID (Column A)
+    formatDate(today, 'YYYY-MM-DD'),                   // Date (Column B)
+    formatDate(today, 'YYYY-MM-DD HH:mm:ss'),          // TimeStamp (Column C)
+    amount.toFixed(2),                                  // Amount (Column D)
+    bankName,                                           // Bank (Column E)
+    slipNumber,                                         // ReferenceNumber (Column F)
+    (-amount).toFixed(2),                               // CashImpact (Column G) - negative
+    depositorName                                       // Notes (Column H)
   ];
+  
+  console.log('💾 Saving deposit:', depositRow);
   
   const success = await appendToSheet('Deposits!A:H', [depositRow]);
   if (success) {
-    showToast('Deposit recorded successfully', 'success');
+    showToast('✅ Deposit recorded successfully', 'success');
     closeDepositModal();
     await loadDashboardData();
+  } else {
+    showToast('❌ Failed to save deposit. Please try again.', 'error');
   }
 };
 
+let currentExpenseMethod = null;
+
 window.openExpenseModal = function() {
   document.getElementById('expenseModal').classList.add('show');
-  document.getElementById('expenseDesc').focus();
+  document.getElementById('expenseCategory').focus();
+  
+  // Setup payment method button listeners
+  const expenseMethodButtons = document.querySelectorAll('.expense-method-btn');
+  expenseMethodButtons.forEach(btn => {
+    btn.addEventListener('click', function() {
+      expenseMethodButtons.forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      currentExpenseMethod = this.dataset.method;
+      console.log('💳 Expense method selected:', currentExpenseMethod);
+    });
+  });
 };
 
 window.closeExpenseModal = function() {
   document.getElementById('expenseModal').classList.remove('show');
+  document.getElementById('expenseCategory').value = '';
   document.getElementById('expenseDesc').value = '';
   document.getElementById('expenseAmount').value = '';
   document.getElementById('expenseReceipt').value = '';
+  
+  // Clear payment method selection
+  const expenseMethodButtons = document.querySelectorAll('.expense-method-btn');
+  expenseMethodButtons.forEach(btn => btn.classList.remove('active'));
+  currentExpenseMethod = null;
 };
 
+async function getNextExpenseID() {
+  try {
+    const data = await readSheet("Expenses!A:A");
+    const today = new Date();
+    const yearMonth = `${String(today.getFullYear()).slice(-2)}${String(today.getMonth() + 1).padStart(2, '0')}`;
+    
+    if (!data || data.length <= 1) {
+      return `${yearMonth}-01`;
+    }
+    
+    const lastExpenseID = data[data.length - 1][0];
+    const match = lastExpenseID.match(/(\d{4})-(\d+)/);
+    
+    if (match) {
+      const lastYearMonth = match[1];
+      const lastSequence = parseInt(match[2]);
+      
+      if (lastYearMonth === yearMonth) {
+        const nextSequence = String(lastSequence + 1).padStart(2, '0');
+        return `${yearMonth}-${nextSequence}`;
+      }
+    }
+    
+    return `${yearMonth}-01`;
+  } catch (error) {
+    console.error('❌ Error generating expense ID:', error);
+    const today = new Date();
+    const yearMonth = `${String(today.getFullYear()).slice(-2)}${String(today.getMonth() + 1).padStart(2, '0')}`;
+    return `${yearMonth}-01`;
+  }
+}
+
 window.submitExpense = async function() {
+  const category = document.getElementById('expenseCategory').value;
   const description = document.getElementById('expenseDesc').value.trim();
   const amount = parseFloat(document.getElementById('expenseAmount').value);
   const receipt = document.getElementById('expenseReceipt').value.trim();
   
+  // Validation
+  if (!category) {
+    showToast('Please select a category', 'error');
+    document.getElementById('expenseCategory').focus();
+    return;
+  }
   if (!description) {
     showToast('Please enter a description', 'error');
+    document.getElementById('expenseDesc').focus();
     return;
   }
   if (!amount || amount <= 0) {
     showToast('Please enter a valid amount', 'error');
+    document.getElementById('expenseAmount').focus();
+    return;
+  }
+  if (!currentExpenseMethod) {
+    showToast('Please select a payment method', 'error');
+    return;
+  }
+  if (!receipt) {
+    showToast('Please enter a receipt number', 'error');
+    document.getElementById('expenseReceipt').focus();
     return;
   }
   
   const today = new Date();
+  const expenseID = await getNextExpenseID();
+  
+  // Expenses sheet columns: ExpenseID, Date, TimeStamp, Description, Amount, Method, ReceiptNumber, Category, CashImpact, Notes
   const expenseRow = [
-    `EXP-${formatDate(today, 'YYYYMMDD')}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
-    formatDate(today, 'YYYY-MM-DD'),
-    formatDate(today, 'YYYY-MM-DD HH:mm:ss'),
-    description,
-    amount.toFixed(2),
-    'Cash',
-    receipt,
-    '',
-    (-amount).toFixed(2),
-    ''
+    expenseID,                                          // ExpenseID (Column A)
+    formatDate(today, 'YYYY-MM-DD'),                   // Date (Column B)
+    formatDate(today, 'YYYY-MM-DD HH:mm:ss'),          // TimeStamp (Column C)
+    description,                                        // Description (Column D)
+    amount.toFixed(2),                                  // Amount (Column E)
+    currentExpenseMethod,                               // Method (Column F)
+    receipt,                                            // ReceiptNumber (Column G)
+    category,                                           // Category (Column H)
+    (-amount).toFixed(2),                               // CashImpact (Column I) - negative
+    ''                                                  // Notes (Column J) - empty, filled manually in sheet
   ];
+  
+  console.log('💾 Saving expense:', expenseRow);
   
   const success = await appendToSheet('Expenses!A:J', [expenseRow]);
   if (success) {
-    showToast('Expense recorded successfully', 'success');
+    showToast('✅ Expense recorded successfully', 'success');
     closeExpenseModal();
     await loadDashboardData();
+  } else {
+    showToast('❌ Failed to save expense. Please try again.', 'error');
   }
 };
 
@@ -961,17 +1088,20 @@ window.printDailyReport = async function() {
   const totalSales = cashSales + cardSales + tabbySales + chequeSales;
   const cashInHand = parseFloat(document.getElementById('cashInHand').textContent);
   
+  // Format date as "06-Dec-2025"
+  const reportDate = formatDate(new Date(), 'DD-MMM-YYYY');
+  
   const reportHTML = `
-    <div style="text-align:center;font-weight:bold;font-size:16px;margin-bottom:10px;">Daily Report - ${formatDate(new Date(), 'DD MMM YYYY')}</div>
-    <div style="border-bottom:2px dashed #000;margin:10px 0;"></div>
-    <div style="display:flex;justify-content:space-between;margin:5px 0;"><span>Total Sales:</span><span style="font-weight:bold;">AED ${totalSales.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin:5px 0;"><span>Cash:</span><span>AED ${cashSales.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin:5px 0;"><span>Card:</span><span>AED ${cardSales.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin:5px 0;"><span>Tabby:</span><span>AED ${tabbySales.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin:5px 0;"><span>Cheque:</span><span>AED ${chequeSales.toFixed(2)}</span></div>
-    <div style="border-bottom:2px dashed #000;margin:10px 0;"></div>
-    <div style="display:flex;justify-content:space-between;margin:5px 0;"><span>Cash in Hand:</span><span style="font-weight:bold;">AED ${cashInHand.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin:5px 0;"><span>Refunds:</span><span>${refunds}</span></div>
+    <div style="text-align:center;font-weight:bold;font-size:14px;margin:4mm 0;">Daily Report - ${reportDate}</div>
+    <div style="border-bottom:2px solid #000;margin:3mm 0;"></div>
+    <div style="display:flex;justify-content:space-between;margin:2mm 3mm;font-weight:bold;"><span>Total Sales:</span><span>AED ${totalSales.toFixed(2)}</span></div>
+    <div style="display:flex;justify-content:space-between;margin:2mm 3mm;font-weight:bold;"><span>Cash:</span><span>AED ${cashSales.toFixed(2)}</span></div>
+    <div style="display:flex;justify-content:space-between;margin:2mm 3mm;font-weight:bold;"><span>Card:</span><span>AED ${cardSales.toFixed(2)}</span></div>
+    <div style="display:flex;justify-content:space-between;margin:2mm 3mm;font-weight:bold;"><span>Tabby:</span><span>AED ${tabbySales.toFixed(2)}</span></div>
+    <div style="display:flex;justify-content:space-between;margin:2mm 3mm;font-weight:bold;"><span>Cheque:</span><span>AED ${chequeSales.toFixed(2)}</span></div>
+    <div style="border-bottom:2px solid #000;margin:3mm 0;"></div>
+    <div style="display:flex;justify-content:space-between;margin:2mm 3mm;font-weight:bold;"><span>Cash in Hand:</span><span>AED ${cashInHand.toFixed(2)}</span></div>
+    <div style="display:flex;justify-content:space-between;margin:2mm 3mm;font-weight:bold;"><span>Refunds:</span><span>${refunds}</span></div>
   `;
   
   const container = document.getElementById('dailyReportContainer');
@@ -979,85 +1109,6 @@ window.printDailyReport = async function() {
   document.body.classList.add('printing-daily-report');
   window.print();
   setTimeout(() => document.body.classList.remove('printing-daily-report'), 500);
-};
-
-window.printVatReport = async function(period = 'day') {
-  const today = new Date();
-  const dayKey = formatDate(today, 'YYYY-MM-DD');
-  const monthKey = formatDate(today, 'YYYY-MM');
-
-  const data = await readSheet("'AKM-POS'!A:S");
-  if (!data || data.length <= 1) {
-    showToast('No data available', 'error');
-    return;
-  }
-
-  let base = 0, vat = 0, total = 0, invoicesCount = 0;
-  let byMethod = {
-    Cash: { base: 0, vat: 0, total: 0 },
-    Card: { base: 0, vat: 0, total: 0 },
-    Tabby: { base: 0, vat: 0, total: 0 },
-    Cheque: { base: 0, vat: 0, total: 0 }
-  };
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const date = row[1];
-    if (row[14] === 'Refunded') continue;
-    
-    const isMatch = period === 'day' ? date === dayKey : (date || '').startsWith(monthKey);
-    if (!isMatch) continue;
-
-    const subTotal = parseFloat(row[7]) || 0;
-    const vatAmt = parseFloat(row[8]) || 0;
-    const grand = parseFloat(row[9]) || 0;
-    const payment = row[6];
-
-    base += subTotal;
-    vat += vatAmt;
-    total += grand;
-    invoicesCount++;
-
-    if (byMethod[payment]) {
-      byMethod[payment].base += subTotal;
-      byMethod[payment].vat += vatAmt;
-      byMethod[payment].total += grand;
-    }
-  }
-
-  if (invoicesCount === 0) {
-    showToast(period === 'day' ? 'No invoices today' : 'No invoices this month', 'error');
-    return;
-  }
-
-  const title = period === 'day' ? `VAT Report - ${formatDate(today, 'DD MMM YYYY')}` : `VAT Report - ${formatDate(today, 'MMM YYYY')}`;
-  const reportHTML = `
-    <div style="text-align:center;font-weight:bold;font-size:16px;margin-bottom:8px;">${title}</div>
-    <div style="display:flex;justify-content:space-between;margin:4px 0;"><span>Invoices:</span><span>${invoicesCount}</span></div>
-    <div style="border-bottom:2px dashed #000;margin:8px 0;"></div>
-    <div style="display:flex;justify-content:space-between;margin:4px 0;"><span>Taxable Amount:</span><span>AED ${base.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin:4px 0;"><span>VAT 5%:</span><span style="font-weight:bold;">AED ${vat.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin:4px 0;"><span>Total:</span><span>AED ${total.toFixed(2)}</span></div>
-    <div style="border-bottom:2px dashed #000;margin:8px 0;"></div>
-    <div style="font-weight:bold;margin:4px 0;">By Payment Method</div>
-    ${['Cash','Card','Tabby','Cheque'].map(m => {
-      const s = byMethod[m];
-      return `<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:11px;"><span>${m}:</span><span>Base ${s.base.toFixed(2)} | VAT ${s.vat.toFixed(2)} | Total ${s.total.toFixed(2)}</span></div>`;
-    }).join('')}
-  `;
-
-  const container = document.getElementById('vatReportContainer');
-  container.innerHTML = reportHTML;
-  container.style.display = 'block';
-
-  document.body.classList.add('printing-vat-report');
-  window.print();
-
-  setTimeout(() => {
-    document.body.classList.remove('printing-vat-report');
-    container.style.display = 'none';
-    container.innerHTML = '';
-  }, 500);
 };
 
 function formatDate(date, format) {
@@ -1069,11 +1120,12 @@ function formatDate(date, format) {
   const seconds = String(date.getSeconds()).padStart(2, '0');
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
+  // Replace in specific order to avoid conflicts (MMM before MM, mm before ss)
   return format
     .replace('YYYY', year)
+    .replace('MMM', monthNames[date.getMonth()])
     .replace('MM', month)
     .replace('DD', day)
-    .replace('MMM', monthNames[date.getMonth()])
     .replace('HH', hours)
     .replace('mm', minutes)
     .replace('ss', seconds);
