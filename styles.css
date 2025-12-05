@@ -1214,18 +1214,46 @@ select:disabled {
 }
 
 /* ===== Invoice Title ===== */
+/* ===== Invoice Header (Screen) ===== */
+.invoice-header {
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.company-name-row {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin-bottom: var(--spacing-xs);
+}
+
+.company-address {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: var(--spacing-xs) 0;
+  color: var(--gray-700);
+}
+
+.company-trn {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: var(--spacing-xs);
+  color: var(--gray-700);
+}
+
 .invoice-title {
   text-align: center;
   font-size: 16px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
-  padding: var(--spacing-md);
+  padding: var(--spacing-md) 0;
   margin: var(--spacing-md) 0;
-  background: var(--gray-100);
+  background: none;
   color: var(--dark);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--gray-200);
+  border: none;
 }
 
 /* ===== Print Styles ===== */
