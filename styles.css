@@ -1395,14 +1395,13 @@ select:disabled {
     padding-bottom: 2mm !important;
     margin-bottom: 2mm !important;
   }
-
   /* Row 1: Arabic name only (center) */
   .company-name-row {
     display: block !important;
     visibility: visible !important;
     text-align: center !important;
     font-size: 11px !important;
-    font-weight: 400 !important;
+    font-weight: 700 !important;
     line-height: 1.4 !important;
     margin: 0 0 1mm 0 !important;
     color: #000 !important;
@@ -1411,7 +1410,7 @@ select:disabled {
   .company-name-en {
     display: block !important;
     text-align: center !important;
-    font-weight: 400 !important;
+    font-weight: 700 !important;
     font-size: 11px !important;
     color: #000 !important;
     margin: 1mm 0 !important;
@@ -1420,7 +1419,7 @@ select:disabled {
   .company-name-ar {
     display: block !important;
     text-align: center !important;
-    font-weight: 400 !important;
+    font-weight: 700 !important;
     font-size: 11px !important;
     color: #000 !important;
     margin: 0 !important;
