@@ -1245,7 +1245,6 @@ select:disabled {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-
   html, body {
     width: 80mm !important;
     margin: 0 !important;
@@ -1256,6 +1255,7 @@ select:disabled {
     line-height: 1.3 !important;
     color: #000 !important;
   }
+
   /* Hide all screen-only elements */
   .loading-screen,
   .login-screen,
@@ -1265,7 +1265,6 @@ select:disabled {
   .payment-section,
   .modal-overlay,
   .toast,
-  button:not(.payment-btn),
   .logout-btn,
   .sidebar-header,
   .sidebar-actions,
