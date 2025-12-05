@@ -836,6 +836,7 @@ select:disabled {
   font-family: var(--font-sans);
   background: transparent;
   font-weight: 500;
+  text-align: inherit;
 }
 
 .items-table tbody td input:focus {
@@ -857,6 +858,7 @@ select:disabled {
 
 .items-table tbody td:nth-child(1) input { max-width: 24ch; overflow: hidden; text-overflow: ellipsis; }
 .items-table tbody td:nth-child(2) input { max-width: 64ch; overflow: hidden; text-overflow: ellipsis; }
+.items-table tbody td:nth-child(4) input { font-family: var(--font-mono); }
 
 /* Amount display alignment (SCREEN ONLY) */
 .amount-display {
