@@ -1,62 +1,64 @@
 /* ===== CSS Variables ===== */
 :root {
-  /* Professional Color Palette - Subdued */
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
+  /* Modern Color Palette */
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
   --primary-light: #eff6ff;
+  --primary-dark: #1d4ed8;
   --secondary: #64748b;
-  --success: #059669;
+  --success: #10b981;
   --success-light: #d1fae5;
-  --danger: #dc2626;
+  --danger: #ef4444;
   --danger-light: #fee2e2;
-  --warning: #d97706;
+  --warning: #f59e0b;
   --warning-light: #fef3c7;
-  --info: #0284c7;
-  --info-light: #e0f2fe;
+  --info: #06b6d4;
+  --info-light: #cffafe;
   --light: #f8fafc;
-  --dark: #1e293b;
-  --gray-50: #f9fafb;
-  --gray-100: #f3f4f6;
-  --gray-200: #e5e7eb;
-  --gray-300: #d1d5db;
-  --gray-400: #9ca3af;
-  --gray-500: #6b7280;
-  --gray-600: #4b5563;
-  --gray-700: #374151;
-  --gray-800: #1f2937;
+  --dark: #0f172a;
+  --gray-50: #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
   --gray-900: #0f172a;
-    /* Spacing & Layout - Compact */
-  --spacing-xs: 3px;
-  --spacing-sm: 6px;
-  --spacing-md: 10px;
-  --spacing-lg: 14px;
-  --spacing-xl: 20px;
-  --spacing-2xl: 28px;
+  
+  /* Spacing & Layout - Balanced */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
   
   /* Border Radius */
   --radius-sm: 6px;
-  --radius: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-full: 9999px;
   
-  /* Shadows */
-  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+  /* Shadows - Softer */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.04);
   
   /* Transitions */
-  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 0.15s ease;
+  --transition: 0.2s ease;
+  --transition-slow: 0.3s ease;
   
   /* Typography */
-  --font-sans: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'Fira Code', 'Consolas', monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 }
 
 /* ===== Global Styles ===== */
@@ -893,6 +895,13 @@ select:disabled {
   background: var(--primary-hover);
 }
 
+/* Empty row - visible on screen, hidden when printing */
+@media screen {
+  .empty-row {
+    display: table-row;
+  }
+}
+
 /* ===== Totals ===== */
 .totals-section {
   display: flex;
@@ -1224,229 +1233,411 @@ select:disabled {
   display: none;
 }
 
-/* 80mm Thermal Receipt Print Styles */
+/* 80mm Thermal Receipt Print Styles - FIXED VERSION */
 @media print {
   @page {
     size: 80mm auto;
     margin: 0;
   }
 
-  /* HIDE EVERYTHING FIRST */
-  body:not(.printing-daily-report) * {
-    display: none !important;
+  /* Reset and base print styles */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  /* Use a single font and size everywhere */
-  body:not(.printing-daily-report) {
-    font-family: 'Arial', 'Helvetica', sans-serif !important;
-    font-size: 11px !important;
-    line-height: 1.3 !important;
+  html, body {
     width: 80mm !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: #fff !important;
-    display: block !important;
+    background: white !important;
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+    color: #000 !important;
   }
 
-  /* SHOW ONLY PRINT CONTENT */
-  body:not(.printing-daily-report) .invoice-container,
-  body:not(.printing-daily-report) .invoice-container *,
-  body:not(.printing-daily-report) .invoice-header,
-  body:not(.printing-daily-report) .invoice-header *,
-  body:not(.printing-daily-report) .invoice-title,
-  body:not(.printing-daily-report) .invoice-meta,
-  body:not(.printing-daily-report) .invoice-meta-compact,
-  body:not(.printing-daily-report) .invoice-meta-compact *,
-  body:not(.printing-daily-report) .items-section,
-  body:not(.printing-daily-report) .items-section *,
-  body:not(.printing-daily-report) .items-table,
-  body:not(.printing-daily-report) .items-table *,
-  body:not(.printing-daily-report) .totals-section,
-  body:not(.printing-daily-report) .totals-section *,
-  body:not(.printing-daily-report) .print-footer,
-  body:not(.printing-daily-report) .print-footer *,
-  body:not(.printing-daily-report) .barcode-area,
-  body:not(.printing-daily-report) .barcode-area * {
-    display: block !important;
+  /* Hide all screen-only elements */
+  .loading-screen,
+  .login-screen,
+  .sidebar,
+  .main-app,
+  .btn-add-item,
+  .action-buttons,
+  .payment-section,
+  .modal-overlay,
+  .toast,
+  button:not(.payment-btn),
+  .logout-btn,
+  .sidebar-header,
+  .sidebar-actions,
+  .metrics,
+  .recent-wrapper,
+  .validation-message {
+    display: none !important;
+    visibility: hidden !important;
   }
-  /* HIDE SCREEN-ONLY ELEMENTS */
-  body:not(.printing-daily-report) .sidebar,
-  body:not(.printing-daily-report) .main-content,
-  body:not(.printing-daily-report) .btn-add-item,
-  body:not(.printing-daily-report) .action-buttons,
-  body:not(.printing-daily-report) .payment-section,
-  body:not(.printing-daily-report) .payment-buttons,
-  body:not(.printing-daily-report) .payment-label,
-  body:not(.printing-daily-report) button,
-  body:not(.printing-daily-report) label {
+
+  /* Show print-only elements */
+  .print-only {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* Main invoice container - positioned for 80mm thermal */
+  .main-content {
+    display: block !important;
+    visibility: visible !important;
+    width: 80mm !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+  }
+
+  .invoice-container {
+    display: block !important;
+    visibility: visible !important;
+    width: 74mm !important;
+    max-width: 74mm !important;
+    margin: 3mm !important;
+    padding: 0 !important;
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Invoice Header */
+  .invoice-header {
+    display: block !important;
+    visibility: visible !important;
+    text-align: center !important;
+    border-bottom: 1px solid #000 !important;
+    padding-bottom: 2mm !important;
+    margin-bottom: 2mm !important;
+  }
+
+  .company-name-ar,
+  .company-name {
+    display: block !important;
+    visibility: visible !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    line-height: 1.3 !important;
+    margin: 0 !important;
+  }
+
+  .company-details {
+    display: block !important;
+    visibility: visible !important;
+    font-size: 10px !important;
+    line-height: 1.4 !important;
+    margin-top: 1mm !important;
+  }
+
+  .company-details strong {
+    font-weight: 700 !important;
+  }
+
+  /* Invoice Title */
+  .invoice-title {
+    display: block !important;
+    visibility: visible !important;
+    text-align: center !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    background: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 1mm 0 !important;
+    margin: 1mm 0 !important;
+    letter-spacing: 1px !important;
+  }
+
+  /* Invoice Meta Section */
+  .invoice-meta-compact {
+    display: block !important;
+    visibility: visible !important;
+    border-bottom: 1px solid #000 !important;
+    padding-bottom: 2mm !important;
+    margin-bottom: 2mm !important;
+    background: none !important;
+    border-radius: 0 !important;
+  }
+
+  .meta-field {
+    display: block !important;
+    visibility: visible !important;
+    margin: 0.5mm 0 !important;
+    padding: 0 !important;
+    font-size: 10px !important;
+  }
+
+  .meta-field label {
+    display: inline !important;
+    visibility: visible !important;
+    font-size: 10px !important;
+    font-weight: 400 !important;
+    color: #000 !important;
+    text-transform: none !important;
+    min-width: auto !important;
+  }
+
+  .meta-field label::after {
+    content: ': ' !important;
+  }
+
+  .meta-field input,
+  .meta-field .inv-num {
+    display: inline !important;
+    visibility: visible !important;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    color: #000 !important;
+    width: auto !important;
+  }
+
+  #invNum {
+    font-weight: 700 !important;
+  }
+
+  /* Items Section */
+  .items-section {
+    display: block !important;
+    visibility: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .items-table {
+    display: table !important;
+    visibility: visible !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 10px !important;
+  }
+
+  .items-table thead {
+    display: table-header-group !important;
+    visibility: visible !important;
+  }
+
+  .items-table thead tr {
+    display: table-row !important;
+    visibility: visible !important;
+  }
+
+  .items-table thead th {
+    display: table-cell !important;
+    visibility: visible !important;
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    padding: 1mm !important;
+    border-bottom: 1px solid #000 !important;
+    background: none !important;
+    text-align: left !important;
+    color: #000 !important;
+  }
+
+  .items-table thead th:nth-child(3),
+  .items-table thead th:nth-child(4),
+  .items-table thead th:nth-child(5) {
+    text-align: right !important;
+  }
+
+  .items-table tbody {
+    display: table-row-group !important;
+    visibility: visible !important;
+  }
+
+  .items-table tbody tr {
+    display: table-row !important;
+    visibility: visible !important;
+    page-break-inside: avoid !important;
+  }
+
+  .items-table tbody tr.empty-row {
     display: none !important;
   }
 
-  /* SHOW input values for meta fields and items */
-  body:not(.printing-daily-report) .meta-field input,
-  body:not(.printing-daily-report) .items-table input {
-    display: inline !important;
-  }
-
-  /* Exact safe content width: 74mm with 3mm margins each side (prevents cutting) */
-  body:not(.printing-daily-report) .invoice-container {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 74mm !important;
-    margin: 3mm !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-    border: none !important;
-    background: #fff !important;
-    color: #000 !important;
-    font-size: 11px !important;
-  }
-
-  /* Ensure all sections inherit uniform font-size */
-  .invoice-header,
-  .company-details,
-  .invoice-title,
-  .invoice-meta-compact,
-  .items-table,
-  .totals-section,
-  .print-footer,
-  .barcode-area,
-  #barcodeText {
-    font-size: 11px !important;
-    font-family: inherit !important;
-  }
-
-  /* Bold ONLY the specified elements */
-  .company-name-ar,
-  .company-name { font-weight: 700 !important; }
-  .company-details strong { font-weight: 700 !important; }
-  .invoice-title { font-weight: 700 !important; }
-  .inv-num { font-weight: 700 !important; }
-  .grand-total-row td { font-weight: 700 !important; }
-  .print-footer div:nth-last-child(2) { font-weight: 700 !important; }
-
-  /* Header */
-  .invoice-header { text-align: center; border-bottom: 1px solid #000; padding: 0 0 2mm 0 !important; margin: 0 0 2mm 0 !important; }
-  .company-name-ar, .company-name { font-size: 14px !important; line-height: 1.2 !important; }
-  .company-details { font-size: 11px !important; }
-  .invoice-title { font-size: 13px !important; margin: 1mm 0 !important; }
-  /* Meta (old style) */
-  .invoice-meta, .invoice-meta-row, .invoice-meta-compact { display: block !important; border-bottom: 1px solid #000; margin: 2mm 0 !important; padding: 0 !important; background: none !important; }
-  .meta-field { display: block !important; margin: 0.6mm 0 !important; padding: 0 !important; }
-  .meta-field label { display: none !important; }
-  .meta-field input { border: none !important; background: transparent !important; padding: 0 !important; margin: 0 !important; font-size: 11px !important; font-weight: 400 !important; color: #000 !important; }
-  .meta-field:nth-child(1) { display: inline-block !important; width: 48% !important; text-align: left !important; }
-  .meta-field:nth-child(1)::before { content: 'INV NO: '; font-weight: 400; }
-  .meta-field:nth-child(1) input { font-weight: 700 !important; } /* Bold invoice number value */
-  .meta-field:nth-child(2) { display: inline-block !important; width: 48% !important; text-align: right !important; }
-  .meta-field:nth-child(3) { display: block !important; width: 100% !important; text-align: left !important; }
-  .meta-field:nth-child(3)::before { content: 'NAME: '; font-weight: 400; }
-  .meta-field:nth-child(4), .meta-field:nth-child(5) { display: block !important; width: 100% !important; text-align: left !important; }
-  /* Items table: 3-line format - Model → Description → (Qty × Price = Amount) */
-  .items-table { width: 100% !important; border-collapse: collapse !important; }
-  .items-table thead { display: none !important; }
-  .items-table tbody { display: block !important; }
-  .items-table tbody tr { display: block !important; border-bottom: 1px dotted #000; padding: 1mm 0 !important; margin: 0 !important; page-break-inside: avoid; }
-  .items-table tbody tr td { display: block !important; border: none !important; padding: 0 !important; margin: 0 !important; line-height: 1.3 !important; font-size: 11px !important; }
-
-  /* Line 1: Model (bold, single row) */
-  .items-table tbody tr td:nth-child(1) { 
-    font-size: 11px !important; 
-    font-weight: 700 !important; 
-    margin-bottom: 0.5mm !important; 
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-  }
-
-  /* Line 2: Description (wrap, 1-2 rows) */
-  .items-table tbody tr td:nth-child(2) { 
-    font-size: 11px !important; 
-    margin-bottom: 0.5mm !important; 
-    word-wrap: break-word !important;
-  }
-
-  /* Line 3: Qty × Price = Amount (ALL on SAME row: left, center, right) */
-  .items-table tbody tr td:nth-child(3),
-  .items-table tbody tr td:nth-child(4),
-  .items-table tbody tr td:nth-child(5) {
-    display: inline-block !important;
-    font-size: 11px !important;
-    font-weight: 400 !important;
-    color: #000 !important;
+  .items-table tbody td {
+    display: table-cell !important;
+    visibility: visible !important;
+    padding: 1mm !important;
+    border-bottom: 1px dotted #999 !important;
+    font-size: 10px !important;
     vertical-align: top !important;
-    margin: 0 !important;
+    color: #000 !important;
+    background: none !important;
+  }
+
+  .items-table tbody td input {
+    display: inline !important;
+    visibility: visible !important;
+    border: none !important;
+    background: transparent !important;
     padding: 0 !important;
+    margin: 0 !important;
+    font-size: 10px !important;
+    color: #000 !important;
+    width: 100% !important;
   }
-  
-  /* Qty (left) */
-  .items-table tbody tr td:nth-child(3) { 
-    width: 15% !important; 
-    text-align: left !important;
-  }
-  
-  /* Price (center) with × before and = after */
-  .items-table tbody tr td:nth-child(4) { 
-    width: 50% !important; 
-    text-align: center !important;
-  }
-  .items-table tbody tr td:nth-child(4)::before { content: '× ' !important; }
-  .items-table tbody tr td:nth-child(4)::after { content: ' =' !important; }
-  
-  /* Amount (right) */
-  .items-table tbody tr td:nth-child(5) { 
-    width: 35% !important; 
+
+  .items-table tbody td:nth-child(3),
+  .items-table tbody td:nth-child(4),
+  .items-table tbody td:nth-child(5) {
     text-align: right !important;
   }
-  .amount-display { 
-    font-size: 11px !important; 
-    font-weight: 400 !important; 
-    display: inline !important;
-    padding: 0 !important;
+
+  .items-table tbody td:nth-child(3) input,
+  .items-table tbody td:nth-child(4) input {
+    text-align: right !important;
   }
 
-  /* Totals */
-  .totals-section { border-top: 1px solid #000; padding-top: 2mm !important; margin-top: 2mm !important; }
-  .totals-table { width: 100% !important; border: none !important; background: none !important; }
-  .totals-table td { border: none !important; padding: 0.5mm 0 !important; font-size: 11px !important; }
-  .totals-table td.label { font-weight: 400 !important; text-align: left !important; }
-  .totals-table td.value { font-weight: 700 !important; text-align: right !important; }
+  .amount-display {
+    display: inline !important;
+    visibility: visible !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    padding: 0 !important;
+    text-align: right !important;
+    color: #000 !important;
+  }
 
-  /* Footer */
-  .print-footer { margin-top: 2mm !important; padding-top: 2mm !important; border-top: 1px solid #000; text-align: center; }
-  #barcodeText { font-size: 11px !important; font-weight: 700 !important; }
+  /* Totals Section */
+  .totals-section {
+    display: block !important;
+    visibility: visible !important;
+    margin-top: 2mm !important;
+    padding-top: 2mm !important;
+    border-top: 1px solid #000 !important;
+  }
 
-  /* Remove unsupported selectors that could break print */
-  /* (No :has or :contains; JS hides empty rows already) */
+  .totals-table {
+    display: table !important;
+    visibility: visible !important;
+    width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  .totals-table tr {
+    display: table-row !important;
+    visibility: visible !important;
+  }
+
+  .totals-table td {
+    display: table-cell !important;
+    visibility: visible !important;
+    padding: 0.5mm 0 !important;
+    border: none !important;
+    font-size: 10px !important;
+    color: #000 !important;
+    background: none !important;
+  }
+
+  .totals-table td.label {
+    text-align: left !important;
+    font-weight: 400 !important;
+  }
+
+  .totals-table td.value {
+    text-align: right !important;
+    font-weight: 600 !important;
+  }
+
+  .grand-total-row {
+    background: none !important;
+  }
+
+  .grand-total-row td {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    padding-top: 1mm !important;
+    border-top: 1px solid #000 !important;
+  }
+
+  /* Print Footer */
+  .print-footer {
+    display: block !important;
+    visibility: visible !important;
+    margin-top: 3mm !important;
+    padding-top: 2mm !important;
+    border-top: 1px solid #000 !important;
+    text-align: center !important;
+    font-size: 9px !important;
+    line-height: 1.4 !important;
+  }
+
+  .print-footer div {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* Barcode Area */
+  .barcode-area {
+    display: block !important;
+    visibility: visible !important;
+    text-align: center !important;
+    margin-top: 2mm !important;
+    padding-top: 2mm !important;
+  }
+
+  .barcode-area svg {
+    display: block !important;
+    visibility: visible !important;
+    margin: 0 auto !important;
+    max-width: 60mm !important;
+    height: auto !important;
+  }
+
+  #barcodeText {
+    display: block !important;
+    visibility: visible !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    margin-top: 1mm !important;
+  }
 }
 
 /* Daily Report Print Styles */
 @media print {
-  body.printing-daily-report * {
-    visibility: hidden !important;
+  body.printing-daily-report .main-app,
+  body.printing-daily-report .main-content,
+  body.printing-daily-report .invoice-container {
     display: none !important;
+    visibility: hidden !important;
   }
 
   body.printing-daily-report {
     width: 80mm !important;
     background: white !important;
-    display: flex !important;
-    justify-content: center !important;
-    visibility: visible !important;
   }
 
   body.printing-daily-report .daily-report-container {
-    visibility: visible !important;
     display: block !important;
-    width: 70mm !important;
-    margin: 5mm !important;
-    font-size: 14px !important;
+    visibility: visible !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 74mm !important;
+    margin: 3mm !important;
+    font-size: 12px !important;
+    color: #000 !important;
   }
 
   body.printing-daily-report .daily-report-container * {
-    visibility: visible !important;
     display: block !important;
+    visibility: visible !important;
   }
 }
 

@@ -728,12 +728,14 @@ function printInvoice(invNum) {
   const originalTitle = document.title;
   document.title = invNum;
   
-  // Hide empty rows
+  // Mark empty rows with class for print hiding
   document.querySelectorAll('#itemsBody tr').forEach(tr => {
     const model = tr.querySelector('.item-model').value.trim();
     const desc = tr.querySelector('.item-desc').value.trim();
     if (!model && !desc) {
-      tr.style.display = 'none';
+      tr.classList.add('empty-row');
+    } else {
+      tr.classList.remove('empty-row');
     }
   });
   
@@ -741,8 +743,9 @@ function printInvoice(invNum) {
   
   setTimeout(() => {
     document.title = originalTitle;
-    document.querySelectorAll('#itemsBody tr').forEach(tr => {
-      tr.style.display = '';
+    // Remove empty-row class after printing
+    document.querySelectorAll('#itemsBody tr.empty-row').forEach(tr => {
+      tr.classList.remove('empty-row');
     });
   }, 500);
 }
