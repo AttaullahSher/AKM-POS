@@ -51,7 +51,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       showLoginScreen();
     }
   });
-
   document.getElementById('googleSignInBtn').addEventListener('click', signInWithGoogle);
   document.getElementById('logoutBtn').addEventListener('click', logout);
   document.getElementById('invDate').valueAsDate = new Date();
@@ -63,6 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   setupRealtimeValidation();
+  setupKeyboardNavigation();
   
   const btnVat = document.getElementById('btnVatReport');
   if (btnVat) btnVat.addEventListener('click', () => printVatReport('day'));
@@ -147,9 +147,15 @@ async function readSheetBatch(ranges) {
       body: JSON.stringify({ ranges })
     });
     
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      console.error('❌ API Error:', response.status, response.statusText);
+      throw new Error(`HTTP ${response.status}`);
+    }
     const data = await response.json();
-    if (!data.success) throw new Error(data.error || 'Failed to read data');
+    if (!data.success) {
+      console.error('❌ Read failed:', data.error);
+      throw new Error(data.error || 'Failed to read data');
+    }
     
     const result = {};
     data.valueRanges.forEach((valueRange, index) => {
@@ -157,7 +163,8 @@ async function readSheetBatch(ranges) {
     });
     return result;
   } catch (error) {
-    showToast('Error reading data. Make sure proxy server is running.', 'error');
+    console.error('❌ Network error reading sheet batch:', error.message);
+    showToast('Error reading data. Check network connection.', 'error');
     return null;
   }
 }
@@ -171,12 +178,19 @@ async function readSheet(range) {
         body: JSON.stringify({ range })
       });
       
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        console.error('❌ API Error:', response.status, response.statusText);
+        throw new Error(`HTTP ${response.status}`);
+      }
       const data = await response.json();
-      if (!data.success) throw new Error(data.error || 'Failed to read data');
+      if (!data.success) {
+        console.error('❌ Read failed:', data.error);
+        throw new Error(data.error || 'Failed to read data');
+      }
       return data.values || [];
     } catch (error) {
-      showToast('Error reading data. Make sure proxy server is running.', 'error');
+      console.error('❌ Network error reading sheet:', error.message);
+      showToast('Error reading data. Check network connection.', 'error');
       return null;
     }
   });
@@ -190,12 +204,19 @@ async function appendToSheet(range, values) {
       body: JSON.stringify({ action: 'append', sheetName: range, values })
     });
     
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      console.error('❌ API Error:', response.status, response.statusText);
+      throw new Error(`HTTP ${response.status}`);
+    }
     const result = await response.json();
-    if (!result.success) throw new Error(result.message || 'Failed to append data');
+    if (!result.success) {
+      console.error('❌ Append failed:', result.message);
+      throw new Error(result.message || 'Failed to append data');
+    }
     return true;
   } catch (error) {
-    showToast('Error saving data. Make sure proxy server is running.', 'error');
+    console.error('❌ Network error appending to sheet:', error.message);
+    showToast('Error saving data. Check network connection.', 'error');
     return false;
   }
 }
@@ -214,12 +235,19 @@ async function updateSheet(range, values) {
       })
     });
     
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      console.error('❌ API Error:', response.status, response.statusText);
+      throw new Error(`HTTP ${response.status}`);
+    }
     const result = await response.json();
-    if (!result.success) throw new Error(result.message || 'Failed to update data');
+    if (!result.success) {
+      console.error('❌ Update failed:', result.message);
+      throw new Error(result.message || 'Failed to update data');
+    }
     return true;
   } catch (error) {
-    showToast('Error updating sheet. Make sure proxy server is running.', 'error');
+    console.error('❌ Network error updating sheet:', error.message);
+    showToast('Error updating sheet. Check network connection.', 'error');
     return false;
   }
 }
@@ -433,6 +461,7 @@ window.saveAndPrint = async function() {
   }
   
   if (!currentPaymentMethod) {
+    console.log('❌ Validation failed: No payment method selected');
     showToast('Please select a payment method', 'error');
     return;
   }
@@ -441,12 +470,16 @@ window.saveAndPrint = async function() {
   console.log('📦 Items collected:', items.length);
   
   if (items.length === 0) {
+    console.log('❌ Validation failed: No items in invoice');
     showToast('Please add at least one item', 'error');
     return;
   }
   
   const validation = validateInvoiceForm();
-  if (!validation.isValid) return;
+  if (!validation.isValid) {
+    console.log('❌ Validation failed:', validation.errors);
+    return;
+  }
   
   const custName = document.getElementById('custName').value.trim() || 'Walk-in Customer';
   const custPhone = document.getElementById('custPhone').value.trim();
@@ -460,9 +493,10 @@ window.saveAndPrint = async function() {
   const grandTotal = subtotal + vat;
   
   btn.disabled = true;
-  
-  if (isReprintMode && reprintInvoiceId === invNum) {
+    if (isReprintMode && reprintInvoiceId === invNum) {
+    console.log('🔁 Reprint mode: Printing existing invoice');
     btn.textContent = '🖨️ Printing...';
+    lockInvoiceFields();
     printInvoice(invNum);
     setTimeout(() => {
       isReprintMode = false;
@@ -500,15 +534,15 @@ window.saveAndPrint = async function() {
     cashImpact.toFixed(2), cardImpact.toFixed(2), tabbyImpact.toFixed(2), chequeImpact.toFixed(2), ''
   ];
     const success = await appendToSheet("'AKM-POS'!A:T", [invoiceRow]);
-  
-  if (success) {
+    if (success) {
     console.log('✅ Invoice saved successfully:', invNum);
     const itemRows = items.map((item, index) => [
       `ITM-${invNum.split('-')[1]}-${String(index + 1).padStart(3, '0')}`,
       invNum, item.model, item.desc, item.qty, item.price, (item.qty * item.price).toFixed(2), invDate
     ]);
     await appendToSheet('InvoiceItems!A:H', itemRows);
-      showToast('Invoice saved successfully!', 'success');
+    showToast('Invoice saved successfully!', 'success');
+    lockInvoiceFields();
     printInvoice(invNum);
     
     setTimeout(() => {
@@ -520,11 +554,37 @@ window.saveAndPrint = async function() {
       btn.textContent = '🖨️ Print Invoice';
     }, 600);
   } else {
+    console.log('❌ Failed to save invoice to sheet');
     showToast('Failed to save invoice', 'error');
     btn.disabled = false;
     btn.textContent = '🖨️ Print Invoice';
   }
 };
+
+function lockInvoiceFields() {
+  console.log('🔒 Locking invoice fields after print');
+  document.getElementById('custName').disabled = true;
+  document.getElementById('custPhone').disabled = true;
+  document.getElementById('custTRN').disabled = true;
+  document.getElementById('invDate').disabled = true;
+  
+  document.querySelectorAll('#itemsBody input').forEach(input => {
+    input.disabled = true;
+  });
+  
+  document.getElementById('printBtn').textContent = '🖨️ Print Again';
+}
+
+function unlockInvoiceFields() {
+  document.getElementById('custName').disabled = false;
+  document.getElementById('custPhone').disabled = false;
+  document.getElementById('custTRN').disabled = false;
+  document.getElementById('invDate').disabled = false;
+  
+  document.querySelectorAll('#itemsBody input').forEach(input => {
+    input.disabled = false;
+  });
+}
 
 function collectItems() {
   const items = [];
@@ -663,6 +723,8 @@ window.refundInvoice = async function(invId) {
 };
 
 window.clearForm = function() {
+  unlockInvoiceFields();
+  
   document.getElementById('custName').value = '';
   document.getElementById('custPhone').value = '';
   document.getElementById('custTRN').value = '';
@@ -1015,6 +1077,45 @@ function setupRealtimeValidation() {
         e.target.classList.toggle('invalid', !validation.valid);
       }
     });
+  });
+}
+
+function setupKeyboardNavigation() {
+  const printBtn = document.getElementById('printBtn');
+  
+  document.addEventListener('keydown', (e) => {
+    const activeElement = document.activeElement;
+    
+    if (e.key === 'Enter') {
+      if (activeElement.id === 'printBtn') {
+        e.preventDefault();
+        saveAndPrint();
+        return;
+      }
+      
+      if (activeElement.closest('#itemsBody')) {
+        e.preventDefault();
+        const currentRow = activeElement.closest('tr');
+        const allRows = Array.from(document.querySelectorAll('#itemsBody tr'));
+        const currentRowIndex = allRows.indexOf(currentRow);
+        
+        if (activeElement.classList.contains('item-price')) {
+          if (currentRowIndex < allRows.length - 1) {
+            const nextRow = allRows[currentRowIndex + 1];
+            const firstInput = nextRow.querySelector('.item-model');
+            if (firstInput) firstInput.focus();
+          } else {
+            printBtn.focus();
+          }
+        } else {
+          const inputs = Array.from(currentRow.querySelectorAll('input'));
+          const currentIndex = inputs.indexOf(activeElement);
+          if (currentIndex < inputs.length - 1) {
+            inputs[currentIndex + 1].focus();
+          }
+        }
+      }
+    }
   });
 }
 
