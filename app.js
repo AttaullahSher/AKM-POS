@@ -9,9 +9,7 @@ const firebaseConfig = {
 
 const SPREADSHEET_ID = "1QS7iSSq1sd948l2qQ-nI_qYuOWNsXs6UFkFAOd72QKM";
 const ALLOWED_EMAIL = "sales@akm-music.com";
-
-const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const API_BASE_URL = IS_LOCAL ? 'http://localhost:3000' : 'https://akm-pos-api.onrender.com';
+const API_BASE_URL = 'https://akm-pos-api.onrender.com';
 const WRITE_ENDPOINT = `${API_BASE_URL}/writeToSheet`;
 const READ_ENDPOINT = `${API_BASE_URL}/readSheet`;
 
@@ -241,10 +239,15 @@ async function loadNextInvoiceNumber() {
       invoiceCounter = (lastYear === currentYear) ? lastSequence + 1 : 15001;
     } else {
       invoiceCounter = 15001;
-    }
-  }
+    }  }
   
   document.getElementById('invNum').textContent = `${currentYear}-${String(invoiceCounter).padStart(5, '0')}`;
+  
+  const printBtn = document.getElementById('printBtn');
+  if (printBtn && !isReprintMode) {
+    printBtn.disabled = false;
+    printBtn.textContent = '🖨️ Print Invoice';
+  }
 }
 
 async function loadDashboardData() {
@@ -423,6 +426,12 @@ window.selectPayment = function(btn, method) {
 window.saveAndPrint = async function() {
   console.log('📄 Save and Print clicked');
   
+  const btn = document.getElementById('printBtn');
+  if (btn.disabled) {
+    console.log('⚠️ Button already processing');
+    return;
+  }
+  
   if (!currentPaymentMethod) {
     showToast('Please select a payment method', 'error');
     return;
@@ -450,7 +459,6 @@ window.saveAndPrint = async function() {
   const vat = subtotal * 0.05;
   const grandTotal = subtotal + vat;
   
-  const btn = document.getElementById('printBtn');
   btn.disabled = true;
   
   if (isReprintMode && reprintInvoiceId === invNum) {
@@ -665,8 +673,16 @@ window.clearForm = function() {
   for (let i = 0; i < 3; i++) addItemRow();
   
   currentPaymentMethod = null;
+  isReprintMode = false;
+  reprintInvoiceId = null;
+  
   document.querySelectorAll('.payment-btn').forEach(btn => btn.classList.remove('active'));
   calculateTotals();
+  
+  const printBtn = document.getElementById('printBtn');
+  printBtn.disabled = false;
+  printBtn.textContent = '🖨️ Print Invoice';
+  
   document.getElementById('custName').focus();
 };
 
