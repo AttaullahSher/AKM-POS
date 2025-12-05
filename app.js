@@ -500,8 +500,7 @@ window.saveAndPrint = async function() {
       invNum, item.model, item.desc, item.qty, item.price, (item.qty * item.price).toFixed(2), invDate
     ]);
     await appendToSheet('InvoiceItems!A:H', itemRows);
-    
-    showToast('Invoice saved successfully!', 'success');
+      showToast('Invoice saved successfully!', 'success');
     printInvoice(invNum);
     
     setTimeout(() => {
@@ -509,13 +508,14 @@ window.saveAndPrint = async function() {
       loadNextInvoiceNumber();
       loadDashboardData();
       loadRecentInvoices();
+      btn.disabled = false;
+      btn.textContent = '🖨️ Print Invoice';
     }, 600);
   } else {
     showToast('Failed to save invoice', 'error');
+    btn.disabled = false;
+    btn.textContent = '🖨️ Print Invoice';
   }
-  
-  btn.disabled = false;
-  btn.textContent = '🖨️ Print Invoice';
 };
 
 function collectItems() {
