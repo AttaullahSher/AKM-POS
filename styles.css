@@ -1558,8 +1558,7 @@ select:disabled {
 
   .meta-field:nth-child(2) label::after {
     content: '' !important;
-  }
-  .meta-field input,
+  }  .meta-field input,
   .meta-field .inv-num {
     display: inline !important;
     visibility: visible !important;
@@ -1572,6 +1571,30 @@ select:disabled {
     color: #000 !important;
     width: auto !important;
     font-family: 'Arial', 'Helvetica', sans-serif !important;
+  }
+
+  /* Customer Name (field 3) - ensure Arial 10px black */
+  .meta-field:nth-child(3) input {
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
+    font-size: 10px !important;
+    color: #000 !important;
+    font-weight: 400 !important;
+  }
+
+  /* Mobile (field 4) - ensure Arial 10px black */
+  .meta-field:nth-child(4) input {
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
+    font-size: 10px !important;
+    color: #000 !important;
+    font-weight: 400 !important;
+  }
+
+  /* TRN (field 5) - ensure Arial 10px black */
+  .meta-field:nth-child(5) input {
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
+    font-size: 10px !important;
+    color: #000 !important;
+    font-weight: 400 !important;
   }
 
   /* Hide empty mobile field (including label) */
