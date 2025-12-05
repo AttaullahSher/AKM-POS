@@ -34,8 +34,13 @@ let isProcessingQueue = false;
 const REQUEST_DELAY = 200;
 
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('🚀 AKM-POS initializing...');
+  
   onAuthStateChanged(auth, (user) => {
+    console.log('🔐 Auth state changed:', user ? user.email : 'No user');
+    
     if (user && user.email === ALLOWED_EMAIL) {
+      console.log('✅ User authenticated:', user.email);
       currentUser = user;
       showMainApp();
       initializePOS();
@@ -44,6 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       signOut(auth);
       showLoginScreen();
     } else {
+      console.log('ℹ️ No user signed in');
       showLoginScreen();
     }
   });
@@ -415,12 +421,16 @@ window.selectPayment = function(btn, method) {
 };
 
 window.saveAndPrint = async function() {
+  console.log('📄 Save and Print clicked');
+  
   if (!currentPaymentMethod) {
     showToast('Please select a payment method', 'error');
     return;
   }
   
   const items = collectItems();
+  console.log('📦 Items collected:', items.length);
+  
   if (items.length === 0) {
     showToast('Please add at least one item', 'error');
     return;
@@ -481,10 +491,10 @@ window.saveAndPrint = async function() {
     today.getDate(), today.getMonth() + 1, today.getFullYear(), 'Paid',
     cashImpact.toFixed(2), cardImpact.toFixed(2), tabbyImpact.toFixed(2), chequeImpact.toFixed(2), ''
   ];
-  
-  const success = await appendToSheet("'AKM-POS'!A:T", [invoiceRow]);
+    const success = await appendToSheet("'AKM-POS'!A:T", [invoiceRow]);
   
   if (success) {
+    console.log('✅ Invoice saved successfully:', invNum);
     const itemRows = items.map((item, index) => [
       `ITM-${invNum.split('-')[1]}-${String(index + 1).padStart(3, '0')}`,
       invNum, item.model, item.desc, item.qty, item.price, (item.qty * item.price).toFixed(2), invDate
@@ -545,8 +555,8 @@ function printInvoice(invNum) {
       tr.classList.remove('empty-row');
     }
   });
-  
-  window.print();
+    window.print();
+  console.log('✅ Print dialog opened for invoice:', invNum);
   
   setTimeout(() => {
     document.title = originalTitle;
