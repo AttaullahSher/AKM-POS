@@ -1,4 +1,4 @@
-// AKM-POS v70 - Stable version with working print styles
+// AKM-POS v71 - Fixed all fonts to Space Mono for print consistency
 const firebaseConfig = {
   apiKey: "AIzaSyBaaHya8oqfJEOycvAsKU_Ise3s2VAgqgw",
   authDomain: "akm-pos-480210.firebaseapp.com",
