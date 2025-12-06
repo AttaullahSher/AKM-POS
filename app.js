@@ -685,10 +685,20 @@ function printInvoice(invNum) {
   } catch (e) {}
   const originalTitle = document.title;
   document.title = invNum;
-    // Convert 5-column rows to 2-row layout for print ONLY
+  // Convert 5-column rows to 2-row layout for print ONLY
   const tbody = document.getElementById('itemsBody');
+  const thead = document.querySelector('.items-table thead tr');
   const originalRows = [];
+  const originalHeader = thead.cloneNode(true);
   const rows = Array.from(tbody.querySelectorAll('tr'));
+  
+  // Convert header from 5 columns to 4 columns (remove Description column)
+  thead.innerHTML = `
+    <th style="width: 25%">Model</th>
+    <th style="width: 15%">Qty</th>
+    <th style="width: 30%">Rate</th>
+    <th style="width: 30%">Amount</th>
+  `;
   
   // Helper function to remove .00 from numbers
   const formatNumber = (value) => {
@@ -732,16 +742,38 @@ function printInvoice(invNum) {
     tr2.className = 'item-desc-row';
     tr2.innerHTML = `
       <td colspan="4"><input type="text" class="item-desc" value="${desc}" disabled></td>
-    `;
-    tr.parentNode.insertBefore(tr2, tr.nextSibling);
+    `;    tr.parentNode.insertBefore(tr2, tr.nextSibling);
   });
+  
+  // Format totals - remove .00 from whole numbers
+  const subTotal = document.getElementById('subTotal');
+  const grandTotal = document.getElementById('grandTotal');
+  const vatAmount = document.getElementById('vatAmount');
+  
+  const originalSubTotal = subTotal?.textContent || '';
+  const originalGrandTotal = grandTotal?.textContent || '';
+  const originalVatAmount = vatAmount?.textContent || '';
+  
+  if (subTotal) subTotal.textContent = formatNumber(originalSubTotal);
+  if (grandTotal) grandTotal.textContent = formatNumber(originalGrandTotal);
+  if (vatAmount) vatAmount.textContent = formatNumber(originalVatAmount);
   
   window.print();
   console.log('✅ Print dialog opened for invoice:', invNum);
   
-  // Restore original 5-column rows after print
+  // Restore original totals after print
+  setTimeout(() => {
+    if (subTotal) subTotal.textContent = originalSubTotal;
+    if (grandTotal) grandTotal.textContent = originalGrandTotal;
+    if (vatAmount) vatAmount.textContent = originalVatAmount;
+  }, 100);
+    // Restore original 5-column rows and header after print
   setTimeout(() => {
     document.title = originalTitle;
+    thead.innerHTML = '';
+    originalHeader.childNodes.forEach(node => {
+      thead.appendChild(node.cloneNode(true));
+    });
     tbody.innerHTML = '';
     originalRows.forEach(row => {
       tbody.appendChild(row);

@@ -1324,11 +1324,12 @@ select:disabled {
     size: 80mm auto;
     margin: 0;
   }
-  /* Reset and base print styles - OVERRIDE ALL COLORS */
+  /* Reset and base print styles - OVERRIDE ALL COLORS AND MAKE BOLD */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color: #000 !important;
+    font-weight: 700 !important;
   }  html, body {
     width: 80mm !important;
     margin: 0 !important;
