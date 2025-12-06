@@ -1,4 +1,4 @@
-// AKM-POS v72 - Fixed print button state management (disable until payment selected)
+// AKM-POS v73 - Fixed empty row detection (must have model + qty + price + amount)
 const firebaseConfig = {
   apiKey: "AIzaSyBaaHya8oqfJEOycvAsKU_Ise3s2VAgqgw",
   authDomain: "akm-pos-480210.firebaseapp.com",
@@ -747,13 +747,19 @@ function printInvoice(invNum) {
     const qty = tr.querySelector('.item-qty')?.value || '';
     const price = tr.querySelector('.item-price')?.value || '';
     const amount = tr.querySelector('.amount-display')?.textContent.trim() || '';
-    
-    // Store original row for restoration
+      // Store original row for restoration
     originalRows.push(tr.cloneNode(true));
     
-    // Skip empty rows - check if model/desc empty OR amount is 0 or empty
+    // Skip empty rows - MUST have model AND non-zero amount
     const amountNum = parseFloat(amount);
-    if ((!model && !desc) || !amount || amountNum === 0 || isNaN(amountNum)) {
+    const qtyNum = parseFloat(qty);
+    const priceNum = parseFloat(price);
+    
+    // Hide row if: no model, OR amount is 0/empty, OR qty/price is 0/empty
+    if (!model || !amount || amountNum === 0 || isNaN(amountNum) || 
+        !qty || qtyNum === 0 || isNaN(qtyNum) ||
+        !price || priceNum === 0 || isNaN(priceNum)) {
+      tr.classList.add('empty-row');
       tr.style.display = 'none';
       return;
     }
