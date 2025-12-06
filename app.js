@@ -1,4 +1,4 @@
-// AKM-POS v74 - Smart empty row logic: amount-based + description validation
+// AKM-POS v75 - PRINT FIX: Grey text + description wrapping via JS input-to-span conversion
 const firebaseConfig = {
   apiKey: "AIzaSyBaaHya8oqfJEOycvAsKU_Ise3s2VAgqgw",
   authDomain: "akm-pos-480210.firebaseapp.com",
@@ -31,6 +31,76 @@ let reprintInvoiceId = null;
 let requestQueue = [];
 let isProcessingQueue = false;
 const REQUEST_DELAY = 200;
+
+// PRINT FIX: Convert inputs to text spans before printing (fixes grey text + description wrapping)
+let originalInputStates = [];
+
+function preparePrintLayout() {
+  console.log('📝 Preparing print layout - converting inputs to text spans');
+  originalInputStates = [];
+  
+  const invoiceContainer = document.querySelector('.invoice-container');
+  if (!invoiceContainer) return;
+  
+  const inputs = invoiceContainer.querySelectorAll('input, select, .amount-display');
+  
+  inputs.forEach(input => {
+    const state = {
+      element: input,
+      display: input.style.display,
+      parent: input.parentNode
+    };
+    originalInputStates.push(state);
+    
+    const textSpan = document.createElement('span');
+    textSpan.className = 'print-text-replacement';
+    
+    let value = '';
+    if (input.classList.contains('amount-display')) {
+      value = input.textContent || input.innerText;
+    } else if (input.tagName === 'SELECT') {
+      value = input.options[input.selectedIndex]?.text || '';
+    } else if (input.type === 'date') {
+      value = input.value;
+    } else {
+      value = input.value;
+    }
+    
+    textSpan.textContent = value;
+    
+    if (input.classList.contains('item-desc')) {
+      textSpan.style.display = '-webkit-box';
+      textSpan.style.webkitLineClamp = '2';
+      textSpan.style.webkitBoxOrient = 'vertical';
+      textSpan.style.overflow = 'hidden';
+      textSpan.style.textOverflow = 'ellipsis';
+      textSpan.style.wordWrap = 'break-word';
+      textSpan.style.overflowWrap = 'break-word';
+      textSpan.style.lineHeight = '1.3';
+      textSpan.style.maxHeight = '2.6em';
+    }
+    
+    input.style.display = 'none';
+    input.parentNode.insertBefore(textSpan, input);
+    state.textSpan = textSpan;
+  });
+}
+
+function restorePrintLayout() {
+  console.log('🔄 Restoring original layout after print');
+  
+  originalInputStates.forEach(state => {
+    if (state.textSpan && state.textSpan.parentNode) {
+      state.textSpan.parentNode.removeChild(state.textSpan);
+    }
+    state.element.style.display = state.display;
+  });
+  
+  originalInputStates = [];
+}
+
+window.addEventListener('beforeprint', preparePrintLayout);
+window.addEventListener('afterprint', restorePrintLayout);
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🚀 AKM-POS initializing...');

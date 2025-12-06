@@ -1,4 +1,4 @@
-/* AKM-POS Styles v74 - Smart empty row detection */
+/* AKM-POS Styles v75 - PRINT FIX: Grey text + description wrapping */
 /* ===== CSS Variables ===== */
 :root {
   /* Modern Color Palette */
@@ -1365,6 +1365,30 @@ select:disabled {
     font-size: 12px !important;
     font-weight: 700 !important;
     display: inline-block !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    background: transparent !important;
+  }
+  
+  /* Description text wrapping for print replacements */
+  td .print-text-replacement {
+    display: inline-block !important;
+  }
+  
+  .item-desc-row td .print-text-replacement {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    line-height: 1.3 !important;
+    max-height: 2.6em !important;
   }
 
   /* Force input placeholder to black */
