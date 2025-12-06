@@ -960,12 +960,12 @@ window.reprintInvoice = async function(invId) {
       document.getElementById('custName').disabled = false;
       document.getElementById('custPhone').disabled = false;
       document.getElementById('custTRN').disabled = false;
-      document.getElementById('invDate').disabled = true;
-        // Ensure print button is enabled and ready
+      document.getElementById('invDate').disabled = true;      // Ensure print button is enabled and ready
       const printBtn = document.getElementById('printBtn');
       printBtn.disabled = false;
       printBtn.style.opacity = '1';
       printBtn.style.cursor = 'pointer';
+      printBtn.style.pointerEvents = 'auto';
       printBtn.title = '';
       printBtn.textContent = '🖨️ Reprint Invoice';
       console.log('🖨️ Print button enabled for reprint');
