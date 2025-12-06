@@ -407,30 +407,45 @@ window.loadMoreInvoices = async function() {
 
 window.addItemRow = function() {
   const tbody = document.getElementById('itemsBody');
-  if (tbody.querySelectorAll('tr').length >= 10) {
+  if (tbody.querySelectorAll('tr.item-row').length >= 10) {
     showToast('Maximum 10 items allowed', 'error');
     return;
   }
   
-  const tr = document.createElement('tr');
-  tr.innerHTML = `
+  // Row 1: Model, Qty, Rate, Amount
+  const tr1 = document.createElement('tr');
+  tr1.className = 'item-row';
+  tr1.innerHTML = `
     <td><input type="text" class="item-model" placeholder="Model"></td>
-    <td><input type="text" class="item-desc" placeholder="Description"></td>
     <td><input type="number" class="item-qty" min="1" value="1"></td>
     <td><input type="number" class="item-price" min="0" step="0.01" placeholder="0.00"></td>
     <td><span class="amount-display">0.00</span></td>
   `;
-  tbody.appendChild(tr);
+  tbody.appendChild(tr1);
+  
+  // Row 2: Description (merged cell)
+  const tr2 = document.createElement('tr');
+  tr2.className = 'item-desc-row';
+  tr2.innerHTML = `
+    <td colspan="4"><input type="text" class="item-desc" placeholder="Description"></td>
+  `;
+  tbody.appendChild(tr2);
 };
 
 function calculateTotals() {
   let subtotal = 0;
-  document.querySelectorAll('#itemsBody tr').forEach(tr => {
-    const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
-    const price = parseFloat(tr.querySelector('.item-price').value) || 0;
-    const amount = qty * price;
-    tr.querySelector('.amount-display').textContent = amount.toFixed(2);
-    subtotal += amount;
+  document.querySelectorAll('#itemsBody tr.item-row').forEach(tr => {
+    const qtyInput = tr.querySelector('.item-qty');
+    const priceInput = tr.querySelector('.item-price');
+    const amountDisplay = tr.querySelector('.amount-display');
+    
+    if (qtyInput && priceInput && amountDisplay) {
+      const qty = parseFloat(qtyInput.value) || 0;
+      const price = parseFloat(priceInput.value) || 0;
+      const amount = qty * price;
+      amountDisplay.textContent = amount.toFixed(2);
+      subtotal += amount;
+    }
   });
   
   const vat = subtotal * 0.05;
@@ -647,11 +662,15 @@ function unlockInvoiceFields() {
 
 function collectItems() {
   const items = [];
-  document.querySelectorAll('#itemsBody tr').forEach(tr => {
-    const model = tr.querySelector('.item-model').value.trim();
-    const desc = tr.querySelector('.item-desc').value.trim();
-    const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
-    const price = parseFloat(tr.querySelector('.item-price').value) || 0;
+  document.querySelectorAll('#itemsBody tr.item-row').forEach(tr => {
+    const model = tr.querySelector('.item-model')?.value.trim() || '';
+    const qty = parseFloat(tr.querySelector('.item-qty')?.value) || 0;
+    const price = parseFloat(tr.querySelector('.item-price')?.value) || 0;
+    
+    // Get description from the next row (item-desc-row)
+    const descRow = tr.nextElementSibling;
+    const desc = descRow?.querySelector('.item-desc')?.value.trim() || '';
+    
     if ((model || desc) && qty > 0 && price > 0) {
       items.push({ model, desc, qty, price });
     }
@@ -669,16 +688,21 @@ function printInvoice(invNum) {
     });
     document.getElementById('barcodeText').textContent = invNum;
   } catch (e) {}
-  
-  const originalTitle = document.title;
+    const originalTitle = document.title;
   document.title = invNum;
-  document.querySelectorAll('#itemsBody tr').forEach(tr => {
-    const model = tr.querySelector('.item-model').value.trim();
-    const desc = tr.querySelector('.item-desc').value.trim();
+  
+  // Hide empty item rows (both item-row and desc-row)
+  document.querySelectorAll('#itemsBody tr.item-row').forEach(tr => {
+    const model = tr.querySelector('.item-model')?.value.trim() || '';
+    const descRow = tr.nextElementSibling;
+    const desc = descRow?.querySelector('.item-desc')?.value.trim() || '';
+    
     if (!model && !desc) {
       tr.classList.add('empty-row');
+      if (descRow) descRow.classList.add('empty-row');
     } else {
       tr.classList.remove('empty-row');
+      if (descRow) descRow.classList.remove('empty-row');
     }
   });
   
@@ -721,18 +745,26 @@ window.reprintInvoice = async function(invId) {
       
       const tbody = document.getElementById('itemsBody');
       tbody.innerHTML = '';
-      
-      if (itemsJSON.length > 0) {
+        if (itemsJSON.length > 0) {
         itemsJSON.forEach(item => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
+          // Row 1: Model, Qty, Rate, Amount
+          const tr1 = document.createElement('tr');
+          tr1.className = 'item-row';
+          tr1.innerHTML = `
             <td><input type="text" class="item-model" value="${item.model || ''}" disabled></td>
-            <td><input type="text" class="item-desc" value="${item.desc || ''}" disabled></td>
             <td><input type="number" class="item-qty" value="${item.qty || 1}" disabled></td>
             <td><input type="number" class="item-price" value="${item.price || 0}" disabled></td>
             <td><span class="amount-display">${((item.qty || 0) * (item.price || 0)).toFixed(2)}</span></td>
           `;
-          tbody.appendChild(tr);
+          tbody.appendChild(tr1);
+          
+          // Row 2: Description (merged cell)
+          const tr2 = document.createElement('tr');
+          tr2.className = 'item-desc-row';
+          tr2.innerHTML = `
+            <td colspan="4"><input type="text" class="item-desc" value="${item.desc || ''}" disabled></td>
+          `;
+          tbody.appendChild(tr2);
         });
       } else {
         for (let j = 0; j < 3; j++) addItemRow();

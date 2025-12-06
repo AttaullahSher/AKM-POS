@@ -2,12 +2,11 @@
 <html lang="en">
 <head>  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AKM-POS | Point of Sale System</title>
-  <link rel="icon" type="image/png" href="/Favicon.png">
+  <title>AKM-POS | Point of Sale System</title>  <link rel="icon" type="image/png" href="/Favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=59">
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=60">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
 <body>
@@ -95,10 +94,9 @@
         </div>
         <div class="invoice-title">TAX INVOICE</div>
 
-        <!-- Invoice Meta - Compact 3-row layout -->
-        <div class="invoice-meta-compact">
+        <!-- Invoice Meta - Compact 3-row layout -->        <div class="invoice-meta-compact">
           <div class="meta-field">
-            <label>Invoice No</label>
+            <label>No</label>
             <div class="inv-num" id="invNum">Loading...</div>
           </div>
           <div class="meta-field">
@@ -120,15 +118,13 @@
         </div>
 
         <!-- Items Table -->
-        <div class="items-section">
-          <table class="items-table">
+        <div class="items-section">          <table class="items-table">
             <thead>
               <tr>
-                <th style="width: 16%">Model</th>
-                <th style="width: 44%">Description</th>
-                <th style="width: 10%">Qty</th>
-                <th style="width: 14%">Price</th>
-                <th style="width: 14%">Amount</th>
+                <th style="width: 40%">Model</th>
+                <th style="width: 15%">Qty</th>
+                <th style="width: 22%">Rate</th>
+                <th style="width: 23%">Amount</th>
               </tr>
             </thead>
             <tbody id="itemsBody" aria-live="polite" aria-label="Invoice items list">
@@ -264,6 +260,6 @@
     </div>
   </div>  <!-- Toast Notification -->
   <div id="toast" class="toast"></div>  <!-- Daily Report Container (hidden, used for printing) -->
-  <div id="dailyReportContainer" class="daily-report-container"></div>  <script type="module" src="app.js?v=59"></script>
+  <div id="dailyReportContainer" class="daily-report-container"></div>  <script type="module" src="app.js?v=60"></script>
 </body>
 </html>
