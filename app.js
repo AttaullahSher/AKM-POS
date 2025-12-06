@@ -1,4 +1,4 @@
-// AKM-POS v71 - Fixed all fonts to Space Mono for print consistency
+// AKM-POS v72 - Fixed print button state management (disable until payment selected)
 const firebaseConfig = {
   apiKey: "AIzaSyBaaHya8oqfJEOycvAsKU_Ise3s2VAgqgw",
   authDomain: "akm-pos-480210.firebaseapp.com",
@@ -107,6 +107,16 @@ async function initializePOS() {
   await loadDashboardData();
   await loadRecentInvoices();
   setupRealtimeValidation();
+  
+  // Disable print button until payment method is selected
+  const printBtn = document.getElementById('printBtn');
+  if (printBtn) {
+    printBtn.disabled = true;
+    printBtn.style.opacity = '0.5';
+    printBtn.style.cursor = 'not-allowed';
+    printBtn.title = 'Please select a payment method first';
+  }
+  
   document.getElementById('custName').focus();
 }
 
@@ -458,6 +468,14 @@ window.selectPayment = function(btn, method) {
   document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   currentPaymentMethod = method;
+  
+  // Enable print button when payment method is selected
+  const printBtn = document.getElementById('printBtn');
+  if (printBtn) {
+    printBtn.disabled = false;
+    printBtn.style.opacity = '1';
+    printBtn.style.cursor = 'pointer';
+  }
 };
 
 window.saveAndPrint = async function() {
@@ -860,10 +878,12 @@ window.reprintInvoice = async function(invId) {
       document.getElementById('custPhone').disabled = false;
       document.getElementById('custTRN').disabled = false;
       document.getElementById('invDate').disabled = true;
-      
-      // Ensure print button is enabled and ready
+        // Ensure print button is enabled and ready
       const printBtn = document.getElementById('printBtn');
       printBtn.disabled = false;
+      printBtn.style.opacity = '1';
+      printBtn.style.cursor = 'pointer';
+      printBtn.title = '';
       printBtn.textContent = '🖨️ Reprint Invoice';
       console.log('🖨️ Print button enabled for reprint');
       
@@ -916,11 +936,10 @@ window.clearForm = function() {
   document.getElementById('custPhone').value = '';
   document.getElementById('custTRN').value = '';
   document.getElementById('invDate').valueAsDate = new Date();
-  
-  const tbody = document.getElementById('itemsBody');
+    const tbody = document.getElementById('itemsBody');
   tbody.innerHTML = '';
   for (let i = 0; i < 3; i++) addItemRow();
-    currentPaymentMethod = null;
+  currentPaymentMethod = null;
   isReprintMode = false;
   reprintInvoiceId = null;
   
@@ -928,7 +947,10 @@ window.clearForm = function() {
   calculateTotals();
   
   const printBtn = document.getElementById('printBtn');
-  printBtn.disabled = false;
+  printBtn.disabled = true;
+  printBtn.style.opacity = '0.5';
+  printBtn.style.cursor = 'not-allowed';
+  printBtn.title = 'Please select a payment method first';
   printBtn.textContent = '🖨️ Print Invoice';
   
   // Show Reset button again
