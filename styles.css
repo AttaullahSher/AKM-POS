@@ -77,6 +77,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Force all inputs to black text with Arial - CRITICAL for print */
+input, select, textarea {
+  color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
+  font-family: 'Arial', 'Helvetica', sans-serif !important;
+}
+
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
   width: 8px;
@@ -628,9 +635,10 @@ body {
   border: 1px solid var(--gray-300);
   border-radius: var(--radius-sm);
   background: white;
-  color: #000;
+  color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
   transition: border-color 0.2s;
-  font-family: var(--font-sans);
+  font-family: 'Arial', 'Helvetica', sans-serif !important;
   flex: 1;
 }
 
@@ -839,10 +847,11 @@ select:disabled {
   border: none;
   padding: 8px 10px;
   font-size: 13px;
-  font-family: var(--font-sans);
+  font-family: 'Arial', 'Helvetica', sans-serif !important;
   background: transparent;
   font-weight: 500;
-  color: #000;
+  color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
   text-align: inherit;
 }
 
