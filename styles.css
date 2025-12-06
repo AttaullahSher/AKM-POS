@@ -567,7 +567,7 @@ input, select, textarea {
 }
 
 .invoice-container {
-  max-width: 850px;
+  max-width: 950px;
   margin: 0 auto;
   background: white;
   padding: var(--spacing-xl);
@@ -1220,24 +1220,23 @@ select:disabled {
 /* ===== Toast ===== */
 .toast {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: 30px;
+  right: 30px;
   background: var(--dark);
   color: white;
-  padding: 10px 16px;
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow);
-  font-weight: 500;
-  font-size: 13px;
+  padding: 16px 24px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  font-weight: 600;
   opacity: 0;
   transform: translateY(20px);
   transition: all 0.3s ease;
   z-index: 10000;
-  max-width: 320px;
+  max-width: 400px;
 }
 
 .toast.show {
-  opacity: 0.92;
+  opacity: 1;
   transform: translateY(0);
 }
 
@@ -1310,50 +1309,6 @@ select:disabled {
   border: none;
 }
 
-/* ===== Spell Check Suggestion Popup ===== */
-.spell-suggestion-popup {
-  position: absolute;
-  background: white;
-  border: 2px solid #4CAF50;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  padding: 8px 0;
-  min-width: 150px;
-  max-width: 250px;
-  z-index: 10000;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-}
-
-.spell-suggestion-item {
-  padding: 8px 16px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #333;
-  transition: background 0.2s;
-}
-
-.spell-suggestion-item:hover {
-  background: #f0f8ff;
-  color: #4CAF50;
-}
-
-.spell-suggestion-header {
-  padding: 6px 16px;
-  font-size: 11px;
-  color: #666;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid #eee;
-  margin-bottom: 4px;
-}
-
-.spell-suggestion-divider {
-  height: 1px;
-  background: #eee;
-  margin: 4px 0;
-}
-
 /* ===== Print Styles ===== */
 .print-only {
   display: none;
@@ -1375,19 +1330,6 @@ select:disabled {
     print-color-adjust: exact !important;
     color: #000 !important;
     font-weight: 700 !important;
-  }
-  
-  /* HIDE SPELLCHECK UNDERLINES IN PRINT - CRITICAL */
-  input, textarea {
-    text-decoration: none !important;
-    -webkit-text-decoration: none !important;
-    text-decoration-line: none !important;
-    text-decoration-color: transparent !important;
-  }
-  
-  input::-webkit-input-placeholder,
-  textarea::-webkit-input-placeholder {
-    text-decoration: none !important;
   }  html, body {
     width: 80mm !important;
     margin: 0 !important;
@@ -1411,16 +1353,6 @@ select:disabled {
     -webkit-text-fill-color: #000 !important;
     font-family: 'Space Mono', 'Courier New', monospace !important;
     font-size: 12px !important;
-    font-weight: 700 !important;
-    opacity: 1 !important;
-  }
-  
-  /* Force disabled inputs to black - CRITICAL FOR PRINT */
-  input:disabled,
-  input[disabled] {
-    color: #000 !important;
-    -webkit-text-fill-color: #000 !important;
-    opacity: 1 !important;
     font-weight: 700 !important;
   }
   
@@ -1682,40 +1614,31 @@ select:disabled {
     font-family: 'Space Mono', 'Courier New', monospace !important;
   }
 
-  /* Customer Name (field 3) - FORCE BLACK WITH AGGRESSIVE OVERRIDE */
-  .meta-field:nth-child(3) input,
-  #custName {
+  /* Customer Name (field 3) - FORCE BLACK */
+  .meta-field:nth-child(3) input {
     font-family: 'Space Mono', 'Courier New', monospace !important;
     font-size: 12px !important;
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-weight: 700 !important;
-    opacity: 1 !important;
-    background: transparent !important;
   }
 
-  /* Mobile (field 4) - FORCE BLACK WITH AGGRESSIVE OVERRIDE */
-  .meta-field:nth-child(4) input,
-  #custPhone {
-    font-family: 'Space Mono', 'Courier New', monospace !important;
-    font-size: 12px !important;
+  /* Mobile (field 4) - FORCE BLACK */
+  .meta-field:nth-child(4) input {
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
+    font-size: 10px !important;
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-weight: 700 !important;
-    opacity: 1 !important;
-    background: transparent !important;
   }
 
-  /* TRN (field 5) - FORCE BLACK WITH AGGRESSIVE OVERRIDE */
-  .meta-field:nth-child(5) input,
-  #custTRN {
-    font-family: 'Space Mono', 'Courier New', monospace !important;
-    font-size: 12px !important;
+  /* TRN (field 5) - FORCE BLACK */
+  .meta-field:nth-child(5) input {
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
+    font-size: 10px !important;
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-weight: 700 !important;
-    opacity: 1 !important;
-    background: transparent !important;
   }
 
   /* Hide empty mobile field (including label) */
@@ -1750,29 +1673,13 @@ select:disabled {
 
   .meta-field:nth-child(5):has(input[value=""]) label {
     display: none !important;
-  }  /* Date value styling - FORCE BLACK WITH AGGRESSIVE OVERRIDE */
+  }  /* Date value styling - FORCE BLACK */
   .meta-field:nth-child(2) input,
-  input[type="date"],
-  #invDate {
+  input[type="date"] {
     font-weight: 700 !important;
     font-size: 12px !important;
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
-    font-family: 'Space Mono', 'Courier New', monospace !important;
-    opacity: 1 !important;
-    background: transparent !important;
-  }
-  
-  /* Force date input internal parts to black */
-  input[type="date"]::-webkit-datetime-edit,
-  input[type="date"]::-webkit-datetime-edit-fields-wrapper,
-  input[type="date"]::-webkit-datetime-edit-text,
-  input[type="date"]::-webkit-datetime-edit-month-field,
-  input[type="date"]::-webkit-datetime-edit-day-field,
-  input[type="date"]::-webkit-datetime-edit-year-field {
-    color: #000 !important;
-    -webkit-text-fill-color: #000 !important;
-    font-weight: 700 !important;
     font-family: 'Space Mono', 'Courier New', monospace !important;
   }
 
@@ -1796,10 +1703,8 @@ select:disabled {
     display: table !important;
     visibility: visible !important;
     width: 100% !important;
-    max-width: 70mm !important;
-    table-layout: fixed !important;
     border-collapse: collapse !important;
-    font-size: 9px !important;
+    font-size: 12px !important;
   }
 
   .items-table thead {
@@ -1811,31 +1716,21 @@ select:disabled {
     display: table-row !important;
     visibility: visible !important;
   }
-  
   .items-table thead th {
     display: table-cell !important;
     visibility: visible !important;
-    font-size: 8px !important;
+    font-size: 12px !important;
     font-weight: 700 !important;
-    padding: 0.5mm 0.3mm !important;
+    padding: 1mm !important;
     border-bottom: 1px solid #000 !important;
     background: none !important;
     text-align: left !important;
     color: #000 !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
   }
-  
-  /* Set specific column widths - Description column will be hidden by JS */
-  .items-table thead th:nth-child(1) { width: 30% !important; } /* Model */
-  .items-table thead th:nth-child(2) { width: 16% !important; } /* Qty (after JS conversion) */
-  .items-table thead th:nth-child(3) { width: 27% !important; } /* Rate (after JS conversion) */
-  .items-table thead th:nth-child(4) { width: 27% !important; } /* Amount (after JS conversion) */
 
-  .items-table thead th:nth-child(2),
   .items-table thead th:nth-child(3),
-  .items-table thead th:nth-child(4) {
+  .items-table thead th:nth-child(4),
+  .items-table thead th:nth-child(5) {
     text-align: right !important;
   }
 
@@ -1855,74 +1750,28 @@ select:disabled {
   }  .items-table tbody td {
     display: table-cell !important;
     visibility: visible !important;
-    padding: 0.5mm 0.3mm !important;
+    padding: 1mm !important;
     border-bottom: 1px dotted #000 !important;
-    font-size: 9px !important;
+    font-size: 12px !important;
     font-weight: 700 !important;
     vertical-align: top !important;
     color: #000 !important;
     background: none !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    word-wrap: break-word !important;
-    word-break: break-all !important;
-  }
-  
-  /* Match column widths (Description column 2 is hidden) */
-  .items-table tbody td:nth-child(1) { width: 30% !important; } /* Model */
-  .items-table tbody td:nth-child(2) { display: none !important; } /* Description - HIDDEN */
-  .items-table tbody td:nth-child(3) { width: 16% !important; } /* Qty */
-  .items-table tbody td:nth-child(4) { width: 27% !important; } /* Price */
-  .items-table tbody td:nth-child(5) { width: 27% !important; } /* Amount */
-
-  .items-table tbody td input,
-  .items-table tbody td span {
-    display: block !important;
+  }  .items-table tbody td input {
+    display: inline !important;
     visibility: visible !important;
     border: none !important;
     background: transparent !important;
     padding: 0 !important;
     margin: 0 !important;
-    font-size: 9px !important;
+    font-size: 12px !important;
     font-weight: 700 !important;
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
-    opacity: 1 !important;
     width: 100% !important;
-    max-width: 100% !important;
     font-family: 'Space Mono', 'Courier New', monospace !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    word-break: break-all !important;
-  }
-  
-  /* FORCE ITEMS TABLE SPECIFIC INPUTS TO BLACK - CRITICAL */
-  .item-model,
-  .item-desc,
-  .item-qty,
-  .item-price {
-    color: #000 !important;
-    -webkit-text-fill-color: #000 !important;
-    font-family: 'Space Mono', 'Courier New', monospace !important;
-    font-size: 9px !important;
-    font-weight: 700 !important;
-    opacity: 1 !important;
-    background: transparent !important;
-    max-width: 100% !important;
-  }
-  
-  /* Model column - allow break for long names */
-  .items-table tbody td:nth-child(1) input.item-model {
-    white-space: normal !important;
-    overflow: hidden !important;
-    word-wrap: break-word !important;
-    word-break: break-all !important;
-    max-height: 4em !important;
-    line-height: 1.2 !important;
   }
 
-  /* Qty, Price, Amount columns - right align (columns 3, 4, 5 in original layout) */
   .items-table tbody td:nth-child(3),
   .items-table tbody td:nth-child(4),
   .items-table tbody td:nth-child(5) {
@@ -1930,33 +1779,46 @@ select:disabled {
   }
 
   .items-table tbody td:nth-child(3) input,
-  .items-table tbody td:nth-child(4) input,
-  .items-table tbody td:nth-child(5) span {
+  .items-table tbody td:nth-child(4) input {
     text-align: right !important;
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-family: 'Space Mono', 'Courier New', monospace !important;
-    font-weight: 700 !important;
-    font-size: 9px !important;
-    opacity: 1 !important;
   }
 
   .amount-display {
-    display: block !important;
+    display: inline !important;
     visibility: visible !important;
-    font-size: 9px !important;
+    font-size: 12px !important;
     font-weight: 700 !important;
     padding: 0 !important;
     text-align: right !important;
     color: #000 !important;
     font-family: 'Space Mono', 'Courier New', monospace !important;
-    width: 100% !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    word-break: break-all !important;
   }
 
+  /* Description row styles - 2nd row for each item */
+  .items-table tbody tr.item-desc-row td {
+    border-bottom: 1px solid #000 !important;
+    padding: 1mm !important;
+    padding-top: 0 !important;
+    font-weight: 700 !important;
+  }
 
+  .items-table tbody tr.item-desc-row td input {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    font-weight: 700 !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-height: 2.6em !important;
+    line-height: 1.3 !important;
+  }
 
   /* Totals Section */
   .totals-section {
@@ -2025,7 +1887,6 @@ select:disabled {
   .grand-total-row td.value {
     font-weight: 700 !important;
     color: #000 !important;
-    font-size: 14px !important;
   }  /* Print Footer - STRICT RULES */
   .print-footer {
     display: block !important;
@@ -2127,12 +1988,8 @@ select:disabled {
   }
 
   body.printing-daily-report .daily-report-container * {
+    display: block !important;
     visibility: visible !important;
-    color: #000 !important;
-  }
-  
-  body.printing-daily-report .daily-report-container div[style*="display:flex"] {
-    display: flex !important;
   }
 }
 
@@ -2161,19 +2018,14 @@ select:disabled {
 @media (max-width: 768px) {
   .invoice-container {
     padding: 20px;
-    max-width: 100%;
   }
 
   .invoice-meta,
-  .invoice-meta-row,
-  .invoice-meta-compact {
+  .invoice-meta-row {
     grid-template-columns: 1fr;
-    gap: var(--spacing-md);
   }
-  
   .payment-buttons {
     justify-content: flex-start;
-    flex-wrap: wrap;
   }
 
   .sidebar-actions {
@@ -2182,13 +2034,5 @@ select:disabled {
 
   .metrics {
     grid-template-columns: 1fr;
-  }
-  
-  .items-section {
-    overflow-x: auto;
-  }
-  
-  .items-table {
-    min-width: 600px;
   }
 }
