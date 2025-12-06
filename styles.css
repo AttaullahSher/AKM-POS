@@ -1354,6 +1354,16 @@ select:disabled {
     font-family: 'Space Mono', 'Courier New', monospace !important;
     font-size: 12px !important;
     font-weight: 700 !important;
+    opacity: 1 !important;
+  }
+  
+  /* Force disabled inputs to black - CRITICAL FOR PRINT */
+  input:disabled,
+  input[disabled] {
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+    opacity: 1 !important;
+    font-weight: 700 !important;
   }
   
   /* Print text replacement spans - JS solution for gray input values */
@@ -1614,31 +1624,40 @@ select:disabled {
     font-family: 'Space Mono', 'Courier New', monospace !important;
   }
 
-  /* Customer Name (field 3) - FORCE BLACK */
-  .meta-field:nth-child(3) input {
+  /* Customer Name (field 3) - FORCE BLACK WITH AGGRESSIVE OVERRIDE */
+  .meta-field:nth-child(3) input,
+  #custName {
     font-family: 'Space Mono', 'Courier New', monospace !important;
     font-size: 12px !important;
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-weight: 700 !important;
+    opacity: 1 !important;
+    background: transparent !important;
   }
 
-  /* Mobile (field 4) - FORCE BLACK */
-  .meta-field:nth-child(4) input {
-    font-family: 'Arial', 'Helvetica', sans-serif !important;
-    font-size: 10px !important;
+  /* Mobile (field 4) - FORCE BLACK WITH AGGRESSIVE OVERRIDE */
+  .meta-field:nth-child(4) input,
+  #custPhone {
+    font-family: 'Space Mono', 'Courier New', monospace !important;
+    font-size: 12px !important;
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-weight: 700 !important;
+    opacity: 1 !important;
+    background: transparent !important;
   }
 
-  /* TRN (field 5) - FORCE BLACK */
-  .meta-field:nth-child(5) input {
-    font-family: 'Arial', 'Helvetica', sans-serif !important;
-    font-size: 10px !important;
+  /* TRN (field 5) - FORCE BLACK WITH AGGRESSIVE OVERRIDE */
+  .meta-field:nth-child(5) input,
+  #custTRN {
+    font-family: 'Space Mono', 'Courier New', monospace !important;
+    font-size: 12px !important;
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-weight: 700 !important;
+    opacity: 1 !important;
+    background: transparent !important;
   }
 
   /* Hide empty mobile field (including label) */
@@ -1673,13 +1692,29 @@ select:disabled {
 
   .meta-field:nth-child(5):has(input[value=""]) label {
     display: none !important;
-  }  /* Date value styling - FORCE BLACK */
+  }  /* Date value styling - FORCE BLACK WITH AGGRESSIVE OVERRIDE */
   .meta-field:nth-child(2) input,
-  input[type="date"] {
+  input[type="date"],
+  #invDate {
     font-weight: 700 !important;
     font-size: 12px !important;
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
+    font-family: 'Space Mono', 'Courier New', monospace !important;
+    opacity: 1 !important;
+    background: transparent !important;
+  }
+  
+  /* Force date input internal parts to black */
+  input[type="date"]::-webkit-datetime-edit,
+  input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+  input[type="date"]::-webkit-datetime-edit-text,
+  input[type="date"]::-webkit-datetime-edit-month-field,
+  input[type="date"]::-webkit-datetime-edit-day-field,
+  input[type="date"]::-webkit-datetime-edit-year-field {
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+    font-weight: 700 !important;
     font-family: 'Space Mono', 'Courier New', monospace !important;
   }
 
@@ -1768,8 +1803,23 @@ select:disabled {
     font-weight: 700 !important;
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
+    opacity: 1 !important;
     width: 100% !important;
     font-family: 'Space Mono', 'Courier New', monospace !important;
+  }
+  
+  /* FORCE ITEMS TABLE SPECIFIC INPUTS TO BLACK - CRITICAL */
+  .item-model,
+  .item-desc,
+  .item-qty,
+  .item-price {
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+    font-family: 'Space Mono', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    opacity: 1 !important;
+    background: transparent !important;
   }
 
   .items-table tbody td:nth-child(3),
@@ -1784,6 +1834,9 @@ select:disabled {
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-family: 'Space Mono', 'Courier New', monospace !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    opacity: 1 !important;
   }
 
   .amount-display {
