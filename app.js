@@ -178,14 +178,15 @@ async function initializePOS() {
   await loadDashboardData();
   await loadRecentInvoices();
   setupRealtimeValidation();
-  
-  // Disable print button until payment method is selected
+    // Disable print button until payment method is selected
   const printBtn = document.getElementById('printBtn');
   if (printBtn) {
     printBtn.disabled = true;
     printBtn.style.opacity = '0.5';
     printBtn.style.cursor = 'not-allowed';
+    printBtn.style.pointerEvents = 'none';
     printBtn.title = 'Please select a payment method first';
+    console.log('🔒 Print button disabled on init');
   }
   
   document.getElementById('custName').focus();
@@ -546,6 +547,9 @@ window.selectPayment = function(btn, method) {
     printBtn.disabled = false;
     printBtn.style.opacity = '1';
     printBtn.style.cursor = 'pointer';
+    printBtn.style.pointerEvents = 'auto';
+    printBtn.title = 'Print Invoice';
+    console.log('✅ Print button enabled - Payment method:', method);
   }
 };
 
@@ -1024,11 +1028,11 @@ window.clearForm = function() {
   
   document.querySelectorAll('.payment-btn').forEach(btn => btn.classList.remove('active'));
   calculateTotals();
-  
-  const printBtn = document.getElementById('printBtn');
+    const printBtn = document.getElementById('printBtn');
   printBtn.disabled = true;
   printBtn.style.opacity = '0.5';
   printBtn.style.cursor = 'not-allowed';
+  printBtn.style.pointerEvents = 'none';
   printBtn.title = 'Please select a payment method first';
   printBtn.textContent = '🖨️ Print Invoice';
   
