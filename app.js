@@ -685,35 +685,46 @@ function printInvoice(invNum) {
   } catch (e) {}
   const originalTitle = document.title;
   document.title = invNum;
-  
-  // Convert 5-column rows to 2-row layout for print ONLY
+    // Convert 5-column rows to 2-row layout for print ONLY
   const tbody = document.getElementById('itemsBody');
   const originalRows = [];
   const rows = Array.from(tbody.querySelectorAll('tr'));
+  
+  // Helper function to remove .00 from numbers
+  const formatNumber = (value) => {
+    const num = parseFloat(value);
+    return isNaN(num) ? value : (num % 1 === 0 ? num.toString() : num.toFixed(2).replace(/\.?0+$/, ''));
+  };
   
   rows.forEach(tr => {
     const model = tr.querySelector('.item-model')?.value.trim() || '';
     const desc = tr.querySelector('.item-desc')?.value.trim() || '';
     const qty = tr.querySelector('.item-qty')?.value || '';
     const price = tr.querySelector('.item-price')?.value || '';
-    const amount = tr.querySelector('.amount-display')?.textContent || '';
+    const amount = tr.querySelector('.amount-display')?.textContent.trim() || '';
     
     // Store original row for restoration
     originalRows.push(tr.cloneNode(true));
     
-    // Skip empty rows
-    if (!model && !desc) {
+    // Skip empty rows - check if model/desc empty OR amount is 0 or empty
+    const amountNum = parseFloat(amount);
+    if ((!model && !desc) || !amount || amountNum === 0 || isNaN(amountNum)) {
       tr.style.display = 'none';
       return;
     }
+    
+    // Format numbers - remove .00 from whole numbers
+    const qtyFormatted = formatNumber(qty);
+    const priceFormatted = formatNumber(price);
+    const amountFormatted = formatNumber(amount);
     
     // Convert to Row 1: Model | Qty | Rate | Amount
     tr.className = 'item-row';
     tr.innerHTML = `
       <td><input type="text" class="item-model" value="${model}" disabled></td>
-      <td><input type="number" class="item-qty" value="${qty}" disabled></td>
-      <td><input type="number" class="item-price" value="${price}" disabled></td>
-      <td><span class="amount-display">${amount}</span></td>
+      <td><input type="number" class="item-qty" value="${qtyFormatted}" disabled></td>
+      <td><input type="number" class="item-price" value="${priceFormatted}" disabled></td>
+      <td><span class="amount-display">${amountFormatted}</span></td>
     `;
     
     // Insert Row 2: Description (merged cell)
