@@ -1799,7 +1799,7 @@ select:disabled {
     max-width: 70mm !important;
     table-layout: fixed !important;
     border-collapse: collapse !important;
-    font-size: 12px !important;
+    font-size: 9px !important;
   }
 
   .items-table thead {
@@ -1815,9 +1815,9 @@ select:disabled {
   .items-table thead th {
     display: table-cell !important;
     visibility: visible !important;
-    font-size: 10px !important;
+    font-size: 8px !important;
     font-weight: 700 !important;
-    padding: 1mm 0.5mm !important;
+    padding: 0.5mm 0.3mm !important;
     border-bottom: 1px solid #000 !important;
     background: none !important;
     text-align: left !important;
@@ -1828,8 +1828,8 @@ select:disabled {
   }
   
   /* Set specific column widths - Description column will be hidden by JS */
-  .items-table thead th:nth-child(1) { width: 28% !important; } /* Model */
-  .items-table thead th:nth-child(2) { width: 18% !important; } /* Qty (after JS conversion) */
+  .items-table thead th:nth-child(1) { width: 30% !important; } /* Model */
+  .items-table thead th:nth-child(2) { width: 16% !important; } /* Qty (after JS conversion) */
   .items-table thead th:nth-child(3) { width: 27% !important; } /* Rate (after JS conversion) */
   .items-table thead th:nth-child(4) { width: 27% !important; } /* Amount (after JS conversion) */
 
@@ -1855,9 +1855,9 @@ select:disabled {
   }  .items-table tbody td {
     display: table-cell !important;
     visibility: visible !important;
-    padding: 1mm 0.5mm !important;
+    padding: 0.5mm 0.3mm !important;
     border-bottom: 1px dotted #000 !important;
-    font-size: 10px !important;
+    font-size: 9px !important;
     font-weight: 700 !important;
     vertical-align: top !important;
     color: #000 !important;
@@ -1865,12 +1865,13 @@ select:disabled {
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     word-wrap: break-word !important;
+    word-break: break-all !important;
   }
   
   /* Match column widths (Description column 2 is hidden) */
-  .items-table tbody td:nth-child(1) { width: 28% !important; } /* Model */
+  .items-table tbody td:nth-child(1) { width: 30% !important; } /* Model */
   .items-table tbody td:nth-child(2) { display: none !important; } /* Description - HIDDEN */
-  .items-table tbody td:nth-child(3) { width: 18% !important; } /* Qty */
+  .items-table tbody td:nth-child(3) { width: 16% !important; } /* Qty */
   .items-table tbody td:nth-child(4) { width: 27% !important; } /* Price */
   .items-table tbody td:nth-child(5) { width: 27% !important; } /* Amount */
 
@@ -1882,7 +1883,7 @@ select:disabled {
     background: transparent !important;
     padding: 0 !important;
     margin: 0 !important;
-    font-size: 10px !important;
+    font-size: 9px !important;
     font-weight: 700 !important;
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
@@ -1893,6 +1894,7 @@ select:disabled {
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
+    word-break: break-all !important;
   }
   
   /* FORCE ITEMS TABLE SPECIFIC INPUTS TO BLACK - CRITICAL */
@@ -1903,18 +1905,21 @@ select:disabled {
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-family: 'Space Mono', 'Courier New', monospace !important;
-    font-size: 10px !important;
+    font-size: 9px !important;
     font-weight: 700 !important;
     opacity: 1 !important;
     background: transparent !important;
     max-width: 100% !important;
   }
   
-  /* Model column - truncate with ellipsis */
+  /* Model column - allow break for long names */
   .items-table tbody td:nth-child(1) input.item-model {
-    white-space: nowrap !important;
+    white-space: normal !important;
     overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    word-wrap: break-word !important;
+    word-break: break-all !important;
+    max-height: 4em !important;
+    line-height: 1.2 !important;
   }
 
   /* Qty, Price, Amount columns - right align (columns 3, 4, 5 in original layout) */
@@ -1932,14 +1937,14 @@ select:disabled {
     -webkit-text-fill-color: #000 !important;
     font-family: 'Space Mono', 'Courier New', monospace !important;
     font-weight: 700 !important;
-    font-size: 10px !important;
+    font-size: 9px !important;
     opacity: 1 !important;
   }
 
   .amount-display {
     display: block !important;
     visibility: visible !important;
-    font-size: 10px !important;
+    font-size: 9px !important;
     font-weight: 700 !important;
     padding: 0 !important;
     text-align: right !important;
@@ -1948,22 +1953,10 @@ select:disabled {
     width: 100% !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
+    word-break: break-all !important;
   }
 
-  /* Description column - hide as we convert to 4-column layout on print */
-  .items-table tbody td:nth-child(2) {
-    display: none !important;
-  }
-  
-  /* After hiding description (column 2), the columns shift:
-     Column 1: Model (stays)
-     Column 3 becomes 2: Qty
-     Column 4 becomes 3: Price
-     Column 5 becomes 4: Amount
-  */
-  .items-table tbody td:nth-child(3) { width: 18% !important; } /* Qty */
-  .items-table tbody td:nth-child(4) { width: 27% !important; } /* Price */
-  .items-table tbody td:nth-child(5) { width: 27% !important; } /* Amount */
+
 
   /* Totals Section */
   .totals-section {
