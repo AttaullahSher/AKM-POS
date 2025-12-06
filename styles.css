@@ -1333,11 +1333,25 @@ select:disabled {
     color: #000 !important;
     font-weight: 400 !important;
   }
-
-  /* Force all text elements to black */
-  h1, h2, h3, h4, h5, h6, p, span, div, td, th, input, select, textarea, label {
+  /* Force all text elements to black - CRITICAL FIX FOR INPUT VALUES */
+  h1, h2, h3, h4, h5, h6, p, span, div, td, th, label {
     color: #000 !important;
     font-family: 'Arial', 'Helvetica', sans-serif !important;
+  }
+
+  /* FORCE INPUT VALUES TO BLACK - Browser Override */
+  input, select, textarea {
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
+  }
+
+  /* Force input placeholder to black */
+  input::placeholder,
+  textarea::placeholder {
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+    opacity: 1 !important;
   }
 
   /* Hide all screen-only elements */
@@ -1576,31 +1590,35 @@ select:disabled {
     font-size: 10px !important;
     font-weight: 400 !important;
     color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
     width: auto !important;
     font-family: 'Arial', 'Helvetica', sans-serif !important;
   }
 
-  /* Customer Name (field 3) - ensure Arial 10px black */
+  /* Customer Name (field 3) - FORCE BLACK */
   .meta-field:nth-child(3) input {
     font-family: 'Arial', 'Helvetica', sans-serif !important;
     font-size: 10px !important;
     color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
     font-weight: 400 !important;
   }
 
-  /* Mobile (field 4) - ensure Arial 10px black */
+  /* Mobile (field 4) - FORCE BLACK */
   .meta-field:nth-child(4) input {
     font-family: 'Arial', 'Helvetica', sans-serif !important;
     font-size: 10px !important;
     color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
     font-weight: 400 !important;
   }
 
-  /* TRN (field 5) - ensure Arial 10px black */
+  /* TRN (field 5) - FORCE BLACK */
   .meta-field:nth-child(5) input {
     font-family: 'Arial', 'Helvetica', sans-serif !important;
     font-size: 10px !important;
     color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
     font-weight: 400 !important;
   }
 
@@ -1637,12 +1655,13 @@ select:disabled {
   .meta-field:nth-child(5):has(input[value=""]) label {
     display: none !important;
   }
-
-  /* Date value styling */
-  .meta-field:nth-child(2) input {
+  /* Date value styling - FORCE BLACK */
+  .meta-field:nth-child(2) input,
+  input[type="date"] {
     font-weight: 400 !important;
     font-size: 10px !important;
     color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
     font-family: 'Arial', 'Helvetica', sans-serif !important;
   }
 
@@ -1721,8 +1740,7 @@ select:disabled {
     vertical-align: top !important;
     color: #000 !important;
     background: none !important;
-  }
-  .items-table tbody td input {
+  }  .items-table tbody td input {
     display: inline !important;
     visibility: visible !important;
     border: none !important;
@@ -1732,6 +1750,7 @@ select:disabled {
     font-size: 10px !important;
     font-weight: 400 !important;
     color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
     width: 100% !important;
     font-family: 'Arial', 'Helvetica', sans-serif !important;
   }
@@ -1746,6 +1765,7 @@ select:disabled {
   .items-table tbody td:nth-child(4) input {
     text-align: right !important;
     color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
     font-family: 'Arial', 'Helvetica', sans-serif !important;
   }
 
