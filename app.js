@@ -1,3 +1,4 @@
+// AKM-POS v70 - Stable version with working print styles
 const firebaseConfig = {
   apiKey: "AIzaSyBaaHya8oqfJEOycvAsKU_Ise3s2VAgqgw",
   authDomain: "akm-pos-480210.firebaseapp.com",
