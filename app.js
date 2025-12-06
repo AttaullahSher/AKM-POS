@@ -414,13 +414,19 @@ window.addItemRow = function() {
   
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><input type="text" class="item-model" placeholder="Model"></td>
-    <td><input type="text" class="item-desc" placeholder="Description"></td>
+    <td><input type="text" class="item-model" placeholder="Model" spellcheck="false"></td>
+    <td><input type="text" class="item-desc" placeholder="Description" spellcheck="true"></td>
     <td><input type="number" class="item-qty" min="1" value="1"></td>
     <td><input type="number" class="item-price" min="0" step="0.01" placeholder="0.00"></td>
     <td><span class="amount-display">0.00</span></td>
   `;
   tbody.appendChild(tr);
+  
+  // Initialize spell-check for the description input
+  const descInput = tr.querySelector('.item-desc');
+  if (descInput) {
+    initSpellCheck(descInput);
+  }
 };
 
 function calculateTotals() {
@@ -1386,3 +1392,170 @@ document.addEventListener('click', (e) => {
     closeExpenseModal();
   }
 });
+
+// ===== SMART SPELL-CHECKING SYSTEM =====
+
+// Custom dictionary for musical instruments, business terms, and brand names
+const customDictionary = {
+  // Musical instruments
+  instruments: ['guitar', 'piano', 'violin', 'saxophone', 'drums', 'keyboard', 'synthesizer', 
+                'amplifier', 'mixer', 'microphone', 'mic', 'speaker', 'bass', 'acoustic', 
+                'electric', 'classical', 'flute', 'clarinet', 'trumpet', 'trombone', 'cello', 
+                'viola', 'harp', 'ukulele', 'mandolin', 'banjo', 'accordion', 'harmonica'],
+  
+  // Accessories and equipment
+  accessories: ['cable', 'stand', 'bench', 'case', 'bag', 'strap', 'pick', 'picks', 'strings', 
+                'capo', 'tuner', 'metronome', 'pedal', 'footswitch', 'adapter', 'connector', 
+                'jack', 'xlr', 'trs', 'rca', 'midi', 'usb', 'aux', 'bluetooth', 'wireless'],
+  
+  // Business and rental terms
+  business: ['rental', 'delivery', 'installation', 'service', 'tuning', 'repair', 'maintenance',
+             'pickup', 'dropoff', 'studio', 'event', 'concert', 'performance', 'rehearsal',
+             'lesson', 'workshop', 'recording', 'warranty', 'guarantee', 'refund', 'exchange'],
+  
+  // Brand names (will be auto-capitalized)
+  brands: ['yamaha', 'cort', 'ibanez', 'roland', 'jbl', 'prosound', 'fender', 'gibson', 
+           'steinway', 'kawai', 'casio', 'korg', 'boss', 'shure', 'sennheiser', 'behringer',
+           'mackie', 'focusrite', 'presonus', 'mxr', 'dunlop', 'ernie', 'ball', 'daddario',
+           'elixir', 'martin', 'takamine', 'taylor', 'ovation', 'epiphone']
+};
+
+// Flatten all dictionary words for quick lookup
+const allCustomWords = [
+  ...customDictionary.instruments,
+  ...customDictionary.accessories,
+  ...customDictionary.business,
+  ...customDictionary.brands
+];
+
+// Brand name capitalization map
+const brandCapitalization = {
+  'yamaha': 'Yamaha',
+  'cort': 'Cort',
+  'ibanez': 'Ibanez',
+  'roland': 'Roland',
+  'jbl': 'JBL',
+  'prosound': 'Prosound',
+  'fender': 'Fender',
+  'gibson': 'Gibson',
+  'steinway': 'Steinway',
+  'kawai': 'Kawai',
+  'casio': 'Casio',
+  'korg': 'Korg',
+  'boss': 'BOSS',
+  'shure': 'Shure',
+  'sennheiser': 'Sennheiser',
+  'behringer': 'Behringer',
+  'mackie': 'Mackie',
+  'focusrite': 'Focusrite',
+  'presonus': 'PreSonus',
+  'mxr': 'MXR',
+  'dunlop': 'Dunlop',
+  'ernie': 'Ernie',
+  'ball': 'Ball',
+  'daddario': "D'Addario",
+  'elixir': 'Elixir',
+  'martin': 'Martin',
+  'takamine': 'Takamine',
+  'taylor': 'Taylor',
+  'ovation': 'Ovation',
+  'epiphone': 'Epiphone'
+};
+
+// Check if a word is a model number (mix of uppercase + digits)
+function isModelNumber(word) {
+  // Model patterns: ZS12, CW422, SS400, C7X, G5, ZA15
+  return /^[A-Z0-9]+$/.test(word) && /[A-Z]/.test(word) && /[0-9]/.test(word);
+}
+
+// Auto-capitalize first letter of sentence
+function capitalizeFirstLetter(text) {
+  return text.replace(/(^\s*\w|[.!?]\s+\w)/g, letter => letter.toUpperCase());
+}
+
+// Auto-capitalize brand names
+function capitalizeBrands(text) {
+  let result = text;
+  Object.keys(brandCapitalization).forEach(brand => {
+    const regex = new RegExp(`\\b${brand}\\b`, 'gi');
+    result = result.replace(regex, brandCapitalization[brand]);
+  });
+  return result;
+}
+
+// Auto-capitalize model numbers
+function capitalizeModels(text) {
+  return text.replace(/\b([a-z]+\d+|[a-z]\d+[a-z]?)\b/gi, match => match.toUpperCase());
+}
+
+// Apply all auto-capitalization rules
+function autoCapitalize(text) {
+  let result = capitalizeFirstLetter(text);
+  result = capitalizeBrands(result);
+  result = capitalizeModels(result);
+  return result;
+}
+
+// Initialize spell-check for a description input
+function initSpellCheck(input) {
+  if (!input || input.classList.contains('spell-check-initialized')) return;
+  
+  input.classList.add('spell-check-initialized');
+  input.setAttribute('spellcheck', 'true');
+  
+  // Auto-capitalization on blur
+  input.addEventListener('blur', function() {
+    if (this.value) {
+      const originalValue = this.value;
+      const capitalizedValue = autoCapitalize(this.value);
+      if (originalValue !== capitalizedValue) {
+        this.value = capitalizedValue;
+      }
+    }
+  });
+  
+  // Auto-capitalize as user types (debounced)
+  let capitalizationTimeout;
+  input.addEventListener('input', function() {
+    clearTimeout(capitalizationTimeout);
+    capitalizationTimeout = setTimeout(() => {
+      const cursorPos = this.selectionStart;
+      const originalValue = this.value;
+      const capitalizedValue = autoCapitalize(this.value);
+      if (originalValue !== capitalizedValue) {
+        this.value = capitalizedValue;
+        this.setSelectionRange(cursorPos, cursorPos);
+      }
+    }, 500);
+  });
+}
+
+// Initialize spell-check for all existing description inputs
+function initAllSpellChecks() {
+  document.querySelectorAll('.item-desc').forEach(input => {
+    initSpellCheck(input);
+  });
+  
+  // Ensure model inputs have spellcheck disabled
+  document.querySelectorAll('.item-model').forEach(input => {
+    input.setAttribute('spellcheck', 'false');
+  });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+  // Wait a bit to ensure DOM is ready
+  setTimeout(initAllSpellChecks, 500);
+});
+
+// Re-initialize when items are reprinted/loaded
+const originalReprintInvoice = window.reprintInvoice;
+if (originalReprintInvoice) {
+  window.reprintInvoice = async function(invId) {
+    await originalReprintInvoice(invId);
+    setTimeout(initAllSpellChecks, 300);
+  };
+}
+
+console.log('✅ Smart spell-checking system initialized');
+console.log('📚 Custom dictionary loaded:', allCustomWords.length, 'words');
