@@ -1357,6 +1357,17 @@ select:disabled {
     font-weight: 700 !important;
   }
   
+  /* Hide inputs marked for print replacement - CRITICAL FIX */
+  input.print-hidden-input,
+  select.print-hidden-input,
+  textarea.print-hidden-input,
+  .amount-display.print-hidden-input {
+    display: none !important;
+    visibility: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+  }
+  
   /* Print text replacement spans - JS solution for gray input values */
   .print-text-replacement {
     color: #000 !important;

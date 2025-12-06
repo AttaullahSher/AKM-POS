@@ -79,8 +79,8 @@ function preparePrintLayout() {
       textSpan.style.lineHeight = '1.3';
       textSpan.style.maxHeight = '2.6em';
     }
-    
-    input.style.display = 'none';
+      // Add class instead of inline style (CSS !important overrides inline styles)
+    input.classList.add('print-hidden-input');
     input.parentNode.insertBefore(textSpan, input);
     state.textSpan = textSpan;
   });
@@ -88,11 +88,12 @@ function preparePrintLayout() {
 
 function restorePrintLayout() {
   console.log('🔄 Restoring original layout after print');
-  
-  originalInputStates.forEach(state => {
+    originalInputStates.forEach(state => {
     if (state.textSpan && state.textSpan.parentNode) {
       state.textSpan.parentNode.removeChild(state.textSpan);
     }
+    // Remove the print-hidden class to restore visibility
+    state.element.classList.remove('print-hidden-input');
     state.element.style.display = state.display;
   });
   
