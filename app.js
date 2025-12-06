@@ -58,8 +58,7 @@ function convertInputsToTextForPrint() {
       span.className = 'print-text-replacement';
       span.textContent = value;
       span.style.cssText = 'color: #000 !important; font-family: Arial, sans-serif; font-size: 10px;';
-      
-      // Store data for restoration
+        // Store data for restoration
       inputsData.push({
         element: input,
         parent: parent,
@@ -67,9 +66,8 @@ function convertInputsToTextForPrint() {
         replacement: span
       });
       
-      // Replace input with span
-      parent.insertBefore(span, input);
-      input.style.display = 'none';
+      // Replace input with span - REMOVE from DOM, not just hide
+      parent.replaceChild(span, input);
     });
   });
   
@@ -78,11 +76,9 @@ function convertInputsToTextForPrint() {
 
 function restoreInputsAfterPrint(inputsData) {
   inputsData.forEach(data => {
-    // Show the original input again
-    data.element.style.display = '';
-    // Remove the replacement span
+    // Restore the original input by replacing the span back
     if (data.replacement.parentNode) {
-      data.replacement.parentNode.removeChild(data.replacement);
+      data.parent.replaceChild(data.element, data.replacement);
     }
   });
 }
