@@ -1,4 +1,4 @@
-// AKM-POS v73 - Fixed empty row detection (must have model + qty + price + amount)
+// AKM-POS v74 - Smart empty row logic: amount-based + description validation
 const firebaseConfig = {
   apiKey: "AIzaSyBaaHya8oqfJEOycvAsKU_Ise3s2VAgqgw",
   authDomain: "akm-pos-480210.firebaseapp.com",
@@ -746,19 +746,21 @@ function printInvoice(invNum) {
     const desc = tr.querySelector('.item-desc')?.value.trim() || '';
     const qty = tr.querySelector('.item-qty')?.value || '';
     const price = tr.querySelector('.item-price')?.value || '';
-    const amount = tr.querySelector('.amount-display')?.textContent.trim() || '';
-      // Store original row for restoration
+    const amount = tr.querySelector('.amount-display')?.textContent.trim() || '';    // Store original row for restoration
     originalRows.push(tr.cloneNode(true));
     
-    // Skip empty rows - MUST have model AND non-zero amount
+    // NEW LOGIC: Amount-based filtering with smart validation
     const amountNum = parseFloat(amount);
     const qtyNum = parseFloat(qty);
-    const priceNum = parseFloat(price);
     
-    // Hide row if: no model, OR amount is 0/empty, OR qty/price is 0/empty
-    if (!model || !amount || amountNum === 0 || isNaN(amountNum) || 
-        !qty || qtyNum === 0 || isNaN(qtyNum) ||
-        !price || priceNum === 0 || isNaN(priceNum)) {
+    // Check if description is meaningful (not empty and not just placeholder text)
+    const hasRealDescription = desc && desc.toLowerCase() !== 'reference';
+    
+    // HIDE ROW IF:
+    // 1. Amount is 0 or empty (MAIN CONDITION)
+    // 2. OR: Has description but qty is 0 or empty (can't have item without quantity)
+    if (!amount || amountNum === 0 || isNaN(amountNum) ||
+        (hasRealDescription && (!qty || qtyNum === 0 || isNaN(qtyNum)))) {
       tr.classList.add('empty-row');
       tr.style.display = 'none';
       return;
