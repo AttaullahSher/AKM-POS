@@ -31,6 +31,62 @@ let requestQueue = [];
 let isProcessingQueue = false;
 const REQUEST_DELAY = 200;
 
+// Helper functions to convert inputs to text for printing (fixes gray text issue in print preview)
+function convertInputsToTextForPrint() {
+  const inputsData = [];
+  
+  // Convert all input and select elements in the invoice area
+  const selectors = [
+    '#custName',
+    '#custPhone', 
+    '#custTRN',
+    '#invDate',
+    '.item-model',
+    '.item-desc',
+    '.item-qty',
+    '.item-price',
+    'select[name="paymentMethod"]'
+  ];
+  
+  selectors.forEach(selector => {
+    document.querySelectorAll(selector).forEach(input => {
+      const value = input.value || '';
+      const parent = input.parentNode;
+      
+      // Create a span to replace the input
+      const span = document.createElement('span');
+      span.className = 'print-text-replacement';
+      span.textContent = value;
+      span.style.cssText = 'color: #000 !important; font-family: Arial, sans-serif; font-size: 10px;';
+      
+      // Store data for restoration
+      inputsData.push({
+        element: input,
+        parent: parent,
+        nextSibling: input.nextSibling,
+        replacement: span
+      });
+      
+      // Replace input with span
+      parent.insertBefore(span, input);
+      input.style.display = 'none';
+    });
+  });
+  
+  return inputsData;
+}
+
+function restoreInputsAfterPrint(inputsData) {
+  inputsData.forEach(data => {
+    // Show the original input again
+    data.element.style.display = '';
+    // Remove the replacement span
+    if (data.replacement.parentNode) {
+      data.replacement.parentNode.removeChild(data.replacement);
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🚀 AKM-POS initializing...');
   
@@ -672,8 +728,7 @@ function printInvoice(invNum) {
   
   const originalTitle = document.title;
   document.title = invNum;
-  
-  document.querySelectorAll('#itemsBody tr').forEach(tr => {
+    document.querySelectorAll('#itemsBody tr').forEach(tr => {
     const model = tr.querySelector('.item-model').value.trim();
     const desc = tr.querySelector('.item-desc').value.trim();
     if (!model && !desc) {
@@ -682,7 +737,11 @@ function printInvoice(invNum) {
       tr.classList.remove('empty-row');
     }
   });
-    window.print();
+  
+  // Convert inputs to text for printing (fixes gray text issue)
+  const inputsToRestore = convertInputsToTextForPrint();
+  
+  window.print();
   console.log('✅ Print dialog opened for invoice:', invNum);
   
   setTimeout(() => {
@@ -690,6 +749,8 @@ function printInvoice(invNum) {
     document.querySelectorAll('#itemsBody tr.empty-row').forEach(tr => {
       tr.classList.remove('empty-row');
     });
+    // Restore inputs after print
+    restoreInputsAfterPrint(inputsToRestore);
   }, 500);
 }
 

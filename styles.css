@@ -1332,8 +1332,7 @@ select:disabled {
     line-height: 1.3 !important;
     color: #000 !important;
     font-weight: 400 !important;
-  }
-  /* Force all text elements to black - CRITICAL FIX FOR INPUT VALUES */
+  }  /* Force all text elements to black - CRITICAL FIX FOR INPUT VALUES */
   h1, h2, h3, h4, h5, h6, p, span, div, td, th, label {
     color: #000 !important;
     font-family: 'Arial', 'Helvetica', sans-serif !important;
@@ -1344,6 +1343,16 @@ select:disabled {
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-family: 'Arial', 'Helvetica', sans-serif !important;
+  }
+  
+  /* Print text replacement spans - JS solution for gray input values */
+  .print-text-replacement {
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
+    font-size: 10px !important;
+    font-weight: 400 !important;
+    display: inline-block !important;
   }
 
   /* Force input placeholder to black */
