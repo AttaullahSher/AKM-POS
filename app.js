@@ -463,6 +463,13 @@ window.saveAndPrint = async function() {
   console.log('📄 Save and Print clicked');
   
   const btn = document.getElementById('printBtn');
+  
+  // Ensure button is always enabled at the start (defensive programming)
+  if (btn.disabled && btn.textContent === '🖨️ Print Invoice') {
+    console.log('⚠️ Button was disabled, re-enabling for validation check');
+    btn.disabled = false;
+  }
+  
   if (btn.disabled) {
     console.log('⚠️ Button already processing');
     return;
@@ -471,6 +478,7 @@ window.saveAndPrint = async function() {
   if (!currentPaymentMethod) {
     console.log('❌ Validation failed: No payment method selected');
     showToast('Please select a payment method', 'error');
+    btn.disabled = false; // Ensure button remains enabled
     return;
   }
   
@@ -480,12 +488,14 @@ window.saveAndPrint = async function() {
   if (items.length === 0) {
     console.log('❌ Validation failed: No items in invoice');
     showToast('Please add at least one item', 'error');
+    btn.disabled = false; // Ensure button remains enabled
     return;
   }
   
   const validation = validateInvoiceForm();
   if (!validation.isValid) {
     console.log('❌ Validation failed:', validation.errors);
+    btn.disabled = false; // Ensure button remains enabled
     return;
   }
   

@@ -567,7 +567,7 @@ input, select, textarea {
 }
 
 .invoice-container {
-  max-width: 950px;
+  max-width: 850px;
   margin: 0 auto;
   background: white;
   padding: var(--spacing-xl);
@@ -1220,23 +1220,24 @@ select:disabled {
 /* ===== Toast ===== */
 .toast {
   position: fixed;
-  bottom: 30px;
-  right: 30px;
+  bottom: 20px;
+  right: 20px;
   background: var(--dark);
   color: white;
-  padding: 16px 24px;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
-  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  font-weight: 500;
+  font-size: 13px;
   opacity: 0;
   transform: translateY(20px);
   transition: all 0.3s ease;
   z-index: 10000;
-  max-width: 400px;
+  max-width: 320px;
 }
 
 .toast.show {
-  opacity: 1;
+  opacity: 0.92;
   transform: translateY(0);
 }
 
@@ -2099,8 +2100,12 @@ select:disabled {
   }
 
   body.printing-daily-report .daily-report-container * {
-    display: block !important;
     visibility: visible !important;
+    color: #000 !important;
+  }
+  
+  body.printing-daily-report .daily-report-container div[style*="display:flex"] {
+    display: flex !important;
   }
 }
 
@@ -2129,14 +2134,19 @@ select:disabled {
 @media (max-width: 768px) {
   .invoice-container {
     padding: 20px;
+    max-width: 100%;
   }
 
   .invoice-meta,
-  .invoice-meta-row {
+  .invoice-meta-row,
+  .invoice-meta-compact {
     grid-template-columns: 1fr;
+    gap: var(--spacing-md);
   }
+  
   .payment-buttons {
     justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   .sidebar-actions {
@@ -2145,5 +2155,13 @@ select:disabled {
 
   .metrics {
     grid-template-columns: 1fr;
+  }
+  
+  .items-section {
+    overflow-x: auto;
+  }
+  
+  .items-table {
+    min-width: 600px;
   }
 }
