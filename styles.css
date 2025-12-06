@@ -568,7 +568,7 @@ input, select, textarea {
 }
 
 .invoice-container {
-  max-width: 950px;
+  max-width: 800px;
   margin: 0 auto;
   background: white;
   padding: var(--spacing-xl);
