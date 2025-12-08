@@ -262,15 +262,14 @@ async function getNextJobNumber() {
 
 // Convert job number to display format (DDSS - day + sequence)
 function formatSlipNumber(jobNumber, jobDate) {
-  // Extract sequence from jobNumber (R2512001 -> 001)
-  const match = jobNumber.match(/R\d{4}(\d+)/);
+  // Extract month and sequence from jobNumber (R2512001 -> month:12, seq:001)
+  const match = jobNumber.match(/R\d{2}(\d{2})(\d+)/);
   if (!match) return jobNumber;
   
-  const sequence = match[1];
-  const date = new Date(jobDate);
-  const day = String(date.getDate()).padStart(2, '0');
+  const month = match[1]; // Extract month (12 for December)
+  const sequence = match[2].padStart(2, '0').slice(-2); // Get last 2 digits of sequence, pad if needed
   
-  return `${day}${sequence.slice(-2)}`; // DDSS format (e.g., 0801 for Dec 8, sequence 01)
+  return `${month}${sequence}`; // MMSS format (e.g., 1201 for December, sequence 01)
 }
 
 // Submit new repair job
