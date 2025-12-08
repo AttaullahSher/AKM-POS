@@ -1,4 +1,4 @@
-/* AKM-POS Styles v80 - API Retry Logic for Cold Starts */
+/* AKM-POS Styles v81 - Enhanced API Retry (5 attempts, 45s timeout) */
 /* ===== CSS Variables ===== */
 :root {
   /* Modern Color Palette */

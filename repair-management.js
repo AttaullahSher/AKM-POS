@@ -43,12 +43,12 @@ async function loadRepairJobs() {
       displayRepairJobs();
       return;
     }
-    
-    // Parse jobs (skip header row)
+      // Parse jobs (skip header row)
     allRepairJobs = [];
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
-      if (row[0]) { // Has job number
+      // Validate row exists and has minimum required fields
+      if (row && Array.isArray(row) && row.length >= 8 && row[0]) {
         allRepairJobs.push({
           jobNumber: row[0] || '',
           date: row[1] || '',
@@ -101,15 +101,24 @@ function sortRepairJobs() {
   };
   
   currentRepairJobs.sort((a, b) => {
-    const orderA = statusOrder[a.status] || 999;
-    const orderB = statusOrder[b.status] || 999;
+    // Handle unknown statuses gracefully
+    const orderA = statusOrder[a.status] !== undefined ? statusOrder[a.status] : 999;
+    const orderB = statusOrder[b.status] !== undefined ? statusOrder[b.status] : 999;
     
     if (orderA !== orderB) {
       return orderA - orderB;
     }
     
     // If same status, sort by date (newest first)
-    return new Date(b.date) - new Date(a.date);
+    try {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) return 0;
+      return dateB - dateA;
+    } catch (e) {
+      console.warn('Date parsing error in sortRepairJobs:', e);
+      return 0;
+    }
   });
 }
 

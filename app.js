@@ -1,4 +1,4 @@
-// AKM-POS v79 - Repair Management System Integration - Fixed function exports
+// AKM-POS v82 - Repair Management + Enhanced API Retry (5 attempts, 45s timeout)
 const firebaseConfig = {
   apiKey: "AIzaSyBaaHya8oqfJEOycvAsKU_Ise3s2VAgqgw",
   authDomain: "akm-pos-480210.firebaseapp.com",
@@ -248,20 +248,22 @@ async function readSheetBatch(ranges) {
   }
 }
 
-async function readSheet(range, retries = 2) {
+async function readSheet(range, retries = 4) {
   return queueRequest(async () => {
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         if (attempt > 0) {
-          console.log(`🔄 Retry attempt ${attempt}/${retries} for range: ${range}`);
-          await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Wait 2s, 4s
+          const waitTime = 3000 * attempt; // 3s, 6s, 9s, 12s
+          console.log(`🔄 Retry attempt ${attempt}/${retries} for range: ${range} (waiting ${waitTime/1000}s...)`);
+          showToast(`⏳ Waking up API server... (attempt ${attempt}/${retries})`, 'info');
+          await new Promise(resolve => setTimeout(resolve, waitTime));
         }
         
         const response = await fetch(READ_ENDPOINT, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ range }),
-          signal: AbortSignal.timeout(30000) // 30 second timeout
+          signal: AbortSignal.timeout(45000) // 45 second timeout
         });
         
         if (!response.ok) {
@@ -281,13 +283,14 @@ async function readSheet(range, retries = 2) {
         
         if (attempt > 0) {
           console.log(`✅ Retry successful after ${attempt} attempt(s)`);
+          showToast('✅ API connected successfully!', 'success');
         }
         return data.values || [];
         
       } catch (error) {
         if (attempt === retries) {
-          console.error('❌ Network error reading sheet:', error.message);
-          showToast('Error reading data. API may be starting up - please wait 30s and try again.', 'error');
+          console.error('❌ All retry attempts failed:', error.message);
+          showToast('⚠️ API unavailable. The server may be down or experiencing issues. Please contact support.', 'error');
           return null;
         }
       }
@@ -582,38 +585,30 @@ window.saveAndPrint = async function() {
   
   const btn = document.getElementById('printBtn');
   
-  // Ensure button is always enabled at the start (defensive programming)
-  if (btn.disabled && btn.textContent === '🖨️ Print Invoice') {
-    console.log('⚠️ Button was disabled, re-enabling for validation check');
-    btn.disabled = false;
-  }
-  
+  // Prevent double-clicks
   if (btn.disabled) {
     console.log('⚠️ Button already processing');
     return;
   }
   
+  // Validate payment method
   if (!currentPaymentMethod) {
     console.log('❌ Validation failed: No payment method selected');
     showToast('Please select a payment method', 'error');
-    btn.disabled = false; // Ensure button remains enabled
     return;
   }
   
   const items = collectItems();
   console.log('📦 Items collected:', items.length);
-  
-  if (items.length === 0) {
+    if (items.length === 0) {
     console.log('❌ Validation failed: No items in invoice');
     showToast('Please add at least one item', 'error');
-    btn.disabled = false; // Ensure button remains enabled
     return;
   }
   
   const validation = validateInvoiceForm();
   if (!validation.isValid) {
     console.log('❌ Validation failed:', validation.errors);
-    btn.disabled = false; // Ensure button remains enabled
     return;
   }
   
@@ -816,7 +811,12 @@ function printInvoice(invNum) {
       displayValue: false
     });
     document.getElementById('barcodeText').textContent = invNum;
-  } catch (e) {}
+  } catch (e) {
+    console.error('❌ Barcode generation failed:', e.message);
+    // Continue with printing even if barcode fails
+    const barcodeText = document.getElementById('barcodeText');
+    if (barcodeText) barcodeText.textContent = invNum;
+  }
   const originalTitle = document.title;
   document.title = invNum;
   // Convert 5-column rows to 2-row layout for print ONLY
@@ -1043,7 +1043,9 @@ window.clearForm = function() {
   document.getElementById('custPhone').value = '';
   document.getElementById('custTRN').value = '';
   document.getElementById('invDate').valueAsDate = new Date();
-    const tbody = document.getElementById('itemsBody');
+  
+  // Clear items table (this removes old event listeners)
+  const tbody = document.getElementById('itemsBody');
   tbody.innerHTML = '';
   for (let i = 0; i < 3; i++) addItemRow();
   currentPaymentMethod = null;

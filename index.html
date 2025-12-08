@@ -2,7 +2,7 @@
 <html lang="en">
 <head>  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AKM-POS | Point of Sale System</title>  <link rel="icon" type="image/png" href="/Favicon.png">  <link rel="preconnect" href="https://fonts.googleapis.com">  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">  <link rel="stylesheet" href="styles.css?v=80">
+  <title>AKM-POS | Point of Sale System</title>  <link rel="icon" type="image/png" href="/Favicon.png">  <link rel="preconnect" href="https://fonts.googleapis.com">  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">  <link rel="stylesheet" href="styles.css?v=82">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
 <body>
@@ -268,17 +268,25 @@
   <div id="dailyReportContainer" class="daily-report-container"></div>
 
   <!-- Repair Modal -->
-  <div id="repairModal" class="modal-overlay"></div>
-    <div class="modal-content" style="max-width: 800px;">
+  <div id="repairModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 900px; width: 95%;">
       <div class="modal-header">
         <h2>🔧 Repair Jobs</h2>
-        <button onclick="closeRepairModal()" class="modal-close">&times;</button>
+        <button onclick="closeRepairModal()" class="modal-close" aria-label="Close repair jobs">&times;</button>
       </div>
       <div class="modal-body">
-        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
-          <input type="text" id="repairSearchInput" placeholder="Search by name, job number, or product..." 
-                 oninput="searchRepairJobs()" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-          <button onclick="openNewRepairForm()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        <div style="display: flex; gap: 12px; margin-bottom: 20px; align-items: center;">
+          <input
+            type="text"
+            id="repairSearchInput"
+            placeholder="Search by name, job number, or product..."
+            oninput="searchRepairJobs()"
+            style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"
+          >
+          <button
+            onclick="openNewRepairForm()"
+            style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;"
+          >
             ➕ New Job
           </button>
         </div>
@@ -292,7 +300,7 @@
     <div class="modal-content" style="max-width: 500px;">
       <div class="modal-header">
         <h2>New Repair Job</h2>
-        <button onclick="closeNewRepairForm()" class="modal-close">&times;</button>
+        <button onclick="closeNewRepairForm()" class="modal-close" aria-label="Close new repair form">&times;</button>
       </div>
       <div class="modal-body">
         <form onsubmit="event.preventDefault(); submitNewRepairJob();">
@@ -343,7 +351,7 @@
   <!-- Repair Slip Container (for printing) -->
   <div id="repairSlipContainer" class="repair-slip-container"></div>
 
-  <script type="module" src="app.js?v=80"></script>
-  <script type="module" src="repair-management.js"></script>
+  <script type="module" src="app.js?v=82"></script>
+  <script type="module" src="repair-management.js?v=82"></script>
 </body>
 </html>

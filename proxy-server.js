@@ -159,6 +159,27 @@ app.post('/writeToSheet', async (req, res) => {
       });
     }
 
+    // Validate action type
+    if (action !== 'append' && action !== 'update') {
+      return res.status(400).json({
+        error: "Invalid action. Use 'append' or 'update'",
+      });
+    }
+
+    // Validate values is an array
+    if (!Array.isArray(values)) {
+      return res.status(400).json({
+        error: 'Values must be an array',
+      });
+    }
+
+    // Validate sheetName to prevent injection
+    if (typeof sheetName !== 'string' || sheetName.trim().length === 0) {
+      return res.status(400).json({
+        error: 'Invalid sheet name',
+      });
+    }
+
     console.log('📝 Sheet write request:', { action, sheetName, range });
 
     // Get Google Sheets client
@@ -227,65 +248,7 @@ app.post('/writeToSheet', async (req, res) => {
     return res.status(500).json({
       error: 'Failed to write to sheet',
       details: error.message,
-    });
-  }
-});
-
-/**
- * Read from Google Sheets endpoint
- */
-app.post('/readSheet', async (req, res) => {
-  try {
-    const { range, ranges } = req.body;
-
-    console.log('📖 Sheet read request:', { range, ranges });
-
-    // Get Google Sheets client
-    const sheets = await getGoogleSheetsClient();
-
-    // Handle batch read (multiple ranges)
-    if (ranges && Array.isArray(ranges)) {
-      const result = await sheets.spreadsheets.values.batchGet({
-        spreadsheetId: SPREADSHEET_ID,
-        ranges: ranges.map(r => `Sheet1!${r}`),
-      });
-
-      console.log(`✅ Batch read successful: ${result.data.valueRanges.length} ranges`);
-
-      return res.status(200).json({
-        success: true,
-        valueRanges: result.data.valueRanges,
-      });
-    }
-
-    // Handle single range read
-    if (range) {
-      const result = await sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `Sheet1!${range}`,
-      });
-
-      console.log(`✅ Read successful: ${result.data.values?.length || 0} rows`);
-
-      return res.status(200).json({
-        success: true,
-        values: result.data.values || [],
-      });
-    }
-
-    // No range specified, return error
-    return res.status(400).json({
-      error: 'Missing required field: range or ranges',
-    });
-
-  } catch (error) {
-    console.error('❌ Sheet read failed:', error.message);
-
-    return res.status(500).json({
-      error: 'Failed to read from sheet',
-      details: error.message,
-    });
-  }
+    });  }
 });
 
 // Start server
