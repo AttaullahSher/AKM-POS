@@ -1,0 +1,32 @@
+{
+  "hosting": {
+    "site": "akm-daily",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "proxy-server.js",
+      "package.json",
+      "package-lock.json",
+      "START-POS.bat",
+      "README-PROXY-SETUP.md",
+      "SYSTEM-READY.md",
+      "QUICK-START.html",
+      "STATUS.html"
+    ]
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}

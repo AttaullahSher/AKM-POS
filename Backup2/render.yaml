@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: akm-pos-api
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node proxy-server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
