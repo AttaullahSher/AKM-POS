@@ -1,5 +1,6 @@
 // ===== REPAIR JOB MANAGEMENT SYSTEM =====
 // Handles repair jobs with status tracking and thermal slip printing
+// Version: v84 - Compact thermal print format + Enter key navigation
 
 let allRepairJobs = [];
 let currentRepairJobs = [];
@@ -306,35 +307,37 @@ function printRepairSlip(job) {
   
   // Format date as "08-Dec-2025"
   const formattedDate = formatDate(new Date(job.date), 'DD-MMM-YYYY');
-  
-  const slipHTML = `
+    const slipHTML = `
     <div class="repair-slip-header">
-      <h1>مركز أجمل خان محمد للموسيقى ذ.م.م</h1>
-      <h1>Ajmal Khan Mohammed Music Centre LLC.</h1>
-      <div>TRN: 100496016100003</div>
-      <div>Al Sabkha Street, Deira, Dubai</div>
-      <div>Tel: +971-4-2289009</div>
+      <h1>AKM Music</h1>
+      <div>F9Q8+XQ Abu Dhabi</div>
+      <div>Tel: 02-621 9929</div>
     </div>
+    
+    <div class="repair-slip-separator"></div>
     
     <div class="repair-slip-number">REPAIR SLIP #${job.jobNumber}</div>
     <div class="repair-slip-date">Date: ${formattedDate}</div>
     
+    <div class="repair-slip-separator"></div>
+    
     <div class="repair-slip-details">
       ${job.name ? `<div><strong>Name:</strong> ${job.name}</div>` : ''}
-      <div><strong>Mobile:</strong> ${job.mobile}</div>
-      <div><strong>Product/Model:</strong> ${job.product}</div>
-      ${job.service ? `<div><strong>Service:</strong> ${job.service}</div>` : ''}
-      <div><strong>Estimated Charges:</strong> AED ${parseFloat(job.charges).toFixed(2)}</div>
+      <div><strong>Mob:</strong> ${job.mobile}</div>
+      <div><strong>Model:</strong> ${job.product}</div>
+      ${job.service ? `<div><strong>Job:</strong> <span class="job-description">${job.service}</span></div>` : ''}
+      <div><strong>Est:</strong> AED ${parseFloat(job.charges).toFixed(2)}</div>
     </div>
     
+    <div class="repair-slip-separator"></div>
+    
     <div class="repair-slip-terms">
-      <div style="font-weight:bold;margin-bottom:6px;text-align:center;">TERMS & CONDITIONS</div>
-      <div>1. Repairs are subject to technical inspection.</div>
-      <div>2. Final charges may vary based on actual work required.</div>
-      <div>3. Items must be collected within 30 days of completion notification.</div>
-      <div>4. Management is not responsible for items left beyond 30 days.</div>
-      <div>5. Repairs are warranted for 7 days from collection date.</div>
-      <div style="margin-top:8px;text-align:center;font-weight:bold;">Thank you for your business!</div>
+      <div style="font-weight:bold;margin-bottom:4px;text-align:center;">TERMS</div>
+      <div>1. Subject to inspection</div>
+      <div>2. Charges may vary</div>
+      <div>3. Collect within 30 days</div>
+      <div>4. 7-day warranty</div>
+      <div style="margin-top:6px;text-align:center;font-weight:bold;">Thank You!</div>
     </div>
   `;
   
@@ -374,6 +377,41 @@ document.addEventListener('click', (e) => {
   if (e.target.id === 'newRepairModal') {
     closeNewRepairForm();
   }
+});
+
+// Add Enter key navigation for repair form
+document.addEventListener('DOMContentLoaded', () => {
+  const formFields = [
+    'repairCustomerMobile',
+    'repairProductModel',
+    'repairService',
+    'repairCharges'
+  ];
+  
+  formFields.forEach((fieldId, index) => {
+    const field = document.getElementById(fieldId);
+    if (field) {
+      field.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          
+          if (index < formFields.length - 1) {
+            // Move to next field
+            const nextField = document.getElementById(formFields[index + 1]);
+            if (nextField) {
+              nextField.focus();
+            }
+          } else {
+            // Last field - focus on submit button
+            const submitBtn = document.querySelector('#newRepairModal button[type="submit"]');
+            if (submitBtn) {
+              submitBtn.focus();
+            }
+          }
+        }
+      });
+    }
+  });
 });
 
 console.log('✅ Repair Management System initialized');

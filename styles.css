@@ -2167,49 +2167,60 @@ select:disabled {
   }
   
   body.printing-repair-slip .repair-slip-header h1 {
-    font-size: 13pt !important;
+    font-size: 16pt !important;
     font-weight: bold !important;
-    margin: 2mm 0 !important;
-    line-height: 1.3 !important;
+    margin: 1mm 0 !important;
+    line-height: 1.2 !important;
   }
   
   body.printing-repair-slip .repair-slip-header div {
-    font-size: 10pt !important;
-    margin: 1mm 0 !important;
+    font-size: 9pt !important;
+    margin: 0.5mm 0 !important;
+  }
+  
+  body.printing-repair-slip .repair-slip-separator {
+    border-top: 1px dashed #000;
+    margin: 2mm 0 !important;
   }
   
   body.printing-repair-slip .repair-slip-number {
     text-align: center;
-    font-size: 14pt !important;
+    font-size: 19pt !important;
     font-weight: bold !important;
-    margin: 3mm 0 !important;
+    margin: 2mm 0 !important;
   }
   
   body.printing-repair-slip .repair-slip-date {
     text-align: center;
     font-size: 10pt !important;
-    margin-bottom: 4mm !important;
+    margin-bottom: 2mm !important;
   }
   
   body.printing-repair-slip .repair-slip-details {
-    margin: 4mm 0;
-    padding: 3mm 0;
-    border-top: 1px solid #000;
-    border-bottom: 1px solid #000;
+    margin: 2mm 0;
+    padding: 0;
   }
   
   body.printing-repair-slip .repair-slip-details div {
-    margin: 2mm 0 !important;
+    margin: 1.5mm 0 !important;
     font-size: 10pt !important;
   }
   
+  body.printing-repair-slip .repair-slip-details .job-description {
+    display: block;
+    padding-left: 3mm;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-weight: normal;
+  }
+  
   body.printing-repair-slip .repair-slip-terms {
-    margin-top: 4mm;
-    font-size: 9pt !important;
-    line-height: 1.3 !important;
+    margin-top: 2mm;
+    font-size: 8pt !important;
+    line-height: 1.2 !important;
   }
   
   body.printing-repair-slip .repair-slip-terms div {
-    margin: 1.5mm 0 !important;
+    margin: 1mm 0 !important;
   }
 }
