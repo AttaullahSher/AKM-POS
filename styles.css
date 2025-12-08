@@ -1517,9 +1517,9 @@ select:disabled {
   .invoice-container {
     display: block !important;
     visibility: visible !important;
-    width: 76mm !important;
-    max-width: 76mm !important;
-    margin: 5mm 2mm 5mm 2mm !important;
+    width: 74mm !important;
+    max-width: 74mm !important;
+    margin: 5mm 3mm !important;
     padding: 0 !important;
     background: white !important;
     box-shadow: none !important;
@@ -1711,38 +1711,41 @@ select:disabled {
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     width: auto !important;
-    max-width: 50mm !important;
+    max-width: 40mm !important;
     font-family: 'Space Mono', 'Courier New', monospace !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
   }
 
-  /* Customer Name (field 3) - FORCE BLACK */
+  /* Customer Name (field 3) - FORCE BLACK and limit width */
   .meta-field:nth-child(3) input {
     font-family: 'Space Mono', 'Courier New', monospace !important;
     font-size: 12px !important;
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-weight: 700 !important;
+    max-width: 50mm !important;
   }
 
-  /* Mobile (field 4) - FORCE BLACK */
+  /* Mobile (field 4) - FORCE BLACK and limit width */
   .meta-field:nth-child(4) input {
     font-family: 'Space Mono', 'Courier New', monospace !important;
     font-size: 12px !important;
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-weight: 700 !important;
+    max-width: 45mm !important;
   }
 
-  /* TRN (field 5) - FORCE BLACK */
+  /* TRN (field 5) - FORCE BLACK and limit width */
   .meta-field:nth-child(5) input {
     font-family: 'Space Mono', 'Courier New', monospace !important;
     font-size: 12px !important;
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-weight: 700 !important;
+    max-width: 50mm !important;
   }
 
   /* Hide empty mobile field (including label) */
