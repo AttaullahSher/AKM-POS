@@ -2082,15 +2082,39 @@ select:disabled {
 .repair-job-item {
   background: white;
   border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 15px;
-  margin-bottom: 12px;
+  border-radius: 4px;
+  padding: 10px;
+  margin-bottom: 8px;
   transition: all 0.2s;
+  font-size: 13px;
 }
 
 .repair-job-item:hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  transform: translateY(-2px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  transform: translateY(-1px);
+}
+
+/* Compact job detail rows */
+.job-detail-row {
+  display: flex;
+  justify-content: space-between;
+  color: #555;
+  margin-bottom: 3px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.job-detail-row strong {
+  flex-shrink: 0;
+  margin-right: 8px;
+  min-width: 60px;
+}
+
+.job-detail-row span {
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Status-specific styling */
@@ -2106,10 +2130,10 @@ select:disabled {
 
 /* Status select dropdown */
 .repair-status-select {
-  padding: 6px 10px;
+  padding: 4px 8px;
   border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 13px;
+  border-radius: 3px;
+  font-size: 11px;
   cursor: pointer;
 }
 
@@ -2201,12 +2225,36 @@ select:disabled {
     padding: 0;
   }
   
-  body.printing-repair-slip .repair-slip-details div {
-    margin: 1.5mm 0 !important;
+  body.printing-repair-slip .repair-slip-details .slip-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 1mm 0 !important;
     font-size: 10pt !important;
   }
   
-  body.printing-repair-slip .repair-slip-details .job-description {
+  body.printing-repair-slip .repair-slip-details .slip-row strong {
+    flex-shrink: 0;
+    margin-right: 2mm;
+  }
+  
+  body.printing-repair-slip .repair-slip-details .slip-row span {
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  body.printing-repair-slip .repair-slip-details .slip-row-wrap {
+    margin: 1mm 0 !important;
+    font-size: 10pt !important;
+  }
+  
+  body.printing-repair-slip .repair-slip-details .slip-row-wrap strong {
+    display: block;
+    margin-bottom: 1mm;
+  }
+  
+  body.printing-repair-slip .repair-slip-details .slip-row-wrap span {
     display: block;
     padding-left: 3mm;
     white-space: pre-wrap;

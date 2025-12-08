@@ -1,6 +1,6 @@
 // ===== REPAIR JOB MANAGEMENT SYSTEM =====
 // Handles repair jobs with status tracking and thermal slip printing
-// Version: v84 - Compact thermal print format + Enter key navigation
+// Version: v85 - Inline labels/values, truncation, compact list
 
 let allRepairJobs = [];
 let currentRepairJobs = [];
@@ -137,11 +137,16 @@ function displayRepairJobs() {
     let statusClass = '';
     if (job.status === 'InProcess') statusClass = 'status-inprocess';
     else if (job.status === 'Completed') statusClass = 'status-completed';
+      // Truncate long values for compact display
+    const displayName = (job.name && job.name.length > 20) ? job.name.substring(0, 20) + '...' : (job.name || 'N/A');
+    const displayMobile = (job.mobile && job.mobile.length > 12) ? job.mobile.substring(0, 12) + '...' : job.mobile;
+    const displayProduct = (job.product && job.product.length > 20) ? job.product.substring(0, 20) + '...' : job.product;
+    const displayService = (job.service && job.service.length > 30) ? job.service.substring(0, 30) + '...' : job.service;
     
     html += `
       <div class="repair-job-item ${statusClass}">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div style="font-weight:bold;font-size:15px;">${job.jobNumber}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div style="font-weight:bold;font-size:14px;">${job.jobNumber}</div>
           <select class="repair-status-select ${statusClass}" 
                   onchange="updateRepairStatus('${job.jobNumber}', this.value, ${job.rowIndex})">
             <option value="InProcess" ${job.status === 'InProcess' ? 'selected' : ''}>InProcess</option>
@@ -149,14 +154,14 @@ function displayRepairJobs() {
             <option value="Collected" ${job.status === 'Collected' ? 'selected' : ''}>Collected</option>
           </select>
         </div>
-        <div style="color:#555;margin-bottom:4px;"><strong>Name:</strong> ${job.name || 'N/A'}</div>
-        <div style="color:#555;margin-bottom:4px;"><strong>Mobile:</strong> ${job.mobile}</div>
-        <div style="color:#555;margin-bottom:4px;"><strong>Product:</strong> ${job.product}</div>
-        ${job.service ? `<div style="color:#555;margin-bottom:4px;"><strong>Service:</strong> ${job.service}</div>` : ''}
-        <div style="color:#555;margin-bottom:8px;"><strong>Charges:</strong> AED ${parseFloat(job.charges).toFixed(2)}</div>
+        <div class="job-detail-row"><strong>Name:</strong> <span>${displayName}</span></div>
+        <div class="job-detail-row"><strong>Mob:</strong> <span>${displayMobile}</span></div>
+        <div class="job-detail-row"><strong>Model:</strong> <span>${displayProduct}</span></div>
+        ${job.service ? `<div class="job-detail-row"><strong>Service:</strong> <span>${displayService}</span></div>` : ''}
+        <div class="job-detail-row" style="margin-bottom:6px;"><strong>Charges:</strong> <span>AED ${parseFloat(job.charges).toFixed(2)}</span></div>
         <button onclick="reprintRepairSlip('${job.jobNumber}')" 
-                style="padding:6px 12px;background:#4CAF50;color:white;border:none;border-radius:4px;cursor:pointer;font-size:13px;">
-          🖨️ Reprint Slip
+                style="padding:4px 10px;background:#4CAF50;color:white;border:none;border-radius:3px;cursor:pointer;font-size:12px;width:100%;">
+          🖨️ Reprint
         </button>
       </div>
     `;
@@ -307,7 +312,12 @@ function printRepairSlip(job) {
   
   // Format date as "08-Dec-2025"
   const formattedDate = formatDate(new Date(job.date), 'DD-MMM-YYYY');
-    const slipHTML = `
+  // Truncate values if too long (except service which wraps)
+  const truncateName = (job.name && job.name.length > 25) ? job.name.substring(0, 25) + '...' : (job.name || '');
+  const truncateMobile = (job.mobile && job.mobile.length > 15) ? job.mobile.substring(0, 15) + '...' : (job.mobile || '');
+  const truncateProduct = (job.product && job.product.length > 25) ? job.product.substring(0, 25) + '...' : (job.product || '');
+  
+  const slipHTML = `
     <div class="repair-slip-header">
       <h1>AKM Music</h1>
       <div>F9Q8+XQ Abu Dhabi</div>
@@ -322,11 +332,11 @@ function printRepairSlip(job) {
     <div class="repair-slip-separator"></div>
     
     <div class="repair-slip-details">
-      ${job.name ? `<div><strong>Name:</strong> ${job.name}</div>` : ''}
-      <div><strong>Mob:</strong> ${job.mobile}</div>
-      <div><strong>Model:</strong> ${job.product}</div>
-      ${job.service ? `<div><strong>Job:</strong> <span class="job-description">${job.service}</span></div>` : ''}
-      <div><strong>Est:</strong> AED ${parseFloat(job.charges).toFixed(2)}</div>
+      ${truncateName ? `<div class="slip-row"><strong>Name:</strong> <span>${truncateName}</span></div>` : ''}
+      <div class="slip-row"><strong>Mob:</strong> <span>${truncateMobile}</span></div>
+      <div class="slip-row"><strong>Model:</strong> <span>${truncateProduct}</span></div>
+      ${job.service ? `<div class="slip-row-wrap"><strong>Job:</strong> <span>${job.service}</span></div>` : ''}
+      <div class="slip-row"><strong>Est:</strong> <span>AED ${parseFloat(job.charges).toFixed(2)}</span></div>
     </div>
     
     <div class="repair-slip-separator"></div>
