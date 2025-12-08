@@ -1517,9 +1517,9 @@ select:disabled {
   .invoice-container {
     display: block !important;
     visibility: visible !important;
-    width: 73mm !important;
-    max-width: 73mm !important;
-    margin: 5mm 3.5mm !important;
+    width: 70mm !important;
+    max-width: 70mm !important;
+    margin: 5mm 5mm !important;
     padding: 0 !important;
     background: white !important;
     box-shadow: none !important;
