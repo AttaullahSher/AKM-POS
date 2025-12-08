@@ -330,24 +330,22 @@ function printRepairSlip(job) {
     <div class="repair-slip-date">Date: ${formattedDate}</div>
     
     <div class="repair-slip-separator"></div>
-    
-    <div class="repair-slip-details">
+      <div class="repair-slip-details">
       ${truncateName ? `<div class="slip-row"><strong>Name:</strong> <span>${truncateName}</span></div>` : ''}
       <div class="slip-row"><strong>Mob:</strong> <span>${truncateMobile}</span></div>
-      <div class="slip-row"><strong>Model:</strong> <span>${truncateProduct}</span></div>
-      ${job.service ? `<div class="slip-row-wrap"><strong>Job:</strong> <span>${job.service}</span></div>` : ''}
+      <div class="slip-row"><strong>Model:</strong> <span>${truncateProduct}</span></div>      ${job.service ? `<div class="slip-row-wrap"><strong>Job:</strong> <span>${job.service}</span></div>` : ''}
       <div class="slip-row"><strong>Est:</strong> <span>AED ${parseFloat(job.charges).toFixed(2)}</span></div>
     </div>
     
     <div class="repair-slip-separator"></div>
     
     <div class="repair-slip-terms">
-      <div style="font-weight:bold;margin-bottom:4px;text-align:center;">TERMS</div>
-      <div>1. Subject to inspection</div>
-      <div>2. Charges may vary</div>
-      <div>3. Collect within 30 days</div>
-      <div>4. 7-day warranty</div>
-      <div style="margin-top:6px;text-align:center;font-weight:bold;">Thank You!</div>
+      <div>Repairs are subject to technical inspection.</div>
+      <div>Final charges may vary based on actual work required.</div>
+      <div>Items must be collected within 30 days of completion notification.</div>
+      <div>Management is not responsible for items left beyond 30 days.</div>
+      <div>Repairs are warranted for 7 days from collection date.</div>
+      <div style="margin-top:4px;text-align:center;">Thank you</div>
     </div>
   `;
   
