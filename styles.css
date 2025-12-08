@@ -1,4 +1,4 @@
-/* AKM-POS Styles v75 - PRINT FIX: Grey text + description wrapping */
+/* AKM-POS Styles v77 - Repair Management System Integration */
 /* ===== CSS Variables ===== */
 :root {
   /* Modern Color Palette */
@@ -2073,5 +2073,143 @@ select:disabled {
 
   .metrics {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ===== REPAIR MANAGEMENT STYLES ===== */
+
+/* Repair Job Items */
+.repair-job-item {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 12px;
+  transition: all 0.2s;
+}
+
+.repair-job-item:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+}
+
+/* Status-specific styling */
+.repair-job-item.status-inprocess {
+  border-left: 4px solid #FFC107;
+  background: #FFFBF0;
+}
+
+.repair-job-item.status-completed {
+  border-left: 4px solid #f44336;
+  background: #FFF0F0;
+}
+
+/* Status select dropdown */
+.repair-status-select {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.repair-status-select.status-inprocess {
+  background: #FFC107;
+  color: white;
+  border-color: #FFC107;
+}
+
+.repair-status-select.status-completed {
+  background: #f44336;
+  color: white;
+  border-color: #f44336;
+}
+
+/* Repair Slip Container (hidden by default) */
+.repair-slip-container {
+  display: none;
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
+}
+
+/* Repair Slip Print Styles */
+@media print {
+  body.printing-repair-slip * {
+    display: none !important;
+  }
+  
+  body.printing-repair-slip .repair-slip-container,
+  body.printing-repair-slip .repair-slip-container * {
+    display: block !important;
+  }
+  
+  body.printing-repair-slip .repair-slip-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 80mm !important;
+    max-width: 80mm !important;
+    margin: 0 !important;
+    padding: 5mm !important;
+    font-family: 'Courier New', monospace !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+    color: #000 !important;
+    background: white !important;
+  }
+  
+  body.printing-repair-slip .repair-slip-header {
+    text-align: center;
+    margin-bottom: 4mm;
+    padding-bottom: 3mm;
+    border-bottom: 2px solid #000;
+  }
+  
+  body.printing-repair-slip .repair-slip-header h1 {
+    font-size: 13pt !important;
+    font-weight: bold !important;
+    margin: 2mm 0 !important;
+    line-height: 1.3 !important;
+  }
+  
+  body.printing-repair-slip .repair-slip-header div {
+    font-size: 10pt !important;
+    margin: 1mm 0 !important;
+  }
+  
+  body.printing-repair-slip .repair-slip-number {
+    text-align: center;
+    font-size: 14pt !important;
+    font-weight: bold !important;
+    margin: 3mm 0 !important;
+  }
+  
+  body.printing-repair-slip .repair-slip-date {
+    text-align: center;
+    font-size: 10pt !important;
+    margin-bottom: 4mm !important;
+  }
+  
+  body.printing-repair-slip .repair-slip-details {
+    margin: 4mm 0;
+    padding: 3mm 0;
+    border-top: 1px solid #000;
+    border-bottom: 1px solid #000;
+  }
+  
+  body.printing-repair-slip .repair-slip-details div {
+    margin: 2mm 0 !important;
+    font-size: 10pt !important;
+  }
+  
+  body.printing-repair-slip .repair-slip-terms {
+    margin-top: 4mm;
+    font-size: 9pt !important;
+    line-height: 1.3 !important;
+  }
+  
+  body.printing-repair-slip .repair-slip-terms div {
+    margin: 1.5mm 0 !important;
   }
 }

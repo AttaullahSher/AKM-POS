@@ -1,4 +1,4 @@
-// AKM-POS v75 - PRINT FIX: Grey text + description wrapping via JS input-to-span conversion
+// AKM-POS v77 - Repair Management System Integration
 const firebaseConfig = {
   apiKey: "AIzaSyBaaHya8oqfJEOycvAsKU_Ise3s2VAgqgw",
   authDomain: "akm-pos-480210.firebaseapp.com",

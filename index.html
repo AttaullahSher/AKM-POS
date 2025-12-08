@@ -3,7 +3,7 @@
 <head>  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AKM-POS | Point of Sale System</title>  <link rel="icon" type="image/png" href="/Favicon.png">  <link rel="preconnect" href="https://fonts.googleapis.com">  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">  <link rel="stylesheet" href="styles.css?v=75">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">  <link rel="stylesheet" href="styles.css?v=77">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
 <body>
@@ -67,6 +67,14 @@
         <button onclick="openDepositModal()" aria-label="Open deposit modal" title="Deposit"> Deposit</button>
         <button onclick="openExpenseModal()" aria-label="Open expense modal" title="Add Expense"> Expense</button>
         <button onclick="printDailyReport()" aria-label="Print daily report" title="Report"> Report</button>
+      </div>
+
+      <!-- Repair Jobs Button -->
+      <div class="sidebar-actions" style="margin-top: 12px;">
+        <button onclick="openRepairModal()" aria-label="Open repair jobs" 
+                title="Repair Jobs" style="grid-column: 1 / -1; background: #ff9800; color: white;">
+          🔧 Repair Jobs
+        </button>
       </div>
 
       <div class="recent-wrapper">
@@ -258,6 +266,86 @@
     </div>
   </div>  <!-- Toast Notification -->
   <div id="toast" class="toast"></div>  <!-- Daily Report Container (hidden, used for printing) -->
-  <div id="dailyReportContainer" class="daily-report-container"></div>  <script type="module" src="app.js?v=75"></script>
+  <div id="dailyReportContainer" class="daily-report-container"></div>
+
+  <!-- Repair Modal -->
+  <div id="repairModal" class="modal-overlay"></div>
+    <div class="modal-content" style="max-width: 800px;">
+      <div class="modal-header">
+        <h2>🔧 Repair Jobs</h2>
+        <button onclick="closeRepairModal()" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+          <input type="text" id="repairSearchInput" placeholder="Search by name, job number, or product..." 
+                 oninput="searchRepairJobs()" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+          <button onclick="openNewRepairForm()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            ➕ New Job
+          </button>
+        </div>
+        <div id="repairJobsList" style="max-height: 500px; overflow-y: auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Repair Form Modal -->
+  <div id="newRepairModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2>New Repair Job</h2>
+        <button onclick="closeNewRepairForm()" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form onsubmit="event.preventDefault(); submitNewRepairJob();">
+          <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Name:</label>
+            <input type="text" id="repairCustomerName" autocomplete="off"
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+          
+          <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Mobile: <span style="color: red;">*</span></label>
+            <input type="tel" id="repairCustomerMobile" required autocomplete="off"
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+          
+          <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Product/Model: <span style="color: red;">*</span></label>
+            <input type="text" id="repairProductModel" required autocomplete="off"
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+          
+          <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Service:</label>
+            <input type="text" id="repairService" autocomplete="off"
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Estimated Charges (AED):</label>
+            <input type="number" id="repairCharges" step="0.01" min="0" autocomplete="off"
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+          
+          <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button type="button" onclick="closeNewRepairForm()" 
+                    style="padding: 10px 20px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              Cancel
+            </button>
+            <button type="submit" 
+                    style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              💾 Save & Print
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Repair Slip Container (for printing) -->
+  <div id="repairSlipContainer" class="repair-slip-container"></div>
+
+  <script type="module" src="app.js?v=77"></script>
+  <script type="module" src="repair-management.js"></script>
 </body>
 </html>
