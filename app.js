@@ -1,4 +1,4 @@
-// AKM-POS v77 - Repair Management System Integration
+// AKM-POS v79 - Repair Management System Integration - Fixed function exports
 const firebaseConfig = {
   apiKey: "AIzaSyBaaHya8oqfJEOycvAsKU_Ise3s2VAgqgw",
   authDomain: "akm-pos-480210.firebaseapp.com",
@@ -323,13 +323,17 @@ async function updateSheet(range, values) {
       console.error('❌ Update failed:', result.message);
       throw new Error(result.message || 'Failed to update data');
     }
-    return true;
-  } catch (error) {
+    return true;  } catch (error) {
     console.error('❌ Network error updating sheet:', error.message);
     showToast('Error updating sheet. Check network connection.', 'error');
     return false;
   }
 }
+
+// Export functions for repair-management.js
+window.readSheet = readSheet;
+window.appendToSheet = appendToSheet;
+window.updateSheet = updateSheet;
 
 async function loadNextInvoiceNumber() {
   const data = await readSheet("'AKM-POS'!A:A");
@@ -1346,6 +1350,9 @@ function showToast(message, type = 'success') {
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 3000);
 }
+
+// Export showToast for repair-management.js
+window.showToast = showToast;
 
 function validatePhone(phone) {
   if (!phone) return { valid: true, message: '' };
