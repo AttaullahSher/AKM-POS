@@ -248,29 +248,49 @@ async function readSheetBatch(ranges) {
   }
 }
 
-async function readSheet(range) {
+async function readSheet(range, retries = 2) {
   return queueRequest(async () => {
-    try {
-      const response = await fetch(READ_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ range })
-      });
-      
-      if (!response.ok) {
-        console.error('❌ API Error:', response.status, response.statusText);
-        throw new Error(`HTTP ${response.status}`);
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        if (attempt > 0) {
+          console.log(`🔄 Retry attempt ${attempt}/${retries} for range: ${range}`);
+          await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Wait 2s, 4s
+        }
+        
+        const response = await fetch(READ_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ range }),
+          signal: AbortSignal.timeout(30000) // 30 second timeout
+        });
+        
+        if (!response.ok) {
+          if (response.status === 500 && attempt < retries) {
+            console.warn(`⚠️ API returned 500, retrying... (${attempt + 1}/${retries})`);
+            continue; // Retry on 500 error (cold start)
+          }
+          console.error('❌ API Error:', response.status, response.statusText);
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        if (!data.success) {
+          console.error('❌ Read failed:', data.error);
+          throw new Error(data.error || 'Failed to read data');
+        }
+        
+        if (attempt > 0) {
+          console.log(`✅ Retry successful after ${attempt} attempt(s)`);
+        }
+        return data.values || [];
+        
+      } catch (error) {
+        if (attempt === retries) {
+          console.error('❌ Network error reading sheet:', error.message);
+          showToast('Error reading data. API may be starting up - please wait 30s and try again.', 'error');
+          return null;
+        }
       }
-      const data = await response.json();
-      if (!data.success) {
-        console.error('❌ Read failed:', data.error);
-        throw new Error(data.error || 'Failed to read data');
-      }
-      return data.values || [];
-    } catch (error) {
-      console.error('❌ Network error reading sheet:', error.message);
-      showToast('Error reading data. Check network connection.', 'error');
-      return null;
     }
   });
 }
