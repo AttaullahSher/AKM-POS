@@ -123,7 +123,7 @@ function sortRepairJobs() {
   });
 }
 
-// Display repair jobs in the list
+// Display repair jobs in the list - Compact Table View
 function displayRepairJobs() {
   const container = document.getElementById('repairJobsList');
   
@@ -132,40 +132,68 @@ function displayRepairJobs() {
     return;
   }
   
-  let html = '';
+  // Build table HTML with Excel-style layout
+  let html = `
+    <div class="repair-table-container">
+      <table class="repair-table">
+        <thead>
+          <tr>
+            <th style="width: 85px;">Job #</th>
+            <th style="width: 130px;">Name</th>
+            <th style="width: 110px;">Mobile</th>
+            <th style="width: 140px;">Model</th>
+            <th style="width: 180px;">Service</th>
+            <th style="width: 80px;">Charges</th>
+            <th style="width: 110px;">Status</th>
+            <th style="width: 70px;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+  
   currentRepairJobs.forEach(job => {
     let statusClass = '';
     if (job.status === 'InProcess') statusClass = 'status-inprocess';
     else if (job.status === 'Completed') statusClass = 'status-completed';
-      // Truncate long values for compact display
-    const displayName = (job.name && job.name.length > 20) ? job.name.substring(0, 20) + '...' : (job.name || 'N/A');
-    const displayMobile = (job.mobile && job.mobile.length > 12) ? job.mobile.substring(0, 12) + '...' : job.mobile;
-    const displayProduct = (job.product && job.product.length > 20) ? job.product.substring(0, 20) + '...' : job.product;
-    const displayService = (job.service && job.service.length > 30) ? job.service.substring(0, 30) + '...' : job.service;
+    
+    // Truncate long values for compact display
+    const displayName = (job.name && job.name.length > 18) ? job.name.substring(0, 18) + '...' : (job.name || 'N/A');
+    const displayMobile = job.mobile || 'N/A';
+    const displayProduct = (job.product && job.product.length > 20) ? job.product.substring(0, 20) + '...' : (job.product || 'N/A');
+    const displayService = (job.service && job.service.length > 28) ? job.service.substring(0, 28) + '...' : (job.service || '-');
     
     html += `
-      <div class="repair-job-item ${statusClass}">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-          <div style="font-weight:bold;font-size:14px;">${job.jobNumber}</div>
+      <tr class="repair-row ${statusClass}">
+        <td class="job-number" title="${job.jobNumber}">${job.jobNumber}</td>
+        <td class="truncate" title="${job.name || 'N/A'}">${displayName}</td>
+        <td title="${job.mobile}">${displayMobile}</td>
+        <td class="truncate" title="${job.product || 'N/A'}">${displayProduct}</td>
+        <td class="truncate" title="${job.service || '-'}">${displayService}</td>
+        <td class="amount">AED ${parseFloat(job.charges).toFixed(2)}</td>
+        <td class="status-cell">
           <select class="repair-status-select ${statusClass}" 
                   onchange="updateRepairStatus('${job.jobNumber}', this.value, ${job.rowIndex})">
-            <option value="InProcess" ${job.status === 'InProcess' ? 'selected' : ''}>InProcess</option>
-            <option value="Completed" ${job.status === 'Completed' ? 'selected' : ''}>Completed</option>
+            <option value="InProcess" ${job.status === 'InProcess' ? 'selected' : ''}>Process</option>
+            <option value="Completed" ${job.status === 'Completed' ? 'selected' : ''}>Complete</option>
             <option value="Collected" ${job.status === 'Collected' ? 'selected' : ''}>Collected</option>
           </select>
-        </div>
-        <div class="job-detail-row"><strong>Name:</strong> <span>${displayName}</span></div>
-        <div class="job-detail-row"><strong>Mob:</strong> <span>${displayMobile}</span></div>
-        <div class="job-detail-row"><strong>Model:</strong> <span>${displayProduct}</span></div>
-        ${job.service ? `<div class="job-detail-row"><strong>Service:</strong> <span>${displayService}</span></div>` : ''}
-        <div class="job-detail-row" style="margin-bottom:6px;"><strong>Charges:</strong> <span>AED ${parseFloat(job.charges).toFixed(2)}</span></div>
-        <button onclick="reprintRepairSlip('${job.jobNumber}')" 
-                style="padding:4px 10px;background:#4CAF50;color:white;border:none;border-radius:3px;cursor:pointer;font-size:12px;width:100%;">
-          🖨️ Reprint
-        </button>
-      </div>
+        </td>
+        <td class="action-cell">
+          <button class="reprint-btn" onclick="reprintRepairSlip('${job.jobNumber}')" title="Reprint slip">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 5.33333V2.66667C4 2.48986 4.07024 2.32029 4.19526 2.19526C4.32029 2.07024 4.48986 2 4.66667 2H11.3333C11.5101 2 11.6797 2.07024 11.8047 2.19526C11.9298 2.32029 12 2.48986 12 2.66667V5.33333M4 11.3333H3.33333C2.97971 11.3333 2.64057 11.1929 2.39052 10.9428C2.14048 10.6928 2 10.3536 2 10V7.33333C2 6.97971 2.14048 6.64057 2.39052 6.39052C2.64057 6.14048 2.97971 6 3.33333 6H12.6667C13.0203 6 13.3594 6.14048 13.6095 6.39052C13.8595 6.64057 14 6.97971 14 7.33333V10C14 10.3536 13.8595 10.6928 13.6095 10.9428C13.3594 11.1929 13.0203 11.3333 12.6667 11.3333H12M4.66667 9.33333H11.3333V13.3333C11.3333 13.5101 11.2631 13.6797 11.1381 13.8047C11.013 13.9298 10.8435 14 10.6667 14H5.33333C5.15652 14 4.98695 13.9298 4.86193 13.8047C4.7369 13.6797 4.66667 13.5101 4.66667 13.3333V9.33333Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </td>
+      </tr>
     `;
   });
+  
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
   
   container.innerHTML = html;
 }

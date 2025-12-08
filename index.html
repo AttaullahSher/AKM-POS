@@ -35,10 +35,15 @@
   <!-- Main App -->
   <div id="mainApp" class="main-app" style="display: none;">
     <!-- Sidebar -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
+    <aside class="sidebar">      <div class="sidebar-header">
         <h3>📊 Today's Sales</h3>
-        <button id="logoutBtn" class="logout-btn" title="Logout" aria-label="Logout">🚪</button>
+        <button id="logoutBtn" class="logout-btn" title="Logout" aria-label="Logout">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V3.33333C2 2.97971 2.14048 2.64057 2.39052 2.39052C2.64057 2.14048 2.97971 2 3.33333 2H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M10.6667 11.3333L14 8L10.6667 4.66667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M14 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
       
       <div class="metrics">
@@ -87,13 +92,10 @@
 
     <!-- Main Content -->
     <main class="main-content">
-      <div class="invoice-container">
-        <!-- Header -->        <div class="invoice-header">          <div class="company-name-row">
+      <div class="invoice-container">        <!-- Header -->        <div class="invoice-header">          <div class="company-name-row">
             <span class="company-name-ar">مركز أجمل خان محمد للموسيقى ذ.م.م</span>
             <span class="company-name-en">Ajmal Khan Mohammed Music Centre LLC.</span>
           </div>
-          <div class="company-address screen-only">Po 8227, E3-02, AbuDhabi</div>
-          <div class="company-contact screen-only">02-6219929 | Sales@akm-music.com</div>
           <div class="company-trn">TRN: 100241997400003</div>
         </div>
         <div class="invoice-title">TAX INVOICE</div>
@@ -169,7 +171,8 @@
         <div class="action-buttons">
           <button class="btn btn-clear" onclick="clearForm()" aria-label="Clear form" title="Clear Form">Reset</button>
           <button class="btn btn-print" onclick="saveAndPrint()" id="printBtn" aria-label="Print invoice" title="Print Invoice">Print Invoice</button>
-        </div><!-- Print-only sections -->
+        </div>
+<!-- Print-only sections -->
         <div class="print-only print-footer">
           <div>TERMS & CONDITIONS</div>
           <div>Goods comes with brand warranty</div>
