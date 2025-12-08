@@ -1,4 +1,4 @@
-// AKM-POS v82 - Repair Management + Enhanced API Retry (5 attempts, 45s timeout)
+// AKM-POS v83 - Bug Fixes: Duplicate endpoint, race conditions, validation + formatDate export
 const firebaseConfig = {
   apiKey: "AIzaSyBaaHya8oqfJEOycvAsKU_Ise3s2VAgqgw",
   authDomain: "akm-pos-480210.firebaseapp.com",
@@ -1373,8 +1373,9 @@ function showToast(message, type = 'success') {
   setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-// Export showToast for repair-management.js
+// Export showToast and formatDate for repair-management.js
 window.showToast = showToast;
+window.formatDate = formatDate;
 
 function validatePhone(phone) {
   if (!phone) return { valid: true, message: '' };
