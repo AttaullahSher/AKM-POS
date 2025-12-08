@@ -376,11 +376,10 @@ async function loadNextInvoiceNumber() {
     }  }
   
   document.getElementById('invNum').textContent = `${currentYear}-${String(invoiceCounter).padStart(5, '0')}`;
-  
-  const printBtn = document.getElementById('printBtn');
+    const printBtn = document.getElementById('printBtn');
   if (printBtn && !isReprintMode) {
     printBtn.disabled = false;
-    printBtn.textContent = '🖨️ Print Invoice';
+    printBtn.textContent = 'Print Invoice';
   }
 }
 
@@ -987,11 +986,10 @@ window.reprintInvoice = async function(invId) {
       document.getElementById('invDate').disabled = true;      // Ensure print button is enabled and ready
       const printBtn = document.getElementById('printBtn');
       printBtn.disabled = false;
-      printBtn.style.opacity = '1';
-      printBtn.style.cursor = 'pointer';
+      printBtn.style.opacity = '1';      printBtn.style.cursor = 'pointer';
       printBtn.style.pointerEvents = 'auto';
       printBtn.title = '';
-      printBtn.textContent = '🖨️ Reprint Invoice';
+      printBtn.textContent = 'Reprint Invoice';
       console.log('🖨️ Print button enabled for reprint');
       
       // Hide Reset button in reprint mode (items are locked)
