@@ -360,8 +360,7 @@ function printRepairSlip(job) {
   const truncateName = (job.name && job.name.length > 25) ? job.name.substring(0, 25) + '...' : (job.name || '');
   const truncateMobile = (job.mobile && job.mobile.length > 15) ? job.mobile.substring(0, 15) + '...' : (job.mobile || '');
   const truncateProduct = (job.product && job.product.length > 25) ? job.product.substring(0, 25) + '...' : (job.product || '');
-  
-  const slipHTML = `
+    const slipHTML = `
     <div class="repair-slip-header">
       <h1>AKM Music</h1>
       <div>F9Q8+XQ Abu Dhabi</div>
@@ -374,11 +373,13 @@ function printRepairSlip(job) {
     <div class="repair-slip-date">Date: ${formattedDate}</div>
     
     <div class="repair-slip-separator"></div>
-      <div class="repair-slip-details">
-      ${truncateName ? `<div class="slip-row"><strong>Name:</strong> <span>${truncateName}</span></div>` : ''}
-      <div class="slip-row"><strong>Mob:</strong> <span>${truncateMobile}</span></div>
-      <div class="slip-row"><strong>Model:</strong> <span>${truncateProduct}</span></div>      ${job.service ? `<div class="slip-row-wrap"><span>${job.service}</span></div>` : ''}
-      <div class="slip-row"><span>AED ${parseFloat(job.charges).toFixed(2)}</span></div>
+    
+    <div class="repair-slip-details">
+      ${truncateName ? `<div class="slip-row"><strong>Name:</strong> ${truncateName}</div>` : ''}
+      <div class="slip-row"><strong>Mob:</strong> ${truncateMobile}</div>
+      <div class="slip-row"><strong>Model:</strong> ${truncateProduct}</div>
+      ${job.service ? `<div class="slip-row"><strong>Service:</strong> ${job.service}</div>` : ''}
+      <div class="slip-row"><strong>Est:</strong> AED ${parseFloat(job.charges).toFixed(2)}</div>
     </div>
     
     <div class="repair-slip-separator"></div>

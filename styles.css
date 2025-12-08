@@ -2425,40 +2425,15 @@ select:disabled {
   }
   
   body.printing-repair-slip .repair-slip-details .slip-row {
-    display: flex;
-    justify-content: space-between;
-    margin: 1mm 0 !important;
+    margin: 0.5mm 0 !important;
     font-size: 10pt !important;
+    line-height: 1.3 !important;
   }
   
   body.printing-repair-slip .repair-slip-details .slip-row strong {
-    flex-shrink: 0;
+    display: inline;
     margin-right: 2mm;
-  }
-  
-  body.printing-repair-slip .repair-slip-details .slip-row span {
-    text-align: right;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  
-  body.printing-repair-slip .repair-slip-details .slip-row-wrap {
-    margin: 1mm 0 !important;
-    font-size: 10pt !important;
-  }
-  
-  body.printing-repair-slip .repair-slip-details .slip-row-wrap strong {
-    display: block;
-    margin-bottom: 1mm;
-  }
-  
-  body.printing-repair-slip .repair-slip-details .slip-row-wrap span {
-    display: block;
-    padding-left: 3mm;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    font-weight: normal;
+    font-weight: bold;
   }
   
   body.printing-repair-slip .repair-slip-terms {
