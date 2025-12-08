@@ -1517,9 +1517,9 @@ select:disabled {
   .invoice-container {
     display: block !important;
     visibility: visible !important;
-    width: 74mm !important;
-    max-width: 74mm !important;
-    margin: 5mm 3mm !important;
+    width: 73mm !important;
+    max-width: 73mm !important;
+    margin: 5mm 3.5mm !important;
     padding: 0 !important;
     background: white !important;
     box-shadow: none !important;
@@ -1686,7 +1686,7 @@ select:disabled {
     color: #000 !important;
     text-transform: none !important;
     min-width: auto !important;
-    margin-right: 1mm !important;
+    margin-right: 0.5mm !important;
     white-space: nowrap !important;
   }
 
@@ -1728,7 +1728,7 @@ select:disabled {
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-weight: 700 !important;
-    max-width: 48mm !important;
+    max-width: 52mm !important;
     width: auto !important;
   }
 
@@ -1739,7 +1739,7 @@ select:disabled {
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-weight: 700 !important;
-    max-width: 42mm !important;
+    max-width: 48mm !important;
     width: auto !important;
   }
 
@@ -1750,7 +1750,7 @@ select:disabled {
     color: #000 !important;
     -webkit-text-fill-color: #000 !important;
     font-weight: 700 !important;
-    max-width: 48mm !important;
+    max-width: 52mm !important;
     width: auto !important;
   }
 
