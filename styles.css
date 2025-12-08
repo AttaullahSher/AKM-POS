@@ -2408,7 +2408,7 @@ select:disabled {
   
   body.printing-repair-slip .repair-slip-number {
     text-align: center;
-    font-size: 19pt !important;
+    font-size: 15pt !important;
     font-weight: bold !important;
     margin: 2mm 0 !important;
   }

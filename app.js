@@ -1321,21 +1321,28 @@ window.printDailyReport = async function() {
   
   const totalSales = cashSales + cardSales + tabbySales + chequeSales;
   const cashInHand = parseFloat(document.getElementById('cashInHand').textContent);
-  
-  // Format date as "06-Dec-2025"
+    // Format date as "06-Dec-2025"
   const reportDate = formatDate(new Date(), 'DD-MMM-YYYY');
   
   const reportHTML = `
-    <div style="text-align:center;font-weight:bold;font-size:14px;margin:4mm 0;">Daily Report - ${reportDate}</div>
+    <div style="text-align:center;font-weight:bold;font-size:16px;margin:2mm 0;">AKM MUSIC</div>
+    <div style="text-align:center;font-weight:bold;font-size:14px;margin:2mm 0 4mm 0;">Daily Report - ${reportDate}</div>
     <div style="border-bottom:2px solid #000;margin:3mm 0;"></div>
-    <div style="display:flex;justify-content:space-between;margin:2mm 3mm;font-weight:bold;"><span>Total Sales:</span><span>AED ${totalSales.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin:2mm 3mm;font-weight:bold;"><span>Cash:</span><span>AED ${cashSales.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin:2mm 3mm;font-weight:bold;"><span>Card:</span><span>AED ${cardSales.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin:2mm 3mm;font-weight:bold;"><span>Tabby:</span><span>AED ${tabbySales.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin:2mm 3mm;font-weight:bold;"><span>Cheque:</span><span>AED ${chequeSales.toFixed(2)}</span></div>
+    <div style="margin:2mm 3mm;font-weight:bold;">Total Sales: <span style="float:right;">AED ${totalSales.toFixed(2)}</span></div>
+    <div style="clear:both;"></div>
+    <div style="margin:2mm 3mm;font-weight:bold;">Cash: <span style="float:right;">AED ${cashSales.toFixed(2)}</span></div>
+    <div style="clear:both;"></div>
+    <div style="margin:2mm 3mm;font-weight:bold;">Card: <span style="float:right;">AED ${cardSales.toFixed(2)}</span></div>
+    <div style="clear:both;"></div>
+    <div style="margin:2mm 3mm;font-weight:bold;">Tabby: <span style="float:right;">AED ${tabbySales.toFixed(2)}</span></div>
+    <div style="clear:both;"></div>
+    <div style="margin:2mm 3mm;font-weight:bold;">Cheque: <span style="float:right;">AED ${chequeSales.toFixed(2)}</span></div>
+    <div style="clear:both;"></div>
     <div style="border-bottom:2px solid #000;margin:3mm 0;"></div>
-    <div style="display:flex;justify-content:space-between;margin:2mm 3mm;font-weight:bold;"><span>Cash in Hand:</span><span>AED ${cashInHand.toFixed(2)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin:2mm 3mm;font-weight:bold;"><span>Refunds:</span><span>${refunds}</span></div>
+    <div style="margin:2mm 3mm;font-weight:bold;">Cash in Hand: <span style="float:right;">AED ${cashInHand.toFixed(2)}</span></div>
+    <div style="clear:both;"></div>
+    <div style="margin:2mm 3mm;font-weight:bold;">Refunds: <span style="float:right;">${refunds}</span></div>
+    <div style="clear:both;"></div>
   `;
   
   const container = document.getElementById('dailyReportContainer');

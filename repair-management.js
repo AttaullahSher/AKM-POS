@@ -224,7 +224,7 @@ window.updateRepairStatus = async function(jobNumber, newStatus, rowIndex) {
   }
 };
 
-// Generate next job number
+// Generate next job number (Format: R2512001 for storage, display as DDSS)
 async function getNextJobNumber() {
   try {
     const data = await readSheet("'Repairing'!A:A");
@@ -258,6 +258,19 @@ async function getNextJobNumber() {
     const month = String(today.getMonth() + 1).padStart(2, '0');
     return `R${year}${month}001`;
   }
+}
+
+// Convert job number to display format (DDSS - day + sequence)
+function formatSlipNumber(jobNumber, jobDate) {
+  // Extract sequence from jobNumber (R2512001 -> 001)
+  const match = jobNumber.match(/R\d{4}(\d+)/);
+  if (!match) return jobNumber;
+  
+  const sequence = match[1];
+  const date = new Date(jobDate);
+  const day = String(date.getDate()).padStart(2, '0');
+  
+  return `${day}${sequence.slice(-2)}`; // DDSS format (e.g., 0801 for Dec 8, sequence 01)
 }
 
 // Submit new repair job
@@ -340,6 +353,9 @@ function printRepairSlip(job) {
   
   // Format date as "08-Dec-2025"
   const formattedDate = formatDate(new Date(job.date), 'DD-MMM-YYYY');
+  // Format slip number (DDSS format)
+  const slipNumber = formatSlipNumber(job.jobNumber, job.date);
+  
   // Truncate values if too long (except service which wraps)
   const truncateName = (job.name && job.name.length > 25) ? job.name.substring(0, 25) + '...' : (job.name || '');
   const truncateMobile = (job.mobile && job.mobile.length > 15) ? job.mobile.substring(0, 15) + '...' : (job.mobile || '');
@@ -354,15 +370,15 @@ function printRepairSlip(job) {
     
     <div class="repair-slip-separator"></div>
     
-    <div class="repair-slip-number">REPAIR SLIP #${job.jobNumber}</div>
+    <div class="repair-slip-number">SERVICE SLIP #${slipNumber}</div>
     <div class="repair-slip-date">Date: ${formattedDate}</div>
     
     <div class="repair-slip-separator"></div>
       <div class="repair-slip-details">
       ${truncateName ? `<div class="slip-row"><strong>Name:</strong> <span>${truncateName}</span></div>` : ''}
       <div class="slip-row"><strong>Mob:</strong> <span>${truncateMobile}</span></div>
-      <div class="slip-row"><strong>Model:</strong> <span>${truncateProduct}</span></div>      ${job.service ? `<div class="slip-row-wrap"><strong>Job:</strong> <span>${job.service}</span></div>` : ''}
-      <div class="slip-row"><strong>Est:</strong> <span>AED ${parseFloat(job.charges).toFixed(2)}</span></div>
+      <div class="slip-row"><strong>Model:</strong> <span>${truncateProduct}</span></div>      ${job.service ? `<div class="slip-row-wrap"><span>${job.service}</span></div>` : ''}
+      <div class="slip-row"><span>AED ${parseFloat(job.charges).toFixed(2)}</span></div>
     </div>
     
     <div class="repair-slip-separator"></div>
