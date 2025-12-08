@@ -521,17 +521,17 @@ input, select, textarea {
 .invoice-item-actions {
   display: flex;
   gap: 8px;
+  justify-content: flex-end;
 }
 
 .invoice-item-actions button {
-  flex: 1;
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 600;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: var(--transition);
+  transition: all 0.3s ease;
 }
 
 .btn-reprint {
@@ -982,7 +982,9 @@ select:disabled {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--gray-600);
-  font-size: 12px;
+  font-size: 11px;
+  width: 35%;
+  white-space: nowrap;
 }
 
 /* Totals table value alignment (SCREEN ONLY) */
@@ -1078,7 +1080,7 @@ select:disabled {
 .action-buttons {
   display: flex;
   gap: var(--spacing-sm);
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-top: var(--spacing-xl);
   padding-top: var(--spacing-lg);
   border-top: 1px solid var(--gray-200);
@@ -1311,8 +1313,8 @@ select:disabled {
 /* ===== Invoice Header (Screen) ===== */
 .invoice-header {
   text-align: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
   border-bottom: 2px solid rgba(123, 163, 209, 0.15);
 }
 
@@ -1336,18 +1338,12 @@ select:disabled {
   color: var(--primary-dark);
 }
 
-.company-address {
-  font-size: 13px;
-  line-height: 1.6;
-  margin: 6px 0;
-  color: var(--gray-600);
+.company-address.screen-only {
+  display: none;
 }
 
-.company-contact {
-  font-size: 13px;
-  line-height: 1.6;
-  margin: 6px 0;
-  color: var(--gray-600);
+.company-contact.screen-only {
+  display: none;
 }
 
 .company-trn {
@@ -1363,8 +1359,8 @@ select:disabled {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  padding: 14px 0;
-  margin: 14px 0;
+  padding: 8px 0;
+  margin: 8px 0;
   background: none;
   color: var(--primary-dark);
   border: none;
