@@ -1599,6 +1599,76 @@ function setupKeyboardNavigation() {
   document.addEventListener('keydown', (e) => {
     const activeElement = document.activeElement;
     
+    // === DEPOSIT MODAL NAVIGATION ===
+    if (activeElement.closest('#depositModal')) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const depositInputs = ['depositName', 'depositAmount', 'depositBank', 'depositRef'];
+        const currentId = activeElement.id;
+        const currentIndex = depositInputs.indexOf(currentId);
+        
+        if (currentIndex !== -1 && currentIndex < depositInputs.length - 1) {
+          // Move to next field
+          const nextInput = document.getElementById(depositInputs[currentIndex + 1]);
+          if (nextInput) nextInput.focus();
+        } else if (currentId === 'depositRef') {
+          // Last field: trigger submit
+          submitDeposit();
+        }
+        return;
+      }
+    }
+    
+    // === EXPENSE MODAL NAVIGATION ===
+    if (activeElement.closest('#expenseModal')) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        
+        // Handle expense method buttons
+        if (activeElement.classList.contains('expense-method-btn')) {
+          activeElement.click();
+          document.getElementById('expenseReceipt').focus();
+          return;
+        }
+        
+        const expenseInputs = ['expenseCategory', 'expenseDesc', 'expenseAmount'];
+        const currentId = activeElement.id;
+        const currentIndex = expenseInputs.indexOf(currentId);
+        
+        if (currentIndex !== -1 && currentIndex < expenseInputs.length - 1) {
+          // Move to next field
+          const nextInput = document.getElementById(expenseInputs[currentIndex + 1]);
+          if (nextInput) nextInput.focus();
+        } else if (currentId === 'expenseAmount') {
+          // After amount, focus first payment method button
+          const firstMethodBtn = document.querySelector('.expense-method-btn');
+          if (firstMethodBtn) firstMethodBtn.focus();
+        } else if (currentId === 'expenseReceipt') {
+          // Last field: trigger submit
+          submitExpense();
+        }
+        return;
+      }
+      
+      // Arrow navigation for expense method buttons
+      if (activeElement.classList.contains('expense-method-btn')) {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          const methodButtons = Array.from(document.querySelectorAll('.expense-method-btn'));
+          const currentIndex = methodButtons.indexOf(activeElement);
+          
+          if (e.key === 'ArrowRight') {
+            const nextIndex = (currentIndex + 1) % methodButtons.length;
+            methodButtons[nextIndex].focus();
+          } else if (e.key === 'ArrowLeft') {
+            const prevIndex = (currentIndex - 1 + methodButtons.length) % methodButtons.length;
+            methodButtons[prevIndex].focus();
+          }
+          return;
+        }
+      }
+    }
+    
     // Handle payment button navigation (Left/Right arrows)
     if (activeElement.classList.contains('payment-btn')) {
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
