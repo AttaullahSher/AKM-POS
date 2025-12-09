@@ -1505,9 +1505,13 @@ window.formatDate = formatDate;
 
 function validatePhone(phone) {
   if (!phone) return { valid: true, message: '' };
-  const cleaned = phone.replace(/[\s\-()]/g, '');
-  const uaePattern = /^(05[0-9]{8}|(\+?971)?5[0-9]{8})$/;
-  return uaePattern.test(cleaned) ? { valid: true, message: '✓ Valid' } : { valid: false, message: '✗ Invalid format' };
+  // Accept any phone format: international, landline, mobile, etc.
+  // Just check if it contains at least 6 digits (minimum for a valid phone number)
+  const digitsOnly = phone.replace(/\D/g, '');
+  if (digitsOnly.length >= 6 && digitsOnly.length <= 20) {
+    return { valid: true, message: '✓ Valid' };
+  }
+  return { valid: false, message: '✗ Must contain 6-20 digits' };
 }
 
 function validateTRN(trn) {

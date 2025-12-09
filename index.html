@@ -2,7 +2,7 @@
 <html lang="en">
 <head>  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-  <title>AKM-POS | Point of Sale System</title><link rel="icon" type="image/png" href="/Favicon.png">  <link rel="preconnect" href="https://fonts.googleapis.com">  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">  <link rel="stylesheet" href="styles.css?v=116">
+  <title>AKM-POS | Point of Sale System</title><link rel="icon" type="image/png" href="/Favicon.png">  <link rel="preconnect" href="https://fonts.googleapis.com">  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">  <link rel="stylesheet" href="styles.css?v=117">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
 <body>  <!-- Loading Screen -->
@@ -108,18 +108,17 @@
           <div class="meta-field">
             <label>Date</label>
             <input type="date" id="invDate" required aria-label="Invoice date">
-          </div>
-          <div class="meta-field">
+          </div>          <div class="meta-field">
             <label>Customer</label>
-            <input type="text" id="custName" placeholder="Walk-in Customer" aria-label="Customer name">
+            <input type="text" id="custName" placeholder="Walk-in Customer" aria-label="Customer name" autocomplete="off">
           </div>
           <div class="meta-field">
             <label>Mobile</label>
-            <input type="tel" id="custPhone" placeholder="05x xxx xxxx" aria-label="Customer mobile number">
+            <input type="tel" id="custPhone" placeholder="Phone Number" aria-label="Customer phone number" autocomplete="off">
           </div>
           <div class="meta-field">
             <label>TRN</label>
-            <input type="text" id="custTRN" placeholder="Customer TRN" aria-label="Customer tax registration number">
+            <input type="text" id="custTRN" placeholder="Customer TRN" aria-label="Customer tax registration number" autocomplete="off">
           </div>
         </div>
 
@@ -349,7 +348,7 @@
       </div>
     </div>
   </div>  <!-- Repair Slip Container (for printing) -->
-  <div id="repairSlipContainer" class="repair-slip-container"></div>  <script type="module" src="app.js?v=116"></script>
-  <script type="module" src="repair-management.js?v=116"></script>
+  <div id="repairSlipContainer" class="repair-slip-container"></div>  <script type="module" src="app.js?v=117"></script>
+  <script type="module" src="repair-management.js?v=117"></script>
 </body>
 </html>
