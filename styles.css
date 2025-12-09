@@ -2140,8 +2140,8 @@ select:disabled {
   }
 }
 
-/* Mobile View (Phones) - Fixed width with horizontal scroll */
-@media (max-width: 768px) {
+/* Mobile View (Phones) - Fixed width with horizontal scroll - SCREEN ONLY, EXCLUDES PRINT */
+@media screen and (max-width: 768px) {
   /* Disable viewport scaling - allow horizontal scroll */
   html {
     overflow-x: auto;
