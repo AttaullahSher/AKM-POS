@@ -2,7 +2,7 @@
 <html lang="en">
 <head>  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-  <title>AKM-POS | Point of Sale System</title><link rel="icon" type="image/png" href="/Favicon.png">  <link rel="preconnect" href="https://fonts.googleapis.com">  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">  <link rel="stylesheet" href="styles.css?v=118">
+  <title>AKM-POS | Point of Sale System</title><link rel="icon" type="image/png" href="/Favicon.png">  <link rel="preconnect" href="https://fonts.googleapis.com">  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">  <link rel="stylesheet" href="styles.css?v=119">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
 <body>  <!-- Loading Screen -->
@@ -241,17 +241,9 @@
         <div class="form-group">
           <label>Description <span style="color: red;">*</span></label>
           <textarea id="expenseDesc" rows="3" placeholder="Enter detailed description" aria-label="Expense description" required></textarea>
-        </div>
-        <div class="form-group">
+        </div>        <div class="form-group">
           <label>Amount (AED) <span style="color: red;">*</span></label>
           <input type="number" id="expenseAmount" step="0.01" min="0" placeholder="0.00" aria-label="Expense amount" required>
-        </div>
-        <div class="form-group">
-          <label>Payment Method <span style="color: red;">*</span></label>
-          <div class="payment-buttons">
-            <button type="button" class="payment-btn expense-method-btn" data-method="Cash">💵 Cash</button>
-            <button type="button" class="payment-btn expense-method-btn" data-method="Cheque">📝 Cheque</button>
-          </div>
         </div>
         <div class="form-group">
           <label>Receipt Number <span style="color: red;">*</span></label>
@@ -348,7 +340,7 @@
       </div>
     </div>
   </div>  <!-- Repair Slip Container (for printing) -->
-  <div id="repairSlipContainer" class="repair-slip-container"></div>  <script type="module" src="app.js?v=118"></script>
-  <script type="module" src="repair-management.js?v=118"></script>
+  <div id="repairSlipContainer" class="repair-slip-container"></div>  <script type="module" src="app.js?v=119"></script>
+  <script type="module" src="repair-management.js?v=119"></script>
 </body>
 </html>

@@ -1287,22 +1287,9 @@ window.submitDeposit = async function() {
   }
 };
 
-let currentExpenseMethod = null;
-
 window.openExpenseModal = function() {
   document.getElementById('expenseModal').classList.add('show');
   document.getElementById('expenseCategory').focus();
-  
-  // Setup payment method button listeners
-  const expenseMethodButtons = document.querySelectorAll('.expense-method-btn');
-  expenseMethodButtons.forEach(btn => {
-    btn.addEventListener('click', function() {
-      expenseMethodButtons.forEach(b => b.classList.remove('active'));
-      this.classList.add('active');
-      currentExpenseMethod = this.dataset.method;
-      console.log('💳 Expense method selected:', currentExpenseMethod);
-    });
-  });
 };
 
 window.closeExpenseModal = function() {
@@ -1311,11 +1298,6 @@ window.closeExpenseModal = function() {
   document.getElementById('expenseDesc').value = '';
   document.getElementById('expenseAmount').value = '';
   document.getElementById('expenseReceipt').value = '';
-  
-  // Clear payment method selection
-  const expenseMethodButtons = document.querySelectorAll('.expense-method-btn');
-  expenseMethodButtons.forEach(btn => btn.classList.remove('active'));
-  currentExpenseMethod = null;
 };
 
 async function getNextExpenseID() {
@@ -1366,14 +1348,9 @@ window.submitExpense = async function() {
     showToast('Please enter a description', 'error');
     document.getElementById('expenseDesc').focus();
     return;
-  }
-  if (!amount || amount <= 0) {
+  }  if (!amount || amount <= 0) {
     showToast('Please enter a valid amount', 'error');
     document.getElementById('expenseAmount').focus();
-    return;
-  }
-  if (!currentExpenseMethod) {
-    showToast('Please select a payment method', 'error');
     return;
   }
   if (!receipt) {
@@ -1386,13 +1363,14 @@ window.submitExpense = async function() {
   const expenseID = await getNextExpenseID();
   
   // Expenses sheet columns: ExpenseID, Date, TimeStamp, Description, Amount, Method, ReceiptNumber, Category, CashImpact, Notes
+  // All expenses default to Cash payment method
   const expenseRow = [
     expenseID,                                          // ExpenseID (Column A)
     formatDate(today, 'YYYY-MM-DD'),                   // Date (Column B)
     formatDate(today, 'YYYY-MM-DD HH:mm:ss'),          // TimeStamp (Column C)
     description,                                        // Description (Column D)
     amount.toFixed(2),                                  // Amount (Column E)
-    currentExpenseMethod,                               // Method (Column F)
+    'Cash',                                             // Method (Column F) - Always Cash
     receipt,                                            // ReceiptNumber (Column G)
     category,                                           // Category (Column H)
     (-amount).toFixed(2),                               // CashImpact (Column I) - negative
@@ -1618,20 +1596,12 @@ function setupKeyboardNavigation() {
         return;
       }
     }
-    
-    // === EXPENSE MODAL NAVIGATION ===
+      // === EXPENSE MODAL NAVIGATION ===
     if (activeElement.closest('#expenseModal')) {
       if (e.key === 'Enter') {
         e.preventDefault();
         
-        // Handle expense method buttons
-        if (activeElement.classList.contains('expense-method-btn')) {
-          activeElement.click();
-          document.getElementById('expenseReceipt').focus();
-          return;
-        }
-        
-        const expenseInputs = ['expenseCategory', 'expenseDesc', 'expenseAmount'];
+        const expenseInputs = ['expenseCategory', 'expenseDesc', 'expenseAmount', 'expenseReceipt'];
         const currentId = activeElement.id;
         const currentIndex = expenseInputs.indexOf(currentId);
         
@@ -1639,33 +1609,11 @@ function setupKeyboardNavigation() {
           // Move to next field
           const nextInput = document.getElementById(expenseInputs[currentIndex + 1]);
           if (nextInput) nextInput.focus();
-        } else if (currentId === 'expenseAmount') {
-          // After amount, focus first payment method button
-          const firstMethodBtn = document.querySelector('.expense-method-btn');
-          if (firstMethodBtn) firstMethodBtn.focus();
         } else if (currentId === 'expenseReceipt') {
           // Last field: trigger submit
           submitExpense();
         }
         return;
-      }
-      
-      // Arrow navigation for expense method buttons
-      if (activeElement.classList.contains('expense-method-btn')) {
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-          e.preventDefault();
-          const methodButtons = Array.from(document.querySelectorAll('.expense-method-btn'));
-          const currentIndex = methodButtons.indexOf(activeElement);
-          
-          if (e.key === 'ArrowRight') {
-            const nextIndex = (currentIndex + 1) % methodButtons.length;
-            methodButtons[nextIndex].focus();
-          } else if (e.key === 'ArrowLeft') {
-            const prevIndex = (currentIndex - 1 + methodButtons.length) % methodButtons.length;
-            methodButtons[prevIndex].focus();
-          }
-          return;
-        }
       }
     }
     
