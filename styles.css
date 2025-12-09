@@ -611,9 +611,9 @@ input, select, textarea {
 .invoice-meta-compact {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-xl);
-  padding: var(--spacing-lg);
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 10px;
   background: linear-gradient(135deg, rgba(79, 70, 229, 0.03) 0%, rgba(139, 92, 246, 0.03) 100%);
   border-radius: var(--radius-lg);
   border: 1px solid rgba(79, 70, 229, 0.08);
@@ -633,7 +633,7 @@ input, select, textarea {
 }
 
 .meta-field label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--gray-600);
   text-transform: uppercase;
@@ -642,7 +642,7 @@ input, select, textarea {
   align-items: center;
   gap: var(--spacing-xs);
   white-space: nowrap;
-  min-width: 85px;
+  min-width: 70px;
 }
 
 .meta-field .inv-num {
@@ -660,11 +660,11 @@ input, select, textarea {
 .meta-field input,
 .meta-field select,
 .meta-field textarea {
-  padding: 9px 12px;
-  font-size: 14px;
+  padding: 6px 10px;
+  font-size: 13px;
   font-weight: 500;
   border: 1px solid var(--gray-300);
-  border-radius: 8px;
+  border-radius: 6px;
   background: white;
   color: #000 !important;
   -webkit-text-fill-color: #000 !important;
@@ -914,10 +914,10 @@ select:disabled {
 .amount-display {
   display: block;
   padding: 8px 10px;
-  font-weight: 600;
-  font-family: var(--font-mono);
+  font-weight: 500;
+  font-family: 'Arial', 'Helvetica', sans-serif;
   color: #000;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 @media screen {
@@ -966,7 +966,7 @@ select:disabled {
 
 /* Totals table: ensure consistent borders and visible outer border */
 .totals-table {
-  width: 300px;
+  width: 220px;
   border: 1px solid rgba(123, 163, 209, 0.2);
   border-collapse: collapse;
   border-radius: 12px;
@@ -977,8 +977,8 @@ select:disabled {
 
 .totals-table td {
   border: 1px solid rgba(123, 163, 209, 0.15);
-  padding: 10px 14px;
-  font-size: 14px;
+  padding: 6px 12px;
+  font-size: 13px;
 }
 
 .totals-table .label {
@@ -987,7 +987,7 @@ select:disabled {
   letter-spacing: 0.5px;
   color: var(--gray-600);
   font-size: 11px;
-  width: 35%;
+  width: 50%;
   white-space: nowrap;
 }
 
@@ -998,6 +998,7 @@ select:disabled {
   color: var(--dark);
   font-size: 14px;
   letter-spacing: -0.3px;
+  width: 50%;
 }
 
 @media screen {
@@ -1283,16 +1284,16 @@ select:disabled {
   right: 24px;
   background: white;
   color: var(--dark);
-  padding: 12px 20px;
-  border-radius: 10px;
+  padding: 8px 14px;
+  border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   font-weight: 500;
-  font-size: 14px;
+  font-size: 12px;
   opacity: 0;
   transform: translateY(10px) scale(0.95);
   transition: all 0.3s ease;
   z-index: 10000;
-  max-width: 350px;
+  max-width: 300px;
   border: 1px solid var(--gray-200);
 }
 
@@ -1317,8 +1318,8 @@ select:disabled {
 /* ===== Invoice Header (Screen) ===== */
 .invoice-header {
   text-align: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
   border-bottom: 2px solid rgba(123, 163, 209, 0.15);
 }
 
@@ -1326,10 +1327,10 @@ select:disabled {
   font-size: 16px;
   font-weight: 600;
   line-height: 1.5;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
   color: var(--primary-dark);
   letter-spacing: -0.3px;
 }
@@ -1353,7 +1354,7 @@ select:disabled {
 .company-trn {
   font-size: 13px;
   font-weight: 600;
-  margin-top: 6px;
+  margin-top: 3px;
   color: var(--gray-700);
 }
 
@@ -1363,8 +1364,8 @@ select:disabled {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  padding: 8px 0;
-  margin: 8px 0;
+  padding: 6px 0;
+  margin: 5px 0 6px 0;
   background: none;
   color: var(--primary-dark);
   border: none;
@@ -1379,10 +1380,10 @@ select:disabled {
   display: none;
 }
 
-/* 80mm Thermal Receipt Print Styles - FIXED VERSION */
+/* 72mm Thermal Receipt Print Styles - FIXED VERSION */
 @media print {
   @page {
-    size: 80mm auto;
+    size: 72mm auto;
     margin: 0;
   }
   /* Reset and base print styles - OVERRIDE ALL COLORS AND MAKE BOLD */
@@ -1392,7 +1393,7 @@ select:disabled {
     color: #000 !important;
     font-weight: 700 !important;
   }  html, body {
-    width: 80mm !important;
+    width: 72mm !important;
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
@@ -1501,11 +1502,11 @@ select:disabled {
     visibility: visible !important;
   }
 
-  /* Main invoice container - positioned for 80mm thermal */
+  /* Main invoice container - positioned for 72mm thermal */
   .main-content {
     display: block !important;
     visibility: visible !important;
-    width: 80mm !important;
+    width: 72mm !important;
     padding: 0 !important;
     margin: 0 !important;
     overflow: visible !important;
@@ -1841,6 +1842,13 @@ select:disabled {
     color: #000 !important;
   }
 
+  /* Column widths for 70mm thermal - optimized for space */
+  .items-table thead th:nth-child(1) { width: 16% !important; } /* Model */
+  .items-table thead th:nth-child(2) { width: 44% !important; } /* Description */
+  .items-table thead th:nth-child(3) { width: 10% !important; } /* Qty */
+  .items-table thead th:nth-child(4) { width: 14% !important; } /* Price */
+  .items-table thead th:nth-child(5) { width: 16% !important; } /* Amount */
+
   .items-table thead th:nth-child(3),
   .items-table thead th:nth-child(4),
   .items-table thead th:nth-child(5) {
@@ -2116,13 +2124,14 @@ select:disabled {
   }
 }
 
-@media (max-width: 992px) {
+/* Tablet View (iPad, etc.) - Keep normal responsive behavior */
+@media (max-width: 992px) and (min-width: 769px) {
   .main-app {
     flex-direction: column;
   }
 
   .sidebar {
-    display: none; /* Hide dashboard on mobile/tablet */
+    display: none;
   }
 
   .main-content {
@@ -2131,25 +2140,149 @@ select:disabled {
   }
 }
 
+/* Mobile View (Phones) - Fixed width with horizontal scroll */
 @media (max-width: 768px) {
+  /* Disable viewport scaling - allow horizontal scroll */
+  html {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  body {
+    min-width: 750px; /* 2x iPhone width */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Hide sidebar on mobile */
+  .sidebar {
+    display: none !important;
+  }
+  
+  /* Main app takes full width but enforces minimum */
+  .main-app {
+    flex-direction: column;
+    min-width: 750px;
+  }
+  
+  /* Main content fixed width for horizontal scroll */
+  .main-content {
+    width: 750px;
+    min-width: 750px;
+    padding: 16px;
+    overflow-x: visible;
+  }
+  
+  /* Invoice container maintains desktop width */
   .invoice-container {
+    width: 100%;
+    min-width: 720px;
     padding: 20px;
   }
-
-  .invoice-meta,
-  .invoice-meta-row {
-    grid-template-columns: 1fr;
+  
+  /* Keep desktop layout for invoice meta */
+  .invoice-meta-compact {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
   }
+  
+  /* Keep payment buttons in row */
   .payment-buttons {
+    display: flex;
+    flex-direction: row;
     justify-content: flex-start;
+    gap: 10px;
+  }
+  
+  .payment-btn {
+    flex: 1;
+    min-width: 80px;
+  }
+  
+  /* Items table maintains width */
+  .items-table {
+    width: 100%;
+    min-width: 680px;
+  }
+  
+  /* Action buttons stay in row */
+  .action-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+  }
+  
+  /* Modals adapt to mobile but maintain usability */
+  .modal-content {
+    width: 90%;
+    max-width: 680px;
+    margin: 20px auto;
+  }
+  
+  /* Toast notifications */
+  .toast {
+    right: 12px;
+    bottom: 12px;
+    max-width: 280px;
+  }
+  
+  /* Login screen stays centered */
+  .login-container {
+    width: 90%;
+    max-width: 400px;
+  }
+  
+  /* Loading screen */
+  .loading-screen {
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
   }
 
-  .sidebar-actions {
-    grid-template-columns: 1fr;
+  /* Add subtle scroll hint */
+  .main-content::before {
+    content: '← Scroll horizontally →';
+    display: block;
+    text-align: center;
+    font-size: 11px;
+    color: #999;
+    padding: 8px;
+    background: linear-gradient(90deg, transparent 0%, rgba(123, 163, 209, 0.05) 50%, transparent 100%);
+    border-radius: 6px;
+    margin-bottom: 12px;
+    animation: fadeOut 3s ease-in-out forwards;
   }
-
-  .metrics {
-    grid-template-columns: 1fr;
+  
+  @keyframes fadeOut {
+    0% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; display: none; }
+  }
+  
+  /* Ensure print button works on mobile */
+  .btn-print {
+    font-size: 14px;
+    padding: 12px 20px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Better touch targets for mobile */
+  input, select, textarea, button {
+    min-height: 44px; /* iOS recommended touch target */
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+  
+  /* Exception for small labels */
+  .meta-field label {
+    font-size: 10px;
+    min-height: auto;
+  }
+  
+  /* Exception for totals table */
+  .totals-table td {
+    font-size: 13px;
   }
 }
 

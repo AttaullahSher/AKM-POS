@@ -224,52 +224,46 @@ window.updateRepairStatus = async function(jobNumber, newStatus, rowIndex) {
   }
 };
 
-// Generate next job number (Format: R2512001 for storage, display as DDSS)
+// Generate next job number (Format: MMSS where MM=month, SS=sequence)
+// Example: 1201 (December, 1st job), 1202 (December, 2nd job), 0105 (January, 5th job)
 async function getNextJobNumber() {
   try {
     const data = await readSheet("'Repairing'!A:A");
     const today = new Date();
-    const year = String(today.getFullYear()).slice(-2);
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const yearMonth = `${year}${month}`;
+    const month = String(today.getMonth() + 1).padStart(2, '0'); // 01-12
     
     if (!data || data.length <= 1) {
-      return `R${yearMonth}001`;
+      return `${month}01`; // First job of the month
     }
     
     const lastJobNumber = data[data.length - 1][0];
-    const match = lastJobNumber.match(/R(\d{4})(\d+)/);
+    const match = lastJobNumber.match(/^(\d{2})(\d{2})$/); // Match MMSS format
     
     if (match) {
-      const lastYearMonth = match[1];
+      const lastMonth = match[1];
       const lastSequence = parseInt(match[2]);
       
-      if (lastYearMonth === yearMonth) {
-        const nextSequence = String(lastSequence + 1).padStart(3, '0');
-        return `R${yearMonth}${nextSequence}`;
+      if (lastMonth === month) {
+        // Same month, increment sequence
+        const nextSequence = String(lastSequence + 1).padStart(2, '0');
+        return `${month}${nextSequence}`;
       }
     }
     
-    return `R${yearMonth}001`;
+    // New month or invalid format, start at 01
+    return `${month}01`;
   } catch (error) {
     console.error('❌ Error generating job number:', error);
     const today = new Date();
-    const year = String(today.getFullYear()).slice(-2);
     const month = String(today.getMonth() + 1).padStart(2, '0');
-    return `R${year}${month}001`;
+    return `${month}01`;
   }
 }
 
-// Convert job number to display format (DDSS - day + sequence)
+// Job number is already in MMSS format, just return it
 function formatSlipNumber(jobNumber, jobDate) {
-  // Extract month and sequence from jobNumber (R2512001 -> month:12, seq:001)
-  const match = jobNumber.match(/R\d{2}(\d{2})(\d+)/);
-  if (!match) return jobNumber;
-  
-  const month = match[1]; // Extract month (12 for December)
-  const sequence = match[2].padStart(2, '0').slice(-2); // Get last 2 digits of sequence, pad if needed
-  
-  return `${month}${sequence}`; // MMSS format (e.g., 1201 for December, sequence 01)
+  // Job number is already in correct format: MMSS (e.g., 1201 for December, 1st job)
+  return jobNumber;
 }
 
 // Submit new repair job
