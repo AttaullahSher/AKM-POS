@@ -1,6 +1,6 @@
 // ===== REPAIR JOB MANAGEMENT SYSTEM =====
 // Handles repair jobs with status tracking and thermal slip printing
-// Version: v127 - Phone Validation Updates (Mobile/Landline/International)
+// Version: v127.1 - Hotfix: Fixed displayName undefined error
 
 // Debug mode flag - set to false to reduce console output
 const DEBUG_MODE = false;
@@ -176,11 +176,12 @@ function displayRepairJobs() {
         <tbody>
   `;
   
-  currentRepairJobs.forEach(job => {
-    let statusClass = '';
+  currentRepairJobs.forEach(job => {    let statusClass = '';
     if (job.status === 'InProcess') statusClass = 'status-inprocess';
     else if (job.status === 'Completed') statusClass = 'status-completed';
-      // Truncate long values for compact display    const displayName = (job.name && job.name.length > 18) ? job.name.substring(0, 18) + '...' : (job.name || 'N/A');
+    
+    // Truncate long values for compact display
+    const displayName = (job.name && job.name.length > 18) ? job.name.substring(0, 18) + '...' : (job.name || 'N/A');
     // Display phone number as-is (no automatic formatting)
     const displayMobile = job.mobile || 'N/A';
     const displayProduct = (job.product && job.product.length > 20) ? job.product.substring(0, 20) + '...' : (job.product || 'N/A');
