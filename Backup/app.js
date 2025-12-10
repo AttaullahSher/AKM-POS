@@ -20,30 +20,6 @@ const API_BASE_URL = 'https://akm-pos-api.onrender.com';
 const WRITE_ENDPOINT = `${API_BASE_URL}/writeToSheet`;
 const READ_ENDPOINT = `${API_BASE_URL}/readSheet`;
 
-// SECURITY FIX: API key should be set via environment or build process
-// For development, this can be set in a separate config file (not committed to git)
-const AKM_PROXY_KEY = window.AKM_CONFIG?.PROXY_KEY || null; // Loaded from external config
-
-// Offline invoice queue key
-const OFFLINE_INVOICE_QUEUE_KEY = 'akm_offline_invoices_v1';
-
-// Configuration constants (extracted magic numbers)
-const CONFIG = {
-  API_TIMEOUT_MS: 45000,
-  RETRY_DELAY_MS: 3000,
-  MAX_RETRY_ATTEMPTS: 4,
-  REQUEST_DELAY_MS: 200,
-  CACHE_VALIDITY_MS: 3600000, // 1 hour
-  AUTO_REFRESH_INTERVAL_MS: 10000,
-  REPAIR_AUTO_REFRESH_MS: 10000,
-  MIN_PHONE_DIGITS: 7,
-  MAX_PHONE_DIGITS: 20,
-  MIN_INVOICE_DATE_DAYS_AGO: 365,
-  MAX_ITEMS_PER_INVOICE: 10,
-  RECENT_INVOICES_LOAD_LIMIT: 100,
-  PRINT_RESTORE_DELAY_MS: 500
-};
-
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
@@ -61,9 +37,6 @@ let reprintInvoiceId = null;
 let requestQueue = [];
 let isProcessingQueue = false;
 const REQUEST_DELAY = 200;
-
-// Track basic online/offline status
-let isBackendReachable = true;
 
 // PRINT FIX: Convert inputs to text spans before printing (fixes grey text + description wrapping)
 let originalInputStates = [];
@@ -133,9 +106,6 @@ function restorePrintLayout() {
   originalInputStates = [];
 }
 
-// FIX: Remove old listeners to prevent memory leaks
-window.removeEventListener('beforeprint', preparePrintLayout);
-window.removeEventListener('afterprint', restorePrintLayout);
 window.addEventListener('beforeprint', preparePrintLayout);
 window.addEventListener('afterprint', restorePrintLayout);
 
@@ -180,22 +150,8 @@ async function warmupAPI() {
   }
 }
 
-// FIX: Add global error handlers to prevent crashes
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('❌ Unhandled promise rejection:', event.reason);
-  showToast('An unexpected error occurred. Please refresh if issues persist.', 'error');
-  
-  // Prevent default browser error handling
-  event.preventDefault();
-});
-
-window.addEventListener('error', (event) => {
-  console.error('❌ Global error:', event.error);
-  showToast('An unexpected error occurred. Please refresh if issues persist.', 'error');
-});
-
 document.addEventListener('DOMContentLoaded', async () => {
-  debugLog('🚀 AKM-POS v127.2 initializing...');
+  debugLog('🚀 AKM-POS v123 initializing...');
   
   // Start warming up API immediately in background (don't wait for auth)
   warmupAPI().catch(() => {}); // Silent catch for warmup errors
@@ -315,8 +271,6 @@ async function initializePOS() {
       }
     }
     
-    await trySyncOfflineInvoices();
-
     const endTime = performance.now();
     const loadTime = ((endTime - startTime) / 1000).toFixed(2);
     debugLog(`✅ Initialization complete in ${loadTime}s`);
@@ -363,21 +317,12 @@ function queueRequest(fn) {
 
 async function readSheetBatch(ranges) {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
-
     const response = await fetch(READ_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-akm-key': AKM_PROXY_KEY
-      },
-      body: JSON.stringify({ ranges }),
-      signal: controller.signal
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ranges })
     });
-
-    clearTimeout(timeoutId);
-
+    
     if (!response.ok) {
       console.error('❌ API Error:', response.status, response.statusText);
       throw new Error(`HTTP ${response.status}`);
@@ -387,8 +332,7 @@ async function readSheetBatch(ranges) {
       console.error('❌ Read failed:', data.error);
       throw new Error(data.error || 'Failed to read data');
     }
-
-    isBackendReachable = true;
+    
     const result = {};
     data.valueRanges.forEach((valueRange, index) => {
       result[ranges[index]] = valueRange.values || [];
@@ -396,7 +340,6 @@ async function readSheetBatch(ranges) {
     return result;
   } catch (error) {
     console.error('❌ Network error reading sheet batch:', error.message);
-    isBackendReachable = false;
     showToast('Error reading data. Check network connection.', 'error');
     return null;
   }
@@ -405,31 +348,20 @@ async function readSheetBatch(ranges) {
 async function readSheet(range, retries = 4) {
   return queueRequest(async () => {
     for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        if (attempt > 0) {
+      try {        if (attempt > 0) {
           const waitTime = 3000 * attempt; // 3s, 6s, 9s, 12s
           debugLog(`🔄 Retry attempt ${attempt}/${retries} for range: ${range} (waiting ${waitTime/1000}s...)`);
-          if (attempt === 1) {
-            showToast(`⏳ Connecting to API server...`, 'info');
-          }
+          showToast(`⏳ Waking up API server... (attempt ${attempt}/${retries})`, 'info');
           await new Promise(resolve => setTimeout(resolve, waitTime));
         }
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 45000);
-
+        
         const response = await fetch(READ_ENDPOINT, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-akm-key': AKM_PROXY_KEY
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ range }),
-          signal: controller.signal
+          signal: AbortSignal.timeout(45000) // 45 second timeout
         });
-
-        clearTimeout(timeoutId);
-
+        
         if (!response.ok) {
           if (response.status === 500 && attempt < retries) {
             console.warn(`⚠️ API returned 500, retrying... (${attempt + 1}/${retries})`);
@@ -438,28 +370,22 @@ async function readSheet(range, retries = 4) {
           console.error('❌ API Error:', response.status, response.statusText);
           throw new Error(`HTTP ${response.status}`);
         }
-
+        
         const data = await response.json();
         if (!data.success) {
           console.error('❌ Read failed:', data.error);
           throw new Error(data.error || 'Failed to read data');
         }
-
-        if (attempt > 0) {
+          if (attempt > 0) {
           debugLog(`✅ Retry successful after ${attempt} attempt(s)`);
           showToast('✅ API connected successfully!', 'success');
         }
-        isBackendReachable = true;
         return data.values || [];
-
+        
       } catch (error) {
-        if (error.name === 'AbortError') {
-          console.warn('⏱️ Read timeout:', range);
-        }
         if (attempt === retries) {
           console.error('❌ All retry attempts failed:', error.message);
-          isBackendReachable = false;
-          showToast('⚠️ API unavailable. Network or server issue. You can still print in emergency mode.', 'error');
+          showToast('⚠️ API unavailable. The server may be down or experiencing issues. Please contact support.', 'error');
           return null;
         }
       }
@@ -469,21 +395,12 @@ async function readSheet(range, retries = 4) {
 
 async function appendToSheet(range, values) {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
-
     const response = await fetch(WRITE_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-akm-key': AKM_PROXY_KEY
-      },
-      body: JSON.stringify({ action: 'append', sheetName: range, values }),
-      signal: controller.signal
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'append', sheetName: range, values })
     });
-
-    clearTimeout(timeoutId);
-
+    
     if (!response.ok) {
       console.error('❌ API Error:', response.status, response.statusText);
       throw new Error(`HTTP ${response.status}`);
@@ -493,38 +410,28 @@ async function appendToSheet(range, values) {
       console.error('❌ Append failed:', result.message);
       throw new Error(result.message || 'Failed to append data');
     }
-    isBackendReachable = true;
     return true;
   } catch (error) {
     console.error('❌ Network error appending to sheet:', error.message);
-    isBackendReachable = false;
-    return { ok: false, error };
+    showToast('Error saving data. Check network connection.', 'error');
+    return false;
   }
 }
 
 async function updateSheet(range, values) {
   try {
     const [sheetName, cellRange] = range.includes('!') ? range.split('!') : [range, ''];
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
-
     const response = await fetch(WRITE_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-akm-key': AKM_PROXY_KEY
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'update',
         sheetName: sheetName.replace(/'/g, ''),
         range: cellRange,
         values
-      }),
-      signal: controller.signal
+      })
     });
-
-    clearTimeout(timeoutId);
-
+    
     if (!response.ok) {
       console.error('❌ API Error:', response.status, response.statusText);
       throw new Error(`HTTP ${response.status}`);
@@ -534,11 +441,8 @@ async function updateSheet(range, values) {
       console.error('❌ Update failed:', result.message);
       throw new Error(result.message || 'Failed to update data');
     }
-    isBackendReachable = true;
-    return true;
-  } catch (error) {
+    return true;  } catch (error) {
     console.error('❌ Network error updating sheet:', error.message);
-    isBackendReachable = false;
     showToast('Error updating sheet. Check network connection.', 'error');
     return false;
   }
@@ -548,68 +452,6 @@ async function updateSheet(range, values) {
 window.readSheet = readSheet;
 window.appendToSheet = appendToSheet;
 window.updateSheet = updateSheet;
-
-// Offline queue helpers
-function loadOfflineInvoices() {
-  try {
-    const raw = localStorage.getItem(OFFLINE_INVOICE_QUEUE_KEY);
-    if (!raw) return [];
-    const queue = JSON.parse(raw) || [];
-    // FIX: Add validation and deduplication
-    return queue.filter((item, index, self) => 
-      item && 
-      item.invoiceRow && 
-      item.createdAt &&
-      // Deduplicate by invoice number
-      index === self.findIndex(t => t.invoiceRow[0] === item.invoiceRow[0])
-    );
-  } catch (error) {
-    console.error('Error loading offline invoices:', error);
-    return [];
-  }
-}
-
-function saveOfflineInvoices(queue) {
-  try {
-    localStorage.setItem(OFFLINE_INVOICE_QUEUE_KEY, JSON.stringify(queue));
-  } catch (e) {
-    console.warn('Failed to persist offline invoices:', e.message);
-  }
-}
-
-async function trySyncOfflineInvoices() {
-  const queue = loadOfflineInvoices();
-  if (!queue.length || !isBackendReachable) return;
-
-  let successCount = 0;
-  const remaining = [];
-
-  for (const item of queue) {
-    // FIX: Check if invoice already exists before syncing
-    const invoiceNum = item.invoiceRow[0];
-    const existingData = await readSheet("'AKM-POS'!A:A");
-    const alreadyExists = existingData && existingData.some(row => row[0] === invoiceNum);
-    
-    if (alreadyExists) {
-      debugLog(`⚠️ Invoice ${invoiceNum} already exists, skipping sync`);
-      successCount++; // Count as success since it's already in sheet
-      continue;
-    }
-    
-    const res = await appendToSheet("'AKM-POS'!A:T", [item.invoiceRow]);
-    if (res === true) {
-      successCount++;
-    } else {
-      remaining.push(item);
-    }
-  }
-
-  if (successCount > 0) {
-    showToast(`✅ Synced ${successCount} offline invoice(s).`, 'success');
-  }
-
-  saveOfflineInvoices(remaining);
-}
 
 async function loadNextInvoiceNumber() {
   const currentYear = new Date().getFullYear();
@@ -628,28 +470,14 @@ async function loadNextInvoiceNumber() {
     if (!data || data.length <= 1) {
       invoiceCounter = 15001;
     } else {
-      // Walk backwards to find last non-empty valid invoice
-      let lastInvoice = null;
-      for (let i = data.length - 1; i >= 1; i--) {
-        const candidate = data[i] && data[i][0];
-        if (candidate) {
-          lastInvoice = candidate;
-          break;
-        }
-      }
-
-      if (!lastInvoice) {
-        invoiceCounter = 15001;
+      const lastInvoice = data[data.length - 1][0];
+      const match = lastInvoice.match(/(\d{4})-(\d+)/);
+      if (match) {
+        const lastYear = parseInt(match[1]);
+        const lastSequence = parseInt(match[2]);
+        invoiceCounter = (lastYear === currentYear) ? lastSequence + 1 : 15001;
       } else {
-        const match = lastInvoice.match(/(\d{4})-(\d+)/);
-        if (match) {
-          const lastYear = parseInt(match[1]);
-          const lastSequence = parseInt(match[2]);
-          invoiceCounter = (lastYear === currentYear) ? lastSequence + 1 : 15001;
-        } else {
-          console.warn('Unexpected invoice format in sheet:', lastInvoice);
-          invoiceCounter = 15001;
-        }
+        invoiceCounter = 15001;
       }
     }
     
@@ -724,7 +552,6 @@ async function loadDashboardData() {
   
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    if (!row || row.length < 16) continue;
     const date = row[1];
     const paymentMethod = row[6];
     const grandTotal = parseFloat(row[9]) || 0;
@@ -743,17 +570,13 @@ async function loadDashboardData() {
   
   if (deposits.length > 1) {
     for (let i = 1; i < deposits.length; i++) {
-      const row = deposits[i];
-      if (!row || row.length < 7) continue;
-      totalCashOut += Math.abs(parseFloat(row[6]) || 0);
+      totalCashOut += Math.abs(parseFloat(deposits[i][6]) || 0);
     }
   }
   
   if (expenses.length > 1) {
     for (let i = 1; i < expenses.length; i++) {
-      const row = expenses[i];
-      if (!row || row.length < 9) continue;
-      totalCashOut += Math.abs(parseFloat(row[8]) || 0);
+      totalCashOut += Math.abs(parseFloat(expenses[i][8]) || 0);
     }
   }
   
@@ -845,8 +668,8 @@ window.loadMoreInvoices = async function() {
 
 window.addItemRow = function() {
   const tbody = document.getElementById('itemsBody');
-  if (tbody.querySelectorAll('tr').length >= CONFIG.MAX_ITEMS_PER_INVOICE) {
-    showToast(`Maximum ${CONFIG.MAX_ITEMS_PER_INVOICE} items allowed`, 'error');
+  if (tbody.querySelectorAll('tr').length >= 10) {
+    showToast('Maximum 10 items allowed', 'error');
     return;
   }
   
@@ -1056,10 +879,8 @@ window.saveAndPrint = async function() {
     today.getDate(), today.getMonth() + 1, today.getFullYear(), 'Paid',
     cashImpact.toFixed(2), cardImpact.toFixed(2), tabbyImpact.toFixed(2), chequeImpact.toFixed(2), ''
   ];
-
-  const appendResult = await appendToSheet("'AKM-POS'!A:T", [invoiceRow]);
-
-  if (appendResult === true) {
+    const success = await appendToSheet("'AKM-POS'!A:T", [invoiceRow]);
+    if (success) {
     console.log('✅ Invoice saved successfully:', invNum);
     const itemRows = items.map((item, index) => [
       `ITM-${invNum.split('-')[1]}-${String(index + 1).padStart(3, '0')}`,
@@ -1079,26 +900,10 @@ window.saveAndPrint = async function() {
       btn.textContent = '🖨️ Print Invoice';
     }, 600);
   } else {
-    console.warn('⚠️ Failed to save invoice online, using offline emergency mode.');
-    const queue = loadOfflineInvoices();
-    queue.push({
-      invoiceRow,
-      createdAt: Date.now()
-    });
-    saveOfflineInvoices(queue);
-
-    showToast('⚠️ Network issue: printing in OFFLINE mode. Invoice will sync later.', 'warning');
-    lockInvoiceFields();
-    printInvoice(invNum + ' (OFFLINE)');
-
-    setTimeout(() => {
-      clearForm();
-      loadNextInvoiceNumber();
-      loadDashboardData();
-      loadRecentInvoices();
-      btn.disabled = false;
-      btn.textContent = '🖨️ Print Invoice';
-    }, 600);
+    console.log('❌ Failed to save invoice to sheet');
+    showToast('Failed to save invoice', 'error');
+    btn.disabled = false;
+    btn.textContent = '🖨️ Print Invoice';
   }
 };
 
@@ -1129,17 +934,6 @@ function unlockInvoiceFields() {
   });
 }
 
-function sanitizeInput(input, maxLength = 500) {
-  // FIX: Add input sanitization to prevent XSS
-  if (!input) return '';
-  return input
-    .toString()
-    .trim()
-    .substring(0, maxLength)
-    .replace(/[<>'"]/g, '') // Remove potential HTML/script injection characters
-    .replace(/\s+/g, ' '); // Normalize whitespace
-}
-
 function collectItems() {
   const items = [];
   document.querySelectorAll('#itemsBody tr').forEach(tr => {
@@ -1149,11 +943,10 @@ function collectItems() {
     const priceInput = tr.querySelector('.item-price');
     
     if (modelInput && descInput && qtyInput && priceInput) {
-      // FIX: Sanitize all text inputs
-      const model = sanitizeInput(modelInput.value, 100);
-      const desc = sanitizeInput(descInput.value, 500);
-      const qty = Math.max(0, parseFloat(qtyInput.value) || 0); // FIX: Prevent negative
-      const price = Math.max(0, parseFloat(priceInput.value) || 0); // FIX: Prevent negative
+      const model = modelInput.value.trim();
+      const desc = descInput.value.trim();
+      const qty = parseFloat(qtyInput.value) || 0;
+      const price = parseFloat(priceInput.value) || 0;
       
       if ((model || desc) && qty > 0 && price > 0) {
         items.push({ model, desc, qty, price });
@@ -1773,12 +1566,12 @@ window.formatDate = formatDate;
 function validatePhone(phone) {
   if (!phone) return { valid: true, message: '' };
   // Accept any phone format: international, landline, mobile, etc.
-  // FIX: Increased minimum to 7 digits for more realistic validation
+  // Just check if it contains at least 6 digits (minimum for a valid phone number)
   const digitsOnly = phone.replace(/\D/g, '');
-  if (digitsOnly.length >= CONFIG.MIN_PHONE_DIGITS && digitsOnly.length <= CONFIG.MAX_PHONE_DIGITS) {
+  if (digitsOnly.length >= 6 && digitsOnly.length <= 20) {
     return { valid: true, message: '✓ Valid' };
   }
-  return { valid: false, message: `✗ Must contain ${CONFIG.MIN_PHONE_DIGITS}-${CONFIG.MAX_PHONE_DIGITS} digits` };
+  return { valid: false, message: '✗ Must contain 6-20 digits' };
 }
 
 function validateTRN(trn) {
@@ -1800,12 +1593,6 @@ function validateInvoiceDate(dateString) {
   const today = new Date();
   today.setHours(23, 59, 59, 999);
   if (selectedDate > today) return { valid: false, message: '✗ Cannot use future date' };
-  
-  // FIX: Prevent dates too far in the past (more than 1 year ago)
-  const minDate = new Date();
-  minDate.setDate(minDate.getDate() - CONFIG.MIN_INVOICE_DATE_DAYS_AGO);
-  if (selectedDate < minDate) return { valid: false, message: '✗ Date too far in past' };
-  
   return { valid: true, message: '✓ Valid' };
 }
 

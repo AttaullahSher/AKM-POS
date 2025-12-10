@@ -20,36 +20,23 @@ window.openRepairModal = function() {
   document.getElementById('repairSearchInput').value = '';
   loadRepairJobs();
   
-  // FIX: Clear any existing interval before creating new one to prevent memory leak
-  if (repairAutoRefreshInterval) {
-    clearInterval(repairAutoRefreshInterval);
-    repairAutoRefreshInterval = null;
-  }
-  
   // Start auto-refresh every 10 seconds to sync status from Google Sheets
-  repairAutoRefreshInterval = setInterval(() => {
-    // FIX: Check if modal is still open before refreshing
-    const modal = document.getElementById('repairModal');
-    if (!modal || !modal.classList.contains('show')) {
-      clearInterval(repairAutoRefreshInterval);
-      repairAutoRefreshInterval = null;
-      debugLog('🛑 Auto-refresh stopped (modal closed)');
-      return;
-    }
-    debugLog('🔄 Auto-refreshing repair jobs...');
-    loadRepairJobs(true); // Silent refresh (no toast)
-  }, 10000); // 10 seconds
+  if (!repairAutoRefreshInterval) {
+    repairAutoRefreshInterval = setInterval(() => {
+      debugLog('🔄 Auto-refreshing repair jobs...');
+      loadRepairJobs(true); // Silent refresh (no toast)
+    }, 10000); // 10 seconds
+  }
 };
 
 // Close repair modal
 window.closeRepairModal = function() {
   document.getElementById('repairModal').classList.remove('show');
   
-  // FIX: Ensure cleanup happens - stop auto-refresh when modal closes
+  // Stop auto-refresh when modal closes
   if (repairAutoRefreshInterval) {
     clearInterval(repairAutoRefreshInterval);
     repairAutoRefreshInterval = null;
-    debugLog('🛑 Auto-refresh stopped (modal closed explicitly)');
   }
 };
 
@@ -134,22 +121,21 @@ window.searchRepairJobs = function() {
 // Sort repair jobs by status priority: Completed -> InProcess -> Collected
 function sortRepairJobs() {
   const statusOrder = {
-    'completed': 1,
-    'inprocess': 2,
-    'collected': 3
+    'Completed': 1,
+    'InProcess': 2,
+    'Collected': 3
   };
-
+  
   currentRepairJobs.sort((a, b) => {
-    const normA = (a.status || '').trim().toLowerCase();
-    const normB = (b.status || '').trim().toLowerCase();
-
-    const orderA = statusOrder[normA] !== undefined ? statusOrder[normA] : 999;
-    const orderB = statusOrder[normB] !== undefined ? statusOrder[normB] : 999;
-
+    // Handle unknown statuses gracefully
+    const orderA = statusOrder[a.status] !== undefined ? statusOrder[a.status] : 999;
+    const orderB = statusOrder[b.status] !== undefined ? statusOrder[b.status] : 999;
+    
     if (orderA !== orderB) {
       return orderA - orderB;
     }
-
+    
+    // If same status, sort by date (newest first)
     try {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
@@ -190,19 +176,17 @@ function displayRepairJobs() {
         <tbody>
   `;
   
-  currentRepairJobs.forEach(job => {
-    let statusClass = '';
-    const normStatus = (job.status || '').trim();
-    if (normStatus === 'InProcess') statusClass = 'status-inprocess';
-    else if (normStatus === 'Completed') statusClass = 'status-completed';
-
+  currentRepairJobs.forEach(job => {    let statusClass = '';
+    if (job.status === 'InProcess') statusClass = 'status-inprocess';
+    else if (job.status === 'Completed') statusClass = 'status-completed';
+    
     // Truncate long values for compact display
     const displayName = (job.name && job.name.length > 18) ? job.name.substring(0, 18) + '...' : (job.name || 'N/A');
+    // Display phone number as-is (no automatic formatting)
     const displayMobile = job.mobile || 'N/A';
     const displayProduct = (job.product && job.product.length > 20) ? job.product.substring(0, 20) + '...' : (job.product || 'N/A');
     const displayService = (job.service && job.service.length > 28) ? job.service.substring(0, 28) + '...' : (job.service || '-');
-    const safeCharges = Number(job.charges) || 0;
-
+    
     html += `
       <tr class="repair-row ${statusClass}">
         <td class="job-number" title="${job.jobNumber}">${job.jobNumber}</td>
@@ -210,13 +194,12 @@ function displayRepairJobs() {
         <td title="${job.mobile}">${displayMobile}</td>
         <td class="truncate" title="${job.product || 'N/A'}">${displayProduct}</td>
         <td class="truncate" title="${job.service || '-'}">${displayService}</td>
-        <td class="amount">AED ${safeCharges.toFixed(2)}</td>
-        <td class="status-cell">
+        <td class="amount">AED ${parseFloat(job.charges).toFixed(2)}</td>        <td class="status-cell">
           <select class="repair-status-select ${statusClass}" 
                   onchange="updateRepairStatus('${job.jobNumber}', this.value, ${job.rowIndex})">
-            <option value="InProcess" ${normStatus === 'InProcess' ? 'selected' : ''}>InProcess</option>
-            <option value="Completed" ${normStatus === 'Completed' ? 'selected' : ''}>Completed</option>
-            <option value="Collected" ${normStatus === 'Collected' ? 'selected' : ''}>Collected</option>
+            <option value="InProcess" ${job.status === 'InProcess' ? 'selected' : ''}>InProcess</option>
+            <option value="Completed" ${job.status === 'Completed' ? 'selected' : ''}>Completed</option>
+            <option value="Collected" ${job.status === 'Collected' ? 'selected' : ''}>Collected</option>
           </select>
         </td>
         <td class="action-cell">
@@ -395,41 +378,40 @@ window.submitNewRepairJob = async function() {
 // Print repair slip
 function printRepairSlip(job) {
   const container = document.getElementById('repairSlipContainer');
-
+  
   // Format date as "08-Dec-2025"
   const formattedDate = formatDate(new Date(job.date), 'DD-MMM-YYYY');
+  // Format slip number (DDSS format)
   const slipNumber = formatSlipNumber(job.jobNumber, job.date);
-
+  
+  // Truncate values if too long (except service which wraps)
   const truncateName = (job.name && job.name.length > 25) ? job.name.substring(0, 25) + '...' : (job.name || '');
   const truncateMobile = (job.mobile && job.mobile.length > 15) ? job.mobile.substring(0, 15) + '...' : (job.mobile || '');
   const truncateProduct = (job.product && job.product.length > 25) ? job.product.substring(0, 25) + '...' : (job.product || '');
-
-  const estAmount = Number(job.charges) || 0;
-
-  const slipHTML = `
+    const slipHTML = `
     <div class="repair-slip-header">
       <h1>AKM Music</h1>
       <div>F9Q8+XQ Abu Dhabi</div>
       <div>Tel: 02-621 9929</div>
     </div>
-
+    
     <div class="repair-slip-separator"></div>
-
+    
     <div class="repair-slip-number">SERVICE SLIP #${slipNumber}</div>
     <div class="repair-slip-date">Date: ${formattedDate}</div>
-
+    
     <div class="repair-slip-separator"></div>
-
+    
     <div class="repair-slip-details">
       ${truncateName ? `<div class="slip-row"><strong>Name:</strong> ${truncateName}</div>` : ''}
       <div class="slip-row"><strong>Mob:</strong> ${truncateMobile}</div>
       <div class="slip-row"><strong>Model:</strong> ${truncateProduct}</div>
       ${job.service ? `<div class="slip-row"><strong>Service:</strong> ${job.service}</div>` : ''}
-      <div class="slip-row"><strong>Est:</strong> AED ${estAmount.toFixed(2)}</div>
+      <div class="slip-row"><strong>Est:</strong> AED ${parseFloat(job.charges).toFixed(2)}</div>
     </div>
-
+    
     <div class="repair-slip-separator"></div>
-
+    
     <div class="repair-slip-terms">
       <div>Repairs are subject to technical inspection.</div>
       <div>Final charges may vary based on actual work required.</div>
@@ -439,12 +421,13 @@ function printRepairSlip(job) {
       <div style="margin-top:4px;text-align:center;">Thank you</div>
     </div>
   `;
-
+  
   container.innerHTML = slipHTML;
-
+  
+  // Trigger print
   document.body.classList.add('printing-repair-slip');
   window.print();
-
+  
   setTimeout(() => {
     document.body.classList.remove('printing-repair-slip');
   }, 500);

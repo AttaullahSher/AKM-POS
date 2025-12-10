@@ -13,96 +13,13 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// FIX: Add rate limiting to prevent API abuse
-const requestCounts = new Map();
-const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 100; // Max 100 requests per minute per IP
-
-function rateLimitMiddleware(req, res, next) {
-  const clientIP = req.ip || req.connection.remoteAddress;
-  const now = Date.now();
-  
-  if (!requestCounts.has(clientIP)) {
-    requestCounts.set(clientIP, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
-    return next();
-  }
-  
-  const clientData = requestCounts.get(clientIP);
-  
-  if (now > clientData.resetTime) {
-    // Reset counter
-    requestCounts.set(clientIP, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
-    return next();
-  }
-  
-  if (clientData.count >= RATE_LIMIT_MAX_REQUESTS) {
-    return res.status(429).json({ 
-      error: 'Too many requests',
-      message: 'Rate limit exceeded. Please try again later.'
-    });
-  }
-  
-  clientData.count++;
-  next();
-}
-
-// Clean up old rate limit entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, data] of requestCounts.entries()) {
-    if (now > data.resetTime) {
-      requestCounts.delete(ip);
-    }
-  }
-}, 300000);
-
-// Simple shared-secret auth for frontend -> proxy
-const AKM_PROXY_KEY = process.env.AKM_PROXY_KEY || null;
-
-// FIX: Improved CORS configuration with stricter defaults
-const corsOptions = {
-  origin: (origin, callback) => {
-    // In development, allow localhost
-    const isDevelopment = process.env.NODE_ENV !== 'production';
-    
-    // Allow requests with no origin ONLY in development (mobile apps, curl, etc.)
-    if (!origin && isDevelopment) return callback(null, true);
-
-    // FIX: Default to localhost only, not '*'
-    const defaultOrigins = isDevelopment 
-      ? 'http://localhost:3000,http://127.0.0.1:3000,http://localhost:5500'
-      : ''; // Production must explicitly set allowed origins
-      
-    const allowedOrigins = (process.env.AKM_ALLOWED_ORIGINS || defaultOrigins)
-      .split(',')
-      .map(o => o.trim())
-      .filter(Boolean);
-
-    // FIX: Never allow '*' wildcard in production
-    if (allowedOrigins.includes('*')) {
-      if (!isDevelopment) {
-        console.error('❌ SECURITY ERROR: Wildcard CORS not allowed in production!');
-        return callback(new Error('Invalid CORS configuration'));
-      }
-      return callback(null, true);
-    }
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    console.warn('⚠️ CORS blocked origin:', origin);
-    return callback(new Error('Not allowed by CORS'));
-  },
+// Enable CORS for all origins (needed for deployed frontend)
+app.use(cors({
+  origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'x-akm-key'],
-  credentials: true, // Allow cookies/auth headers
-  maxAge: 86400 // Cache preflight for 24 hours
-};
-
-app.use(cors(corsOptions));
-app.use(express.json({ limit: '10mb' })); // FIX: Add size limit
-app.use(rateLimitMiddleware); // FIX: Add rate limiting
+  allowedHeaders: ['Content-Type']
+}));
+app.use(express.json());
 
 // Serve static files (HTML, CSS, JS) from the current directory
 app.use(express.static(path.join(__dirname), {
@@ -122,16 +39,8 @@ if (process.env.SERVICE_ACCOUNT) {
   console.log('📋 Using service account from environment variable');
 } else {
   const serviceAccountPath = path.join(__dirname, 'functions', 'serviceAccountKey.json');
-  try {
-    const raw = fs.readFileSync(serviceAccountPath, 'utf8');
-    serviceAccount = JSON.parse(raw);
-    console.log('📋 Using service account from file');
-  } catch (err) {
-    console.error('❌ Failed to load service account file:', serviceAccountPath);
-    console.error('Reason:', err.message);
-    console.error('Set SERVICE_ACCOUNT env var or place serviceAccountKey.json under functions/.');
-    process.exit(1);
-  }
+  serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+  console.log('📋 Using service account from file');
 }
 
 // Google Sheets configuration
@@ -185,14 +94,6 @@ app.get('/favicon.ico', (req, res) => {
  */
 app.post('/readSheet', async (req, res) => {
   try {
-    // Optional shared-secret check
-    if (AKM_PROXY_KEY) {
-      const key = req.headers['x-akm-key'];
-      if (!key || key !== AKM_PROXY_KEY) {
-        return res.status(403).json({ error: 'Forbidden' });
-      }
-    }
-
     const { range, ranges } = req.body;
 
     console.log('📖 Sheet read request:', { range, ranges });
@@ -249,14 +150,6 @@ app.post('/readSheet', async (req, res) => {
  */
 app.post('/writeToSheet', async (req, res) => {
   try {
-    // Optional shared-secret check
-    if (AKM_PROXY_KEY) {
-      const key = req.headers['x-akm-key'];
-      if (!key || key !== AKM_PROXY_KEY) {
-        return res.status(403).json({ error: 'Forbidden' });
-      }
-    }
-
     const { action, sheetName, values, range } = req.body;
 
     // Validate request
