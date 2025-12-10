@@ -1,20 +1,20 @@
-/* AKM-POS Styles v81 - Enhanced API Retry (5 attempts, 45s timeout) */
+/* AKM-POS Styles v125 - Color Palette Update + Repair List Improvements */
 /* ===== CSS Variables ===== */
 :root {
-  /* Pastel Color Palette - Soft & Professional */
-  --primary: #7ba3d1;
-  --primary-hover: #6b93c1;
-  --primary-light: #e8f0f8;
-  --primary-dark: #5b83b1;
+  /* Updated Color Palette - Modern & Professional */
+  --primary: rgb(32, 128, 236);
+  --primary-hover: rgb(24, 115, 212);
+  --primary-light: rgba(32, 128, 236, 0.1);
+  --primary-dark: rgb(20, 100, 200);
   --secondary: #9ba8b6;
-  --success: #82c4a0;
-  --success-light: #e5f5ed;
-  --danger: #db8585;
-  --danger-light: #f9e8e8;
-  --warning: #e5b87f;
-  --warning-light: #faf3e8;
-  --info: #81c5d4;
-  --info-light: #e7f5f8;
+  --success: rgb(32, 161, 90);
+  --success-light: rgba(32, 161, 90, 0.1);
+  --danger: rgb(226, 48, 48);
+  --danger-light: rgba(226, 48, 48, 0.1);
+  --warning: rgb(221, 151, 59);
+  --warning-light: rgba(221, 151, 59, 0.1);
+  --info: rgb(54, 170, 196);
+  --info-light: rgba(54, 170, 196, 0.1);
   --light: #fafbfc;
   --dark: #3d4852;
   --gray-50: #fafbfc;
@@ -526,39 +526,59 @@ input, select, textarea {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+  margin-top: 8px;
 }
 
 .invoice-item-actions button {
-  padding: 6px 12px;
-  font-size: 12px;
+  flex: 1; /* Make buttons equal width */
+  padding: 8px 12px; /* Increased padding for better clickability */
+  font-size: 13px; /* Slightly larger text */
   font-weight: 600;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
+  min-height: 36px; /* Ensure minimum clickable area */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none; /* Prevent text selection */
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
 }
 
 .btn-reprint {
   background: var(--primary);
   color: white;
   box-shadow: 0 2px 6px rgba(123, 163, 209, 0.2);
+  pointer-events: auto !important; /* Always clickable */
 }
 
 .btn-reprint:hover {
   background: var(--primary-hover);
   transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(123, 163, 209, 0.3);
+}
+
+.btn-reprint:active {
+  transform: translateY(0);
 }
 
 .btn-refund {
   background: var(--warning-light);
   color: #a87b4a;
   border: 1px solid var(--warning);
+  pointer-events: auto !important; /* Always clickable */
 }
 
 .btn-refund:hover {
   background: var(--warning);
   color: white;
   transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(218, 165, 32, 0.3);
+}
+
+.btn-refund:active {
+  transform: translateY(0);
 }
 
 .btn-load-more {
@@ -1105,12 +1125,19 @@ select:disabled {
   background: var(--success);
   color: white;
   box-shadow: 0 2px 8px rgba(130, 196, 160, 0.3);
+  pointer-events: auto !important; /* Ensure button is always clickable when not disabled */
 }
 
-.btn-print:hover {
+.btn-print:hover:not(:disabled) {
   background: #6bb590;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(130, 196, 160, 0.4);
+}
+
+.btn-print:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none !important;
 }
 
 .btn-clear {
@@ -1235,6 +1262,26 @@ select:disabled {
   background: var(--danger-light);
   color: var(--danger);
   transform: rotate(90deg);
+}
+
+/* New modal close button with "Close" label */
+.modal-close-btn {
+  background: var(--gray-100);
+  border: 1px solid var(--gray-300);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-700);
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.modal-close-btn:hover {
+  background: var(--danger-light);
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 .modal-body {
@@ -1368,6 +1415,11 @@ select:disabled {
 }
 
 .company-contact.screen-only {
+  display: none;
+}
+
+/* Hide contact row on screen, show only when printing */
+.company-contact.print-only-contact {
   display: none;
 }
 
@@ -1520,6 +1572,17 @@ select:disabled {
   .print-only {
     display: block !important;
     visibility: visible !important;
+  }
+  
+  /* Show contact row when printing */
+  .company-contact.print-only-contact {
+    display: block !important;
+    visibility: visible !important;
+    text-align: center !important;
+    font-size: 11px !important;
+    margin: 3px 0 !important;
+    color: #000 !important;
+    font-weight: 700 !important;
   }
 
   /* Main invoice container - positioned for 72mm thermal */
@@ -2389,7 +2452,7 @@ select:disabled {
 
 .repair-table tbody tr {
   transition: all 0.2s ease;
-  border-bottom: 1px solid var(--gray-100);
+  border-bottom: 1.5px solid var(--gray-300);
 }
 
 .repair-table tbody tr:hover {
@@ -2398,8 +2461,8 @@ select:disabled {
 }
 
 .repair-table td {
-  padding: 8px;
-  border-right: 1px solid var(--gray-100);
+  padding: 10px 8px;
+  border-right: 1px solid var(--gray-200);
   color: var(--dark);
   vertical-align: middle;
   line-height: 1.4;

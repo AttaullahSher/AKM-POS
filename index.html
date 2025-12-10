@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-  <title>AKM-POS | Point of Sale System</title><link rel="icon" type="image/png" href="/Favicon.png">  <link rel="preconnect" href="https://fonts.googleapis.com">  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">  <link rel="stylesheet" href="styles.css?v=122">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">  <title>AKM-POS | Point of Sale System</title><link rel="icon" type="image/png" href="/Favicon.png">  <link rel="preconnect" href="https://fonts.googleapis.com">  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">  <link rel="stylesheet" href="styles.css?v=125">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <!-- QZ Tray for direct printer communication -->
   <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.3/qz-tray.min.js"></script>
@@ -98,6 +97,11 @@
       <div class="invoice-container">        <!-- Header -->        <div class="invoice-header">          <div class="company-name-row">
             <span class="company-name-ar">مركز أجمل خان محمد للموسيقى ذ.م.م</span>
             <span class="company-name-en">Ajmal Khan Mohammed Music Centre LLC.</span>
+          </div>
+          <div class="company-contact print-only-contact">
+            <span>📧 sales@akm-music.com</span>
+            <span style="margin: 0 12px;">|</span>
+            <span>📱 +971 6 574 4954</span>
           </div>
           <div class="company-trn">TRN: 100241997400003</div>
         </div>
@@ -262,12 +266,11 @@
   <div id="toast" class="toast"></div>  <!-- Daily Report Container (hidden, used for printing) -->
   <div id="dailyReportContainer" class="daily-report-container"></div>
 
-  <!-- Repair Modal -->
-  <div id="repairModal" class="modal-overlay">
+  <!-- Repair Modal -->  <div id="repairModal" class="modal-overlay">
     <div class="modal-content" style="max-width: 900px; width: 95%;">
       <div class="modal-header">
         <h2>🔧 Repair Jobs</h2>
-        <button onclick="closeRepairModal()" class="modal-close" aria-label="Close repair jobs">&times;</button>
+        <button onclick="closeRepairModal()" class="modal-close-btn" aria-label="Close repair jobs">Close</button>
       </div>
       <div class="modal-body">
         <div style="display: flex; gap: 12px; margin-bottom: 20px; align-items: center;">
@@ -280,22 +283,20 @@
           >
           <button
             onclick="openNewRepairForm()"
-            style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;"
-          >
-            ➕ New Job
+            style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;"          >
+            Create New Job
           </button>
         </div>
         <div id="repairJobsList" style="max-height: 500px; overflow-y: auto;"></div>
       </div>
     </div>
   </div>
-
   <!-- New Repair Form Modal -->
   <div id="newRepairModal" class="modal-overlay">
     <div class="modal-content" style="max-width: 500px;">
       <div class="modal-header">
         <h2>New Repair Job</h2>
-        <button onclick="closeNewRepairForm()" class="modal-close" aria-label="Close new repair form">&times;</button>
+        <button onclick="closeNewRepairForm()" class="modal-close-btn" aria-label="Close new repair form">Close</button>
       </div>
       <div class="modal-body">
         <form onsubmit="event.preventDefault(); submitNewRepairJob();">
@@ -304,11 +305,12 @@
             <input type="text" id="repairCustomerName" autocomplete="off"
                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
           </div>
-          
-          <div style="margin-bottom: 15px;">
+            <div style="margin-bottom: 15px;">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">Mobile: <span style="color: red;">*</span></label>
             <input type="tel" id="repairCustomerMobile" required autocomplete="off"
+                   placeholder="05xxxxxxxx" pattern="0[0-9]{9}" maxlength="10"
                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+            <small style="color: #666; font-size: 11px; display: block; margin-top: 3px;">Must start with 0 (e.g., 0501234567)</small>
           </div>
           
           <div style="margin-bottom: 15px;">
@@ -343,7 +345,7 @@
       </div>
     </div>
   </div>  <!-- Repair Slip Container (for printing) -->
-  <div id="repairSlipContainer" class="repair-slip-container"></div>  <script type="module" src="app.js?v=122"></script>
-  <script type="module" src="repair-management.js?v=122"></script>
+  <div id="repairSlipContainer" class="repair-slip-container"></div>  <script type="module" src="app.js?v=125"></script>
+  <script type="module" src="repair-management.js?v=125"></script>
 </body>
 </html>

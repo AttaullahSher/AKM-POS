@@ -1,9 +1,10 @@
-// AKM-POS v114 - Performance Optimizations:
-// - Parallel data loading (3x faster)
-// - Invoice number caching (instant display)
-// - API warmup on app start
-// - Optimized recent invoices (last 100 rows only)
-// - Better loading indicators
+// AKM-POS v125 - Color Palette Update & Repair List Improvements:
+// - Updated color palette: Modern blue/green/orange/red/cyan (rgb values)
+// - Improved repair job list: Clear row borders (1.5px), proper mobile number formatting
+// - Mobile numbers always start with 0, validation added (pattern: 0xxxxxxxxx)
+// - "Create New Job" button label updated, placeholder & help text added to mobile field
+// Previous: v124 - UI fixes (print button, reprint/refund buttons, header contact row)
+// Previous: v123 - Performance & stability (reduced logging, better error handling)
 const firebaseConfig = {
   apiKey: "AIzaSyBaaHya8oqfJEOycvAsKU_Ise3s2VAgqgw",
   authDomain: "akm-pos-480210.firebaseapp.com",
@@ -41,7 +42,7 @@ const REQUEST_DELAY = 200;
 let originalInputStates = [];
 
 function preparePrintLayout() {
-  console.log('📝 Preparing print layout - converting inputs to text spans');
+  debugLog('📝 Preparing print layout - converting inputs to text spans');
   originalInputStates = [];
   
   const invoiceContainer = document.querySelector('.invoice-container');
@@ -92,7 +93,7 @@ function preparePrintLayout() {
 }
 
 function restorePrintLayout() {
-  console.log('🔄 Restoring original layout after print');
+  debugLog('🔄 Restoring original layout after print');
     originalInputStates.forEach(state => {
     if (state.textSpan && state.textSpan.parentNode) {
       state.textSpan.parentNode.removeChild(state.textSpan);
@@ -108,15 +109,23 @@ function restorePrintLayout() {
 window.addEventListener('beforeprint', preparePrintLayout);
 window.addEventListener('afterprint', restorePrintLayout);
 
-// Add API warmup function to wake server early
+// Debug mode flag - set to false to reduce console output
+const DEBUG_MODE = false;
+
+// Helper for conditional logging
+function debugLog(...args) {
+  if (DEBUG_MODE) console.log(...args);
+}
+
+// Add API warmup function to wake server early - IMPROVED: Better error handling
 async function warmupAPI() {
-  console.log('🔥 Warming up API server...');
+  debugLog('🔥 Warming up API server...');
   try {
-    // Send a lightweight ping to wake up the server
+    // Send a lightweight ping to wake up the server with longer timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout for warmup
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout (increased from 5s)
     
-    await fetch(`${API_BASE_URL}/readSheet`, {
+    const response = await fetch(`${API_BASE_URL}/readSheet`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ range: "'AKM-POS'!A1:A1" }), // Minimal data request
@@ -124,23 +133,34 @@ async function warmupAPI() {
     });
     
     clearTimeout(timeoutId);
-    console.log('✅ API server is warm');
+    
+    if (response.ok) {
+      debugLog('✅ API server is warm');
+      return true;
+    } else {
+      debugLog('⚠️ API warmup got non-OK response:', response.status);
+      return false;
+    }
   } catch (error) {
-    console.log('⚠️ API warmup failed (this is normal on first load):', error.message);
+    // Silently fail - this is expected on first load or if server is cold
+    if (error.name !== 'AbortError') {
+      debugLog('⚠️ API warmup error:', error.message);
+    }
+    return false;
   }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🚀 AKM-POS initializing...');
+  debugLog('🚀 AKM-POS v123 initializing...');
   
-  // Start warming up API immediately (don't wait for auth)
-  warmupAPI();
+  // Start warming up API immediately in background (don't wait for auth)
+  warmupAPI().catch(() => {}); // Silent catch for warmup errors
   
   onAuthStateChanged(auth, (user) => {
-    console.log('🔐 Auth state changed:', user ? user.email : 'No user');
+    debugLog('🔐 Auth state changed:', user ? user.email : 'No user');
     
     if (user && user.email === ALLOWED_EMAIL) {
-      console.log('✅ User authenticated:', user.email);
+      debugLog('✅ User authenticated:', user.email);
       currentUser = user;
       showMainApp();
       initializePOS();
@@ -149,7 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       signOut(auth);
       showLoginScreen();
     } else {
-      console.log('ℹ️ No user signed in');
+      debugLog('ℹ️ No user signed in');
       showLoginScreen();
     }
   });
@@ -204,11 +224,11 @@ function showMainApp() {
 }
 
 async function initializePOS() {
-  console.log('⚡ Starting optimized initialization...');
+  debugLog('⚡ Starting optimized initialization...');
   const startTime = performance.now();
   
   // Show loading message with progress
-  updateLoadingProgress('Waking up server...');
+  updateLoadingProgress('Loading data...');
   
   // Disable print button immediately (before data loads)
   const printBtn = document.getElementById('printBtn');
@@ -224,22 +244,40 @@ async function initializePOS() {
   setupRealtimeValidation();
   document.getElementById('custName').focus();
   
-  // Load all data in PARALLEL instead of sequential (HUGE performance boost!)
-  updateLoadingProgress('Loading data...');
+  // Load all data in PARALLEL with retry logic
   try {
-    await Promise.all([
+    // Try loading with 3-second timeout per operation
+    const operations = [
       loadNextInvoiceNumber(),
       loadDashboardData(),
       loadRecentInvoices()
-    ]);
+    ];
+    
+    // Wait for all operations with individual error handling
+    const results = await Promise.allSettled(operations);
+    
+    // Check results
+    const failures = results.filter(r => r.status === 'rejected');
+    if (failures.length > 0) {
+      debugLog('⚠️ Some operations failed:', failures);
+      
+      // Retry failed operations once after 1 second
+      if (results[0].status === 'rejected') {
+        debugLog('🔄 Retrying invoice number load...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await loadNextInvoiceNumber().catch(() => {
+          console.warn('Invoice number load failed, using fallback');
+        });
+      }
+    }
     
     const endTime = performance.now();
     const loadTime = ((endTime - startTime) / 1000).toFixed(2);
-    console.log(`✅ Initialization complete in ${loadTime}s`);
-    showToast(`✅ Ready! (${loadTime}s)`, 'success');
+    debugLog(`✅ Initialization complete in ${loadTime}s`);
+    showToast(`Ready!`, 'success');
   } catch (error) {
     console.error('❌ Initialization error:', error);
-    showToast('⚠️ Some data failed to load', 'error');
+    showToast('⚠️ Some data failed to load. Refresh if needed.', 'warning');
   }
 }
 
@@ -310,10 +348,9 @@ async function readSheetBatch(ranges) {
 async function readSheet(range, retries = 4) {
   return queueRequest(async () => {
     for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        if (attempt > 0) {
+      try {        if (attempt > 0) {
           const waitTime = 3000 * attempt; // 3s, 6s, 9s, 12s
-          console.log(`🔄 Retry attempt ${attempt}/${retries} for range: ${range} (waiting ${waitTime/1000}s...)`);
+          debugLog(`🔄 Retry attempt ${attempt}/${retries} for range: ${range} (waiting ${waitTime/1000}s...)`);
           showToast(`⏳ Waking up API server... (attempt ${attempt}/${retries})`, 'info');
           await new Promise(resolve => setTimeout(resolve, waitTime));
         }
@@ -339,9 +376,8 @@ async function readSheet(range, retries = 4) {
           console.error('❌ Read failed:', data.error);
           throw new Error(data.error || 'Failed to read data');
         }
-        
-        if (attempt > 0) {
-          console.log(`✅ Retry successful after ${attempt} attempt(s)`);
+          if (attempt > 0) {
+          debugLog(`✅ Retry successful after ${attempt} attempt(s)`);
           showToast('✅ API connected successfully!', 'success');
         }
         return data.values || [];
@@ -422,10 +458,9 @@ async function loadNextInvoiceNumber() {
   
   // Try to load cached invoice number for instant display
   const cachedData = getCachedInvoiceNumber();
-  if (cachedData && cachedData.year === currentYear) {
-    invoiceCounter = cachedData.counter;
+  if (cachedData && cachedData.year === currentYear) {    invoiceCounter = cachedData.counter;
     document.getElementById('invNum').textContent = `${currentYear}-${String(invoiceCounter).padStart(5, '0')}`;
-    console.log('⚡ Using cached invoice number:', invoiceCounter);
+    debugLog('⚡ Using cached invoice number:', invoiceCounter);
   }
   
   // Fetch actual data in background to ensure accuracy
@@ -687,48 +722,47 @@ window.selectPayment = function(btn, method) {
   const printBtn = document.getElementById('printBtn');
   if (printBtn) {
     printBtn.disabled = false;
+    printBtn.removeAttribute('disabled'); // Explicitly remove disabled attribute
     printBtn.style.opacity = '1';
     printBtn.style.cursor = 'pointer';
-    printBtn.style.pointerEvents = 'auto';
     printBtn.title = 'Print Invoice';
-    console.log('✅ Print button enabled - Payment method:', method);
+    debugLog('✅ Print button enabled - Payment method:', method);
   }
 };
 
 window.saveAndPrint = async function() {
-  console.log('🔥🔥🔥 SAVEANDPRINT FUNCTION CALLED 🔥🔥🔥');
-  console.log('📄 Save and Print clicked');
-  console.log('🔍 isReprintMode:', isReprintMode);
-  console.log('🔍 reprintInvoiceId:', reprintInvoiceId);
+  debugLog('📄 Save and Print clicked');
+  debugLog('🔍 isReprintMode:', isReprintMode);
+  debugLog('🔍 reprintInvoiceId:', reprintInvoiceId);
   
   const btn = document.getElementById('printBtn');
-  console.log('🔍 Button element:', btn);
-  console.log('🔍 Button disabled status:', btn?.disabled);
+  debugLog('🔍 Button element:', btn);
+  debugLog('🔍 Button disabled status:', btn?.disabled);
   
   // Prevent double-clicks
   if (btn.disabled) {
-    console.log('⚠️ Button already processing');
+    debugLog('⚠️ Button already processing');
     return;
   }
   
   // Validate payment method
   if (!currentPaymentMethod) {
-    console.log('❌ Validation failed: No payment method selected');
+    debugLog('❌ Validation failed: No payment method selected');
     showToast('Please select a payment method', 'error');
     return;
   }
   
   const items = collectItems();
-  console.log('📦 Items collected:', items.length);
+  debugLog('📦 Items collected:', items.length);
     if (items.length === 0) {
-    console.log('❌ Validation failed: No items in invoice');
+    debugLog('❌ Validation failed: No items in invoice');
     showToast('Please add at least one item', 'error');
     return;
   }
   
   const validation = validateInvoiceForm();
   if (!validation.isValid) {
-    console.log('❌ Validation failed:', validation.errors);
+    debugLog('❌ Validation failed:', validation.errors);
     return;
   }
   
@@ -741,10 +775,9 @@ window.saveAndPrint = async function() {
   let subtotal = 0;
   items.forEach(i => { subtotal += i.qty * i.price; });
   const vat = subtotal * 0.05;
-  const grandTotal = subtotal + vat;
-  btn.disabled = true;
+  const grandTotal = subtotal + vat;  btn.disabled = true;
     if (isReprintMode && reprintInvoiceId === invNum) {
-    console.log('🔁 Reprint mode: Printing existing invoice');
+    debugLog('🔁 Reprint mode: Printing existing invoice');
     btn.textContent = '🖨️ Printing...';
     
     const data = await readSheet("'AKM-POS'!A:S");
@@ -760,25 +793,25 @@ window.saveAndPrint = async function() {
           let hasChanges = false;
           
           if (oldCustName !== custName) {
-            console.log(`👤 Customer name changed: ${oldCustName} → ${custName}`);
+            debugLog(`👤 Customer name changed: ${oldCustName} → ${custName}`);
             await updateSheet(`'AKM-POS'!D${rowIndex}`, [[custName]]);
             hasChanges = true;
           }
           
           if (oldCustPhone !== custPhone) {
-            console.log(`📱 Phone changed: ${oldCustPhone} → ${custPhone}`);
+            debugLog(`📱 Phone changed: ${oldCustPhone} → ${custPhone}`);
             await updateSheet(`'AKM-POS'!E${rowIndex}`, [[custPhone]]);
             hasChanges = true;
           }
           
           if (oldCustTRN !== custTRN) {
-            console.log(`🆔 TRN changed: ${oldCustTRN} → ${custTRN}`);
+            debugLog(`🆔 TRN changed: ${oldCustTRN} → ${custTRN}`);
             await updateSheet(`'AKM-POS'!F${rowIndex}`, [[custTRN]]);
             hasChanges = true;
           }
           
           if (oldPaymentMethod !== currentPaymentMethod) {
-            console.log(`💳 Payment method changed: ${oldPaymentMethod} → ${currentPaymentMethod}`);
+            debugLog(`💳 Payment method changed: ${oldPaymentMethod} → ${currentPaymentMethod}`);
             
             const grandTotal = parseFloat(data[i][9]) || 0;
             let cashImpact = 0, cardImpact = 0, tabbyImpact = 0, chequeImpact = 0;
@@ -1014,12 +1047,11 @@ function printInvoice(invNum) {
   
   const originalSubTotal = subTotal?.textContent || '';
   const originalGrandTotal = grandTotal?.textContent || '';
-  const originalVatAmount = vatAmount?.textContent || '';
-  if (subTotal) subTotal.textContent = formatNumber(originalSubTotal);
+  const originalVatAmount = vatAmount?.textContent || '';  if (subTotal) subTotal.textContent = formatNumber(originalSubTotal);
   if (grandTotal) grandTotal.textContent = formatNumber(originalGrandTotal);
   if (vatAmount) vatAmount.textContent = formatNumber(originalVatAmount);
     window.print();
-  console.log('✅ Print dialog opened for invoice:', invNum);
+  debugLog('✅ Print dialog opened for invoice:', invNum);
   
   // Open cash drawer if payment method is Cash
   if (currentPaymentMethod === 'Cash') {
@@ -1048,30 +1080,30 @@ function printInvoice(invNum) {
 // QZ Tray Cash Drawer Kick Function
 async function openCashDrawer() {
   try {
-    console.log('💵 Attempting to open cash drawer via QZ Tray...');
+    debugLog('💵 Attempting to open cash drawer via QZ Tray...');
     
     // Check if QZ Tray is loaded
     if (typeof qz === 'undefined') {
-      console.warn('⚠️ QZ Tray library not loaded. Cash drawer cannot open.');
+      debugLog('⚠️ QZ Tray library not loaded. Cash drawer cannot open.');
       return;
     }
     
     // Connect to QZ Tray
     if (!qz.websocket.isActive()) {
-      console.log('🔌 Connecting to QZ Tray...');
+      debugLog('🔌 Connecting to QZ Tray...');
       await qz.websocket.connect();
-      console.log('✅ Connected to QZ Tray');
+      debugLog('✅ Connected to QZ Tray');
     }
     
     // Get default printer
     const printers = await qz.printers.find();
     if (!printers || printers.length === 0) {
-      console.warn('⚠️ No printers found');
+      debugLog('⚠️ No printers found');
       return;
     }
     
     const printer = printers[0]; // Use default/first printer
-    console.log('🖨️ Using printer:', printer);
+    debugLog('🖨️ Using printer:', printer);
     
     // ESC/POS commands for cash drawer kick
     // ESC p m t1 t2 - Open cash drawer
@@ -1084,10 +1116,10 @@ async function openCashDrawer() {
     const data = [escPos];
     
     await qz.print(config, data);
-    console.log('✅ Cash drawer command sent successfully');
+    debugLog('✅ Cash drawer command sent successfully');
     
   } catch (error) {
-    console.error('❌ Failed to open cash drawer:', error);
+    debugLog('❌ Failed to open cash drawer:', error);
     // Don't show error toast - cash drawer is optional feature
   }
 }

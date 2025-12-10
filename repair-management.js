@@ -1,6 +1,14 @@
 // ===== REPAIR JOB MANAGEMENT SYSTEM =====
 // Handles repair jobs with status tracking and thermal slip printing
-// Version: v122 - Full-screen modal, auto-refresh status updates
+// Version: v123 - Reduced console logging for better performance
+
+// Debug mode flag - set to false to reduce console output
+const DEBUG_MODE = false;
+
+// Helper for conditional logging
+function debugLog(...args) {
+  if (DEBUG_MODE) console.log(...args);
+}
 
 let allRepairJobs = [];
 let currentRepairJobs = [];
@@ -15,7 +23,7 @@ window.openRepairModal = function() {
   // Start auto-refresh every 10 seconds to sync status from Google Sheets
   if (!repairAutoRefreshInterval) {
     repairAutoRefreshInterval = setInterval(() => {
-      console.log('🔄 Auto-refreshing repair jobs...');
+      debugLog('🔄 Auto-refreshing repair jobs...');
       loadRepairJobs(true); // Silent refresh (no toast)
     }, 10000); // 10 seconds
   }
@@ -172,10 +180,13 @@ function displayRepairJobs() {
     let statusClass = '';
     if (job.status === 'InProcess') statusClass = 'status-inprocess';
     else if (job.status === 'Completed') statusClass = 'status-completed';
-    
-    // Truncate long values for compact display
+      // Truncate long values for compact display
     const displayName = (job.name && job.name.length > 18) ? job.name.substring(0, 18) + '...' : (job.name || 'N/A');
-    const displayMobile = job.mobile || 'N/A';
+    // Ensure mobile number starts with 0
+    let displayMobile = job.mobile || 'N/A';
+    if (displayMobile !== 'N/A' && !displayMobile.startsWith('0')) {
+      displayMobile = '0' + displayMobile;
+    }
     const displayProduct = (job.product && job.product.length > 20) ? job.product.substring(0, 20) + '...' : (job.product || 'N/A');
     const displayService = (job.service && job.service.length > 28) ? job.service.substring(0, 28) + '...' : (job.service || '-');
     
@@ -186,12 +197,11 @@ function displayRepairJobs() {
         <td title="${job.mobile}">${displayMobile}</td>
         <td class="truncate" title="${job.product || 'N/A'}">${displayProduct}</td>
         <td class="truncate" title="${job.service || '-'}">${displayService}</td>
-        <td class="amount">AED ${parseFloat(job.charges).toFixed(2)}</td>
-        <td class="status-cell">
+        <td class="amount">AED ${parseFloat(job.charges).toFixed(2)}</td>        <td class="status-cell">
           <select class="repair-status-select ${statusClass}" 
                   onchange="updateRepairStatus('${job.jobNumber}', this.value, ${job.rowIndex})">
-            <option value="InProcess" ${job.status === 'InProcess' ? 'selected' : ''}>Process</option>
-            <option value="Completed" ${job.status === 'Completed' ? 'selected' : ''}>Complete</option>
+            <option value="InProcess" ${job.status === 'InProcess' ? 'selected' : ''}>InProcess</option>
+            <option value="Completed" ${job.status === 'Completed' ? 'selected' : ''}>Completed</option>
             <option value="Collected" ${job.status === 'Collected' ? 'selected' : ''}>Collected</option>
           </select>
         </td>
@@ -285,7 +295,7 @@ function formatSlipNumber(jobNumber, jobDate) {
 
 // Submit new repair job
 window.submitNewRepairJob = async function() {
-  const mobile = document.getElementById('repairCustomerMobile').value.trim();
+  let mobile = document.getElementById('repairCustomerMobile').value.trim();
   const product = document.getElementById('repairProductModel').value.trim();
   const name = document.getElementById('repairCustomerName').value.trim();
   const service = document.getElementById('repairService').value.trim();
@@ -294,6 +304,18 @@ window.submitNewRepairJob = async function() {
   // Validation
   if (!mobile) {
     showToast('Mobile number is required', 'error');
+    document.getElementById('repairCustomerMobile').focus();
+    return;
+  }
+  
+  // Ensure mobile number starts with 0
+  if (!mobile.startsWith('0')) {
+    mobile = '0' + mobile;
+  }
+  
+  // Validate mobile number format (must be 10 digits starting with 0)
+  if (!/^0[0-9]{9}$/.test(mobile)) {
+    showToast('Mobile number must be 10 digits starting with 0', 'error');
     document.getElementById('repairCustomerMobile').focus();
     return;
   }
@@ -321,7 +343,7 @@ window.submitNewRepairJob = async function() {
       'InProcess'      // Status (Column H)
     ];
     
-    console.log('💾 Saving repair job:', rowData);
+    debugLog('💾 Saving repair job:', rowData);
     
     // Save to Google Sheets
     const success = await appendToSheet("'Repairing'!A:H", [rowData]);
@@ -477,4 +499,4 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-console.log('✅ Repair Management System initialized');
+debugLog('✅ Repair Management System initialized');
