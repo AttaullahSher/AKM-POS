@@ -1,4 +1,4 @@
-íº€ DEPLOYMENT SUCCESSFUL!
+ï¿½ï¿½ï¿½ DEPLOYMENT SUCCESSFUL!
 
 âœ… GitHub Repository
    Repository: https://github.com/AttaullahSher/AKM-POS
@@ -11,7 +11,7 @@
    Status: Deployed successfully
    Project: akm-pos-480210
 
-í³‹ What's New:
+ï¿½ï¿½ï¿½ What's New:
    âœ¨ Pastel color scheme throughout the app
    âœ¨ Less prominent toast notifications
    âœ¨ Improved UI components with soft shadows
@@ -19,11 +19,11 @@
    âœ¨ Smooth transitions and hover effects
    âœ¨ All print functionality preserved
 
-í¾¨ Color Palette:
-   Primary: #7ba3d1 (soft blue)
-   Success: #82c4a0 (soft green)
-   Warning: #e5b87f (soft orange)
-   Danger: #db8585 (soft red)
-   Info: #81c5d4 (soft cyan)
+ï¿½ï¿½ï¿½ Color Palette:
+   Primary:rgb(32, 128, 236) (soft blue)
+   Success:rgb(32, 161, 90) (soft green)
+   Warning:rgb(221, 151, 59) (soft orange)
+   Danger:rgb(226, 48, 48) (soft red)
+   Info:rgb(54, 170, 196) (soft cyan)
 
 Deployed on: December 8, 2025

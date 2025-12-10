@@ -1015,16 +1015,15 @@ function printInvoice(invNum) {
   const originalSubTotal = subTotal?.textContent || '';
   const originalGrandTotal = grandTotal?.textContent || '';
   const originalVatAmount = vatAmount?.textContent || '';
-    if (subTotal) subTotal.textContent = formatNumber(originalSubTotal);
+  if (subTotal) subTotal.textContent = formatNumber(originalSubTotal);
   if (grandTotal) grandTotal.textContent = formatNumber(originalGrandTotal);
   if (vatAmount) vatAmount.textContent = formatNumber(originalVatAmount);
-  
-  window.print();
+    window.print();
   console.log('✅ Print dialog opened for invoice:', invNum);
   
   // Open cash drawer if payment method is Cash
   if (currentPaymentMethod === 'Cash') {
-    openCashDrawer();
+    setTimeout(() => openCashDrawer(), 500); // Delay to avoid interfering with print dialog
   }
   
   // Restore original totals after print
@@ -1043,45 +1042,50 @@ function printInvoice(invNum) {
     tbody.innerHTML = '';
     originalRows.forEach(row => {
       tbody.appendChild(row);
-    });
-  }, 500);
+    });  }, 500);
 }
 
-// Cash Drawer Kick Function
-function openCashDrawer() {
+// QZ Tray Cash Drawer Kick Function
+async function openCashDrawer() {
   try {
-    console.log('💵 Opening cash drawer...');
+    console.log('💵 Attempting to open cash drawer via QZ Tray...');
     
-    // Create a hidden iframe for sending ESC/POS commands
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    document.body.appendChild(iframe);
+    // Check if QZ Tray is loaded
+    if (typeof qz === 'undefined') {
+      console.warn('⚠️ QZ Tray library not loaded. Cash drawer cannot open.');
+      return;
+    }
+    
+    // Connect to QZ Tray
+    if (!qz.websocket.isActive()) {
+      console.log('🔌 Connecting to QZ Tray...');
+      await qz.websocket.connect();
+      console.log('✅ Connected to QZ Tray');
+    }
+    
+    // Get default printer
+    const printers = await qz.printers.find();
+    if (!printers || printers.length === 0) {
+      console.warn('⚠️ No printers found');
+      return;
+    }
+    
+    const printer = printers[0]; // Use default/first printer
+    console.log('🖨️ Using printer:', printer);
     
     // ESC/POS commands for cash drawer kick
-    // \x1B\x70\x00 = ESC p 0 (pin 2)
-    // \x19 = 25ms pulse width
-    // \xFA = 250ms pulse width
-    const escposData = 
-      "\x1B\x70\x00\x19\xFA";  // ESC p 0 25 250 - Open drawer pin 2, 25ms, 250ms
+    // ESC p m t1 t2 - Open cash drawer
+    // m = pin number (0 = pin 2, 1 = pin 5)
+    // t1 = ON time (pulse width in milliseconds / 2)
+    // t2 = OFF time (pulse width in milliseconds / 2)
+    const escPos = '\x1B\x70\x00\x19\xFA'; // ESC p 0 25 250
     
-    // Alternative command set (for some printers)
-    // const escposData = "\x1D\x56\x41" + "\x1B\x70\x00\x19\xFA"; // cut + drawer
+    const config = qz.configs.create(printer, { encoding: 'UTF-8' });
+    const data = [escPos];
     
-    // Write to iframe document to send to printer
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write('<pre>' + escposData + '</pre>');
-    doc.close();
+    await qz.print(config, data);
+    console.log('✅ Cash drawer command sent successfully');
     
-    // Trigger print (this sends the commands to printer)
-    iframe.contentWindow.print();
-    
-    // Clean up
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 1000);
-    
-    console.log('✅ Cash drawer command sent');
   } catch (error) {
     console.error('❌ Failed to open cash drawer:', error);
     // Don't show error toast - cash drawer is optional feature

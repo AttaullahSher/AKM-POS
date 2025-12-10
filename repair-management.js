@@ -1,20 +1,35 @@
 // ===== REPAIR JOB MANAGEMENT SYSTEM =====
 // Handles repair jobs with status tracking and thermal slip printing
-// Version: v85 - Inline labels/values, truncation, compact list
+// Version: v122 - Full-screen modal, auto-refresh status updates
 
 let allRepairJobs = [];
 let currentRepairJobs = [];
+let repairAutoRefreshInterval = null;
 
 // Open repair modal and load jobs
 window.openRepairModal = function() {
   document.getElementById('repairModal').classList.add('show');
   document.getElementById('repairSearchInput').value = '';
   loadRepairJobs();
+  
+  // Start auto-refresh every 10 seconds to sync status from Google Sheets
+  if (!repairAutoRefreshInterval) {
+    repairAutoRefreshInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing repair jobs...');
+      loadRepairJobs(true); // Silent refresh (no toast)
+    }, 10000); // 10 seconds
+  }
 };
 
 // Close repair modal
 window.closeRepairModal = function() {
   document.getElementById('repairModal').classList.remove('show');
+  
+  // Stop auto-refresh when modal closes
+  if (repairAutoRefreshInterval) {
+    clearInterval(repairAutoRefreshInterval);
+    repairAutoRefreshInterval = null;
+  }
 };
 
 // Open new repair form modal
@@ -34,7 +49,7 @@ window.closeNewRepairForm = function() {
 };
 
 // Load all repair jobs from Google Sheets
-async function loadRepairJobs() {
+async function loadRepairJobs(silent = false) {
   try {
     const data = await readSheet("'Repairing'!A:H");
     
@@ -70,7 +85,9 @@ async function loadRepairJobs() {
     
   } catch (error) {
     console.error('❌ Error loading repair jobs:', error);
-    showToast('Failed to load repair jobs', 'error');
+    if (!silent) {
+      showToast('Failed to load repair jobs', 'error');
+    }
   }
 }
 
