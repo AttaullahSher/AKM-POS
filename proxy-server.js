@@ -56,53 +56,35 @@ setInterval(() => {
   }
 }, 300000);
 
-// Simple shared-secret auth for frontend -> proxy
-const AKM_PROXY_KEY = process.env.AKM_PROXY_KEY || null;
+// Simple shared-secret auth for frontend -> proxy (optional)
+const AKM_PROXY_KEY = process.env.AKM_PROXY_KEY || null; // Optional: set for additional security
 
-// FIX: Improved CORS configuration with stricter defaults
+// CORS Configuration - Allow all origins for Firebase compatibility
+// In production, set AKM_ALLOWED_ORIGINS env var for specific domains
+const allowedOriginsEnv = process.env.AKM_ALLOWED_ORIGINS;
+
 const corsOptions = {
-  origin: (origin, callback) => {
-    // In development, allow localhost
-    const isDevelopment = process.env.NODE_ENV !== 'production';
+  origin: allowedOriginsEnv ? (origin, callback) => {
+    const allowedOrigins = allowedOriginsEnv.split(',').map(o => o.trim());
     
-    // Allow requests with no origin ONLY in development (mobile apps, curl, etc.)
-    if (!origin && isDevelopment) return callback(null, true);
-
-    // FIX: Default to localhost only, not '*'
-    const defaultOrigins = isDevelopment 
-      ? 'http://localhost:3000,http://127.0.0.1:3000,http://localhost:5500'
-      : ''; // Production must explicitly set allowed origins
-      
-    const allowedOrigins = (process.env.AKM_ALLOWED_ORIGINS || defaultOrigins)
-      .split(',')
-      .map(o => o.trim())
-      .filter(Boolean);
-
-    // FIX: Never allow '*' wildcard in production
-    if (allowedOrigins.includes('*')) {
-      if (!isDevelopment) {
-        console.error('❌ SECURITY ERROR: Wildcard CORS not allowed in production!');
-        return callback(new Error('Invalid CORS configuration'));
-      }
+    // Allow no origin (for mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is allowed
+    if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
       return callback(null, true);
     }
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
+    
     console.warn('⚠️ CORS blocked origin:', origin);
     return callback(new Error('Not allowed by CORS'));
-  },
+  } : '*', // Default: Allow all origins (backward compatible)
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'x-akm-key'],
-  credentials: true, // Allow cookies/auth headers
-  maxAge: 86400 // Cache preflight for 24 hours
 };
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '10mb' })); // FIX: Add size limit
-app.use(rateLimitMiddleware); // FIX: Add rate limiting
+app.use(express.json({ limit: '10mb' }));
+app.use(rateLimitMiddleware); // Rate limiting still active
 
 // Serve static files (HTML, CSS, JS) from the current directory
 app.use(express.static(path.join(__dirname), {
