@@ -1,8 +1,7 @@
-// AKM-POS v125 - Color Palette Update & Repair List Improvements:
-// - Updated color palette: Modern blue/green/orange/red/cyan (rgb values)
-// - Improved repair job list: Clear row borders (1.5px), proper mobile number formatting
-// - Mobile numbers always start with 0, validation added (pattern: 0xxxxxxxxx)
-// - "Create New Job" button label updated, placeholder & help text added to mobile field
+// AKM-POS v126 - Hide Invoice Header on Screen (Show on Print):
+// - Invoice header (company name, contact, TRN) hidden on screen for compact view
+// - Header shows when printing with updated PO Box 8227 and phone 02 621 9929
+// Previous: v125 - Color Palette Update & Repair List Improvements
 // Previous: v124 - UI fixes (print button, reprint/refund buttons, header contact row)
 // Previous: v123 - Performance & stability (reduced logging, better error handling)
 const firebaseConfig = {

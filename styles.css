@@ -1,4 +1,4 @@
-/* AKM-POS Styles v125 - Color Palette Update + Repair List Improvements */
+/* AKM-POS Styles v126 - Hide Invoice Header on Screen (Show on Print) */
 /* ===== CSS Variables ===== */
 :root {
   /* Updated Color Palette - Modern & Professional */
@@ -1382,8 +1382,9 @@ select:disabled {
 }
 
 /* ===== Invoice Title ===== */
-/* ===== Invoice Header (Screen) ===== */
+/* ===== Invoice Header (Screen) - HIDDEN for compact view ===== */
 .invoice-header {
+  display: none; /* Hide on screen for compact view */
   text-align: center;
   margin-bottom: 10px;
   padding-bottom: 8px;
@@ -1431,6 +1432,7 @@ select:disabled {
 }
 
 .invoice-title {
+  display: none; /* Hide on screen for compact view */
   text-align: center;
   font-size: 17px;
   font-weight: 700;

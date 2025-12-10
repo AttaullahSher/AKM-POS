@@ -1,6 +1,6 @@
 // ===== REPAIR JOB MANAGEMENT SYSTEM =====
 // Handles repair jobs with status tracking and thermal slip printing
-// Version: v123 - Reduced console logging for better performance
+// Version: v126 - Hide Invoice Header on Screen (Show on Print)
 
 // Debug mode flag - set to false to reduce console output
 const DEBUG_MODE = false;
