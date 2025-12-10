@@ -1,4 +1,4 @@
-/* AKM-POS Styles v126 - Hide Invoice Header on Screen (Show on Print) */
+/* AKM-POS Styles v127 - Dashboard Scrolling + Phone Validation Updates */
 /* ===== CSS Variables ===== */
 :root {
   /* Updated Color Palette - Modern & Professional */
@@ -292,8 +292,9 @@ input, select, textarea {
   border-radius: 16px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
   box-shadow: 0 2px 12px rgba(123, 163, 209, 0.08);
+  position: relative;
 }
 
 .sidebar-header {
@@ -437,9 +438,8 @@ input, select, textarea {
 }
 
 .recent-wrapper {
-  flex: 1;
+  flex: 0 0 auto;
   padding: 0 var(--spacing-lg) var(--spacing-lg);
-  overflow-y: auto;
 }
 
 .recent-title {
@@ -599,8 +599,49 @@ input, select, textarea {
   background: var(--primary-light);
   border-color: var(--primary);
   color: var(--primary);
-  transform: translateY(-2px);
-  box-shadow: 0 2px 8px rgba(123, 163, 209, 0.15);
+  transform: translateY(-1px);
+}
+
+/* ===== Back to Top Button ===== */
+.back-to-top {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 44px;
+  height: 44px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(123, 163, 209, 0.3);
+  transition: all 0.3s ease;
+  opacity: 0;
+  visibility: hidden;
+  z-index: 1000;
+}
+
+.back-to-top.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.back-to-top:hover {
+  background: var(--primary-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(123, 163, 209, 0.4);
+}
+
+.back-to-top:active {
+  transform: translateY(-1px);
+}
+
+.back-to-top svg {
+  width: 20px;
+  height: 20px;
 }
 
 .loading-text {
@@ -1428,7 +1469,7 @@ select:disabled {
   font-size: 13px;
   font-weight: 600;
   margin-top: 3px;
-  color: var(--gray-700);
+  color: var (--gray-700);
 }
 
 .invoice-title {

@@ -1,9 +1,10 @@
-// AKM-POS v126 - Hide Invoice Header on Screen (Show on Print):
-// - Invoice header (company name, contact, TRN) hidden on screen for compact view
-// - Header shows when printing with updated PO Box 8227 and phone 02 621 9929
+// AKM-POS v127 - Dashboard Scrolling + Phone Validation Updates:
+// - Fixed: Entire dashboard now scrollable (not just recent invoices)
+// - Added: Back to top button appears after scrolling 300px
+// - Updated: Repair form phone validation accepts mobile, landline, international formats
+// - Changed: Label from "Mobile" to "Phone" on repair form
+// Previous: v126 - Hide Invoice Header on Screen (Show on Print)
 // Previous: v125 - Color Palette Update & Repair List Improvements
-// Previous: v124 - UI fixes (print button, reprint/refund buttons, header contact row)
-// Previous: v123 - Performance & stability (reduced logging, better error handling)
 const firebaseConfig = {
   apiKey: "AIzaSyBaaHya8oqfJEOycvAsKU_Ise3s2VAgqgw",
   authDomain: "akm-pos-480210.firebaseapp.com",
@@ -622,7 +623,8 @@ async function loadRecentInvoices() {
           date: row[1],
           customer: row[3] || 'Walk-in Customer',
           payment: row[6],
-          grandTotal: parseFloat(row[9]) || 0,        status: row[14] || 'Paid'
+          grandTotal: parseFloat(row[9]) || 0,
+          status: row[14] || 'Paid'
         });
       }
     }
@@ -1954,3 +1956,32 @@ if (originalReprintInvoice) {
 
 console.log('✅ Smart spell-checking system initialized');
 console.log('📚 Custom dictionary loaded:', allCustomWords.length, 'words');
+
+// ===== BACK TO TOP BUTTON =====
+// Show/hide back to top button based on sidebar scroll position
+window.scrollToTop = function() {
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar) {
+    sidebar.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }
+};
+
+// Monitor sidebar scroll to show/hide back to top button
+document.addEventListener('DOMContentLoaded', function() {
+  const sidebar = document.querySelector('.sidebar');
+  const backToTopBtn = document.getElementById('backToTopBtn');
+  
+  if (sidebar && backToTopBtn) {
+    sidebar.addEventListener('scroll', function() {
+      // Show button when scrolled down more than 300px
+      if (sidebar.scrollTop > 300) {
+        backToTopBtn.classList.add('show');
+      } else {
+        backToTopBtn.classList.remove('show');
+      }
+    });
+  }
+});

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">  <title>AKM-POS | Point of Sale System</title><link rel="icon" type="image/png" href="/Favicon.png">  <link rel="preconnect" href="https://fonts.googleapis.com">  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">  <link rel="stylesheet" href="styles.css?v=126">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">  <title>AKM-POS | Point of Sale System</title><link rel="icon" type="image/png" href="/Favicon.png">  <link rel="preconnect" href="https://fonts.googleapis.com">  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">  <link rel="stylesheet" href="styles.css?v=127">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <!-- QZ Tray for direct printer communication -->
   <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.3/qz-tray.min.js"></script>
@@ -81,15 +81,20 @@
                 title="Repair Jobs" style="grid-column: 1 / -1; background: #ff9800; color: white;">
           🔧 Repair Jobs
         </button>
-      </div>
-
-      <div class="recent-wrapper">
+      </div>      <div class="recent-wrapper">
         <h4 class="recent-title">Recent Invoices</h4>
         <div id="recentInvoices">
           <div class="loading-text">Loading...</div>
         </div>
         <button class="btn-load-more" onclick="loadMoreInvoices()">Show More Days</button>
       </div>
+
+      <!-- Back to Top Button (Dashboard) -->
+      <button class="back-to-top" id="backToTopBtn" onclick="scrollToTop()" title="Back to Top" aria-label="Back to Top">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 19V5M12 5L5 12M12 5L19 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </aside>
 
     <!-- Main Content -->
@@ -304,13 +309,12 @@
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">Name:</label>
             <input type="text" id="repairCustomerName" autocomplete="off"
                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-          </div>
-            <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Mobile: <span style="color: red;">*</span></label>
+          </div>          <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Phone: <span style="color: red;">*</span></label>
             <input type="tel" id="repairCustomerMobile" required autocomplete="off"
-                   placeholder="05xxxxxxxx" pattern="0[0-9]{9}" maxlength="10"
+                   placeholder="e.g., 0501234567 or +971501234567"
                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-            <small style="color: #666; font-size: 11px; display: block; margin-top: 3px;">Must start with 0 (e.g., 0501234567)</small>
+            <small style="color: #666; font-size: 11px; display: block; margin-top: 3px;">Mobile, landline, or international format accepted</small>
           </div>
           
           <div style="margin-bottom: 15px;">
@@ -345,7 +349,7 @@
       </div>
     </div>
   </div>  <!-- Repair Slip Container (for printing) -->
-  <div id="repairSlipContainer" class="repair-slip-container"></div>  <script type="module" src="app.js?v=126"></script>
-  <script type="module" src="repair-management.js?v=126"></script>
+  <div id="repairSlipContainer" class="repair-slip-container"></div>  <script type="module" src="app.js?v=127"></script>
+  <script type="module" src="repair-management.js?v=127"></script>
 </body>
 </html>

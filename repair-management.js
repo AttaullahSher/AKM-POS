@@ -1,6 +1,6 @@
 // ===== REPAIR JOB MANAGEMENT SYSTEM =====
 // Handles repair jobs with status tracking and thermal slip printing
-// Version: v126 - Hide Invoice Header on Screen (Show on Print)
+// Version: v127 - Phone Validation Updates (Mobile/Landline/International)
 
 // Debug mode flag - set to false to reduce console output
 const DEBUG_MODE = false;
@@ -180,13 +180,9 @@ function displayRepairJobs() {
     let statusClass = '';
     if (job.status === 'InProcess') statusClass = 'status-inprocess';
     else if (job.status === 'Completed') statusClass = 'status-completed';
-      // Truncate long values for compact display
-    const displayName = (job.name && job.name.length > 18) ? job.name.substring(0, 18) + '...' : (job.name || 'N/A');
-    // Ensure mobile number starts with 0
-    let displayMobile = job.mobile || 'N/A';
-    if (displayMobile !== 'N/A' && !displayMobile.startsWith('0')) {
-      displayMobile = '0' + displayMobile;
-    }
+      // Truncate long values for compact display    const displayName = (job.name && job.name.length > 18) ? job.name.substring(0, 18) + '...' : (job.name || 'N/A');
+    // Display phone number as-is (no automatic formatting)
+    const displayMobile = job.mobile || 'N/A';
     const displayProduct = (job.product && job.product.length > 20) ? job.product.substring(0, 20) + '...' : (job.product || 'N/A');
     const displayService = (job.service && job.service.length > 28) ? job.service.substring(0, 28) + '...' : (job.service || '-');
     
@@ -307,18 +303,17 @@ window.submitNewRepairJob = async function() {
     document.getElementById('repairCustomerMobile').focus();
     return;
   }
-  
-  // Ensure mobile number starts with 0
-  if (!mobile.startsWith('0')) {
-    mobile = '0' + mobile;
-  }
-  
-  // Validate mobile number format (must be 10 digits starting with 0)
-  if (!/^0[0-9]{9}$/.test(mobile)) {
-    showToast('Mobile number must be 10 digits starting with 0', 'error');
+    // Validate phone number format (mobile, landline, or international)
+  // Accept: 0xxxxxxxxx (10 digits), +971xxxxxxxxx, 02xxxxxxx (landline), or international format
+  const phoneRegex = /^(\+?[0-9]{1,4}[\s-]?)?[0-9]{7,15}$/;
+  if (!phoneRegex.test(mobile.replace(/[\s-]/g, ''))) {
+    showToast('Please enter a valid phone number', 'error');
     document.getElementById('repairCustomerMobile').focus();
     return;
   }
+  
+  // Clean up the phone number (remove extra spaces/dashes but keep the format)
+  mobile = mobile.trim();
   
   if (!product) {
     showToast('Product/Model is required', 'error');
