@@ -1015,13 +1015,17 @@ function printInvoice(invNum) {
   const originalSubTotal = subTotal?.textContent || '';
   const originalGrandTotal = grandTotal?.textContent || '';
   const originalVatAmount = vatAmount?.textContent || '';
-  
-  if (subTotal) subTotal.textContent = formatNumber(originalSubTotal);
+    if (subTotal) subTotal.textContent = formatNumber(originalSubTotal);
   if (grandTotal) grandTotal.textContent = formatNumber(originalGrandTotal);
   if (vatAmount) vatAmount.textContent = formatNumber(originalVatAmount);
   
   window.print();
   console.log('✅ Print dialog opened for invoice:', invNum);
+  
+  // Open cash drawer if payment method is Cash
+  if (currentPaymentMethod === 'Cash') {
+    openCashDrawer();
+  }
   
   // Restore original totals after print
   setTimeout(() => {
@@ -1041,6 +1045,47 @@ function printInvoice(invNum) {
       tbody.appendChild(row);
     });
   }, 500);
+}
+
+// Cash Drawer Kick Function
+function openCashDrawer() {
+  try {
+    console.log('💵 Opening cash drawer...');
+    
+    // Create a hidden iframe for sending ESC/POS commands
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+    
+    // ESC/POS commands for cash drawer kick
+    // \x1B\x70\x00 = ESC p 0 (pin 2)
+    // \x19 = 25ms pulse width
+    // \xFA = 250ms pulse width
+    const escposData = 
+      "\x1B\x70\x00\x19\xFA";  // ESC p 0 25 250 - Open drawer pin 2, 25ms, 250ms
+    
+    // Alternative command set (for some printers)
+    // const escposData = "\x1D\x56\x41" + "\x1B\x70\x00\x19\xFA"; // cut + drawer
+    
+    // Write to iframe document to send to printer
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write('<pre>' + escposData + '</pre>');
+    doc.close();
+    
+    // Trigger print (this sends the commands to printer)
+    iframe.contentWindow.print();
+    
+    // Clean up
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 1000);
+    
+    console.log('✅ Cash drawer command sent');
+  } catch (error) {
+    console.error('❌ Failed to open cash drawer:', error);
+    // Don't show error toast - cash drawer is optional feature
+  }
 }
 
 window.reprintInvoice = async function(invId) {
