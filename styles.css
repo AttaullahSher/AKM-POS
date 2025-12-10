@@ -1,4 +1,4 @@
-/* AKM-POS Styles v127 - Dashboard Scrolling + Phone Validation Updates */
+/* AKM-POS Styles v127.1 - Enhanced Repair Table Borders */
 /* ===== CSS Variables ===== */
 :root {
   /* Updated Color Palette - Modern & Professional */
@@ -2506,6 +2506,7 @@ select:disabled {
 .repair-table td {
   padding: 10px 8px;
   border-right: 1px solid var(--gray-200);
+  border-bottom: 1px solid var(--gray-200);
   color: var(--dark);
   vertical-align: middle;
   line-height: 1.4;
