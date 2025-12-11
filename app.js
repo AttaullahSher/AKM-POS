@@ -1018,8 +1018,7 @@ window.saveAndPrint = async function() {
     }
     
     lockInvoiceFields();
-    printInvoice(invNum);
-    setTimeout(() => {
+    printInvoice(invNum);    setTimeout(() => {
       isReprintMode = false;
       reprintInvoiceId = null;
       clearForm();
@@ -1028,7 +1027,7 @@ window.saveAndPrint = async function() {
       loadRecentInvoices();
       btn.disabled = false;
       btn.textContent = '🖨️ Print Invoice';
-    }, 600);
+    }, 200);
     return;
   }
   
@@ -1065,8 +1064,7 @@ window.saveAndPrint = async function() {
       `ITM-${invNum.split('-')[1]}-${String(index + 1).padStart(3, '0')}`,
       invNum, item.model, item.desc, item.qty, item.price, (item.qty * item.price).toFixed(2), invDate
     ]);
-    await appendToSheet('InvoiceItems!A:H', itemRows);
-    showToast('Invoice saved successfully!', 'success');
+    await appendToSheet('InvoiceItems!A:H', itemRows);    showToast('Invoice saved successfully!', 'success');
     lockInvoiceFields();
     printInvoice(invNum);
     
@@ -1077,7 +1075,7 @@ window.saveAndPrint = async function() {
       loadRecentInvoices();
       btn.disabled = false;
       btn.textContent = '🖨️ Print Invoice';
-    }, 600);
+    }, 200);
   } else {
     console.warn('⚠️ Failed to save invoice online, using offline emergency mode.');
     const queue = loadOfflineInvoices();
@@ -1085,9 +1083,7 @@ window.saveAndPrint = async function() {
       invoiceRow,
       createdAt: Date.now()
     });
-    saveOfflineInvoices(queue);
-
-    showToast('⚠️ Network issue: printing in OFFLINE mode. Invoice will sync later.', 'warning');
+    saveOfflineInvoices(queue);    showToast('⚠️ Network issue: printing in OFFLINE mode. Invoice will sync later.', 'warning');
     lockInvoiceFields();
     printInvoice(invNum + ' (OFFLINE)');
 
@@ -1098,7 +1094,7 @@ window.saveAndPrint = async function() {
       loadRecentInvoices();
       btn.disabled = false;
       btn.textContent = '🖨️ Print Invoice';
-    }, 600);
+    }, 200);
   }
 };
 
@@ -1258,13 +1254,8 @@ function printInvoice(invNum) {
   const originalVatAmount = vatAmount?.textContent || '';  if (subTotal) subTotal.textContent = formatNumber(originalSubTotal);
   if (grandTotal) grandTotal.textContent = formatNumber(originalGrandTotal);
   if (vatAmount) vatAmount.textContent = formatNumber(originalVatAmount);
-    window.print();
+  window.print();
   debugLog('✅ Print dialog opened for invoice:', invNum);
-  
-  // Open cash drawer if payment method is Cash
-  if (currentPaymentMethod === 'Cash') {
-    setTimeout(() => openCashDrawer(), 500); // Delay to avoid interfering with print dialog
-  }
   
   // Restore original totals after print
   setTimeout(() => {
@@ -1283,53 +1274,6 @@ function printInvoice(invNum) {
     originalRows.forEach(row => {
       tbody.appendChild(row);
     });  }, 500);
-}
-
-// QZ Tray Cash Drawer Kick Function
-async function openCashDrawer() {
-  try {
-    debugLog('💵 Attempting to open cash drawer via QZ Tray...');
-    
-    // Check if QZ Tray is loaded
-    if (typeof qz === 'undefined') {
-      debugLog('⚠️ QZ Tray library not loaded. Cash drawer cannot open.');
-      return;
-    }
-    
-    // Connect to QZ Tray
-    if (!qz.websocket.isActive()) {
-      debugLog('🔌 Connecting to QZ Tray...');
-      await qz.websocket.connect();
-      debugLog('✅ Connected to QZ Tray');
-    }
-    
-    // Get default printer
-    const printers = await qz.printers.find();
-    if (!printers || printers.length === 0) {
-      debugLog('⚠️ No printers found');
-      return;
-    }
-    
-    const printer = printers[0]; // Use default/first printer
-    debugLog('🖨️ Using printer:', printer);
-    
-    // ESC/POS commands for cash drawer kick
-    // ESC p m t1 t2 - Open cash drawer
-    // m = pin number (0 = pin 2, 1 = pin 5)
-    // t1 = ON time (pulse width in milliseconds / 2)
-    // t2 = OFF time (pulse width in milliseconds / 2)
-    const escPos = '\x1B\x70\x00\x19\xFA'; // ESC p 0 25 250
-    
-    const config = qz.configs.create(printer, { encoding: 'UTF-8' });
-    const data = [escPos];
-    
-    await qz.print(config, data);
-    debugLog('✅ Cash drawer command sent successfully');
-    
-  } catch (error) {
-    debugLog('❌ Failed to open cash drawer:', error);
-    // Don't show error toast - cash drawer is optional feature
-  }
 }
 
 window.reprintInvoice = async function(invId) {
