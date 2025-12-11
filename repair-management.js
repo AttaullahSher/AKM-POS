@@ -25,8 +25,7 @@ window.openRepairModal = function() {
     clearInterval(repairAutoRefreshInterval);
     repairAutoRefreshInterval = null;
   }
-  
-  // Start auto-refresh every 10 seconds to sync status from Google Sheets
+    // Start auto-refresh every 30 seconds to sync status from Google Sheets
   repairAutoRefreshInterval = setInterval(() => {
     // FIX: Check if modal is still open before refreshing
     const modal = document.getElementById('repairModal');
@@ -38,7 +37,7 @@ window.openRepairModal = function() {
     }
     debugLog('🔄 Auto-refreshing repair jobs...');
     loadRepairJobs(true); // Silent refresh (no toast)
-  }, 10000); // 10 seconds
+  }, 30000); // 30 seconds
 };
 
 // Close repair modal
@@ -201,13 +200,11 @@ function displayRepairJobs() {
     const displayMobile = job.mobile || 'N/A';
     const displayProduct = (job.product && job.product.length > 20) ? job.product.substring(0, 20) + '...' : (job.product || 'N/A');
     const displayService = (job.service && job.service.length > 28) ? job.service.substring(0, 28) + '...' : (job.service || '-');
-    const safeCharges = Number(job.charges) || 0;
-
-    html += `
+    const safeCharges = Number(job.charges) || 0;    html += `
       <tr class="repair-row ${statusClass}">
         <td class="job-number" title="${job.jobNumber}">${job.jobNumber}</td>
         <td class="truncate" title="${job.name || 'N/A'}">${displayName}</td>
-        <td title="${job.mobile}">${displayMobile}</td>
+        <td class="mobile-number" title="${job.mobile}">${displayMobile}</td>
         <td class="truncate" title="${job.product || 'N/A'}">${displayProduct}</td>
         <td class="truncate" title="${job.service || '-'}">${displayService}</td>
         <td class="amount">AED ${safeCharges.toFixed(2)}</td>

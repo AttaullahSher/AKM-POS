@@ -2464,7 +2464,7 @@ select:disabled {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 12px;
+  font-size: 14px; /* Increased by 2px */
   background: white;
 }
 
@@ -2540,7 +2540,13 @@ select:disabled {
   font-weight: 600;
   color: var(--primary-dark);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 15px; /* Increased by 4px */
+}
+
+.repair-table .mobile-number {
+  font-family: var(--font-mono);
+  font-size: 15px; /* Increased by 3px (base 12px + 3px = 15px) */
+  font-weight: 500;
 }
 
 .repair-table .truncate {
