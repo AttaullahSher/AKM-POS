@@ -335,15 +335,14 @@ window.submitNewRepairJob = async function() {
     document.getElementById('repairProductModel').focus();
     return;
   }
-    try {
-    const today = new Date();
+    try {    const today = new Date();
     const jobNumber = await getNextJobNumber();
-    const date = formatDate(today, 'DD/MM/YYYY'); // UAE date format
+    const date = "'" + formatDate(today, 'DD/MM/YYYY'); // UAE date format (force text)
     
     // Prepare row data for Repairing sheet
     const rowData = [
       jobNumber,        // Job-Number (Column A)
-      date,            // Date (Column B) - UAE format
+      date,            // Date (Column B) - UAE format (force text)
       name,            // Name (Column C)
       mobile,          // Mobile-Number (Column D)
       product,         // Product (Column E)

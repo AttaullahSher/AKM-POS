@@ -1058,12 +1058,12 @@ window.saveAndPrint = async function() {
     return;
   }
     btn.textContent = '💾 Saving...';
-  
   const today = new Date();
-  const timestamp = formatDate(today, 'YYYY-MM-DD HH:mm:ss');
+  const timestamp = formatDate(today, 'HH:mm:ss'); // Time only
   
   // Convert invDate from YYYY-MM-DD to DD/MM/YYYY (UAE format)
-  const invDateFormatted = formatDate(new Date(invDate), 'DD/MM/YYYY');
+  // Add apostrophe prefix to force Google Sheets to treat as text
+  const invDateFormatted = "'" + formatDate(new Date(invDate), 'DD/MM/YYYY');
   
   const itemsJSON = JSON.stringify(items.map(item => ({
     model: item.model,
@@ -1078,9 +1078,8 @@ window.saveAndPrint = async function() {
   else if (currentPaymentMethod === 'Card') cardImpact = grandTotal;
   else if (currentPaymentMethod === 'Tabby') tabbyImpact = grandTotal;
   else if (currentPaymentMethod === 'Cheque') chequeImpact = grandTotal;
-
   const invoiceRow = [
-    invNum, invDateFormatted, timestamp, custName, custPhone, custTRN, currentPaymentMethod,
+    invNum, invDateFormatted, "'" + timestamp, custName, custPhone, custTRN, currentPaymentMethod,
     subtotal.toFixed(2), vat.toFixed(2), grandTotal.toFixed(2), itemsJSON,
     today.getDate(), today.getMonth() + 1, today.getFullYear(), 'Paid',
     cashImpact.toFixed(2), cardImpact.toFixed(2), tabbyImpact.toFixed(2), chequeImpact.toFixed(2), ''
@@ -1553,12 +1552,11 @@ window.submitDeposit = async function() {
   }
     const today = new Date();
   const depositID = await getNextDepositID();
-  
   // Deposits sheet columns: DepositID, Date, TimeStamp, Amount, Bank, ReferenceNumber, CashImpact, Notes
   const depositRow = [
     depositID,                                          // DepositID (Column A)
-    formatDate(today, 'DD/MM/YYYY'),                   // Date (Column B) - UAE format
-    formatDate(today, 'DD/MM/YYYY HH:mm:ss'),          // TimeStamp (Column C)
+    "'" + formatDate(today, 'DD/MM/YYYY'),             // Date (Column B) - UAE format (force text)
+    "'" + formatDate(today, 'HH:mm:ss'),               // TimeStamp (Column C) - Time only (force text)
     amount.toFixed(2),                                  // Amount (Column D)
     bankName,                                           // Bank (Column E)
     slipNumber,                                         // ReferenceNumber (Column F)
@@ -1651,13 +1649,12 @@ window.submitExpense = async function() {
   }
     const today = new Date();
   const expenseID = await getNextExpenseID();
-  
   // Expenses sheet columns: ExpenseID, Date, TimeStamp, Description, Amount, Method, ReceiptNumber, Category, CashImpact, Notes
   // All expenses default to Cash payment method
   const expenseRow = [
     expenseID,                                          // ExpenseID (Column A)
-    formatDate(today, 'DD/MM/YYYY'),                   // Date (Column B) - UAE format
-    formatDate(today, 'DD/MM/YYYY HH:mm:ss'),          // TimeStamp (Column C)
+    "'" + formatDate(today, 'DD/MM/YYYY'),             // Date (Column B) - UAE format (force text)
+    "'" + formatDate(today, 'HH:mm:ss'),               // TimeStamp (Column C) - Time only (force text)
     description,                                        // Description (Column D)
     amount.toFixed(2),                                  // Amount (Column E)
     'Cash',                                             // Method (Column F) - Always Cash
