@@ -703,6 +703,7 @@ function getCachedInvoiceNumber() {
 
 async function loadDashboardData() {
   const today = formatDate(new Date(), 'YYYY-MM-DD');
+  debugLog('📊 Loading dashboard for date:', today);
   const batchData = await readSheetBatch(["'AKM-POS'!A:S", "Deposits!A:G", "Expenses!A:I"]);
   
   if (!batchData) {
@@ -721,6 +722,7 @@ async function loadDashboardData() {
   
   let cashSales = 0, cardSales = 0, tabbySales = 0, chequeSales = 0;
   let totalCashIn = 0, totalCashOut = 0;
+  let todayCount = 0;
   
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
@@ -731,7 +733,18 @@ async function loadDashboardData() {
     const status = row[14];
     const cashImpact = parseFloat(row[15]) || 0;
     
-    if (date === today && status !== 'Refunded') {
+    // Normalize date format - handle both YYYY-MM-DD and DD/MM/YYYY formats
+    let normalizedDate = date;
+    if (date && date.includes('/')) {
+      // Convert DD/MM/YYYY to YYYY-MM-DD
+      const parts = date.split('/');
+      if (parts.length === 3) {
+        normalizedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
+    }
+    
+    if (normalizedDate === today && status !== 'Refunded') {
+      todayCount++;
       if (paymentMethod === 'Cash') cashSales += grandTotal;
       else if (paymentMethod === 'Card') cardSales += grandTotal;
       else if (paymentMethod === 'Tabby') tabbySales += grandTotal;
@@ -740,6 +753,8 @@ async function loadDashboardData() {
     
     if (status !== 'Refunded') totalCashIn += cashImpact;
   }
+  
+  debugLog(`📊 Found ${todayCount} invoices for today. Cash: ${cashSales}, Card: ${cardSales}, Tabby: ${tabbySales}, Cheque: ${chequeSales}`);
   
   if (deposits.length > 1) {
     for (let i = 1; i < deposits.length; i++) {
