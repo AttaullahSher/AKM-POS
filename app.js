@@ -1285,12 +1285,31 @@ window.reprintInvoice = async function(invId) {
     showToast('Failed to load invoice', 'error');
     return;
   }
-  
-  for (let i = 1; i < data.length; i++) {
+    for (let i = 1; i < data.length; i++) {
     if (data[i][0] === invId) {
       const row = data[i];
       document.getElementById('invNum').textContent = row[0];
-      document.getElementById('invDate').value = row[1];
+      
+      // FIX: Ensure date is in proper format (YYYY-MM-DD) for date input
+      const invoiceDate = row[1];
+      if (invoiceDate) {
+        // If date is already in YYYY-MM-DD format, use it directly
+        // Otherwise parse and format it
+        const dateMatch = invoiceDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (dateMatch) {
+          document.getElementById('invDate').value = invoiceDate;
+        } else {
+          // Try parsing other date formats
+          const parsedDate = new Date(invoiceDate);
+          if (!isNaN(parsedDate.getTime())) {
+            const year = parsedDate.getFullYear();
+            const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+            const day = String(parsedDate.getDate()).padStart(2, '0');
+            document.getElementById('invDate').value = `${year}-${month}-${day}`;
+          }
+        }
+      }
+      
       document.getElementById('custName').value = row[3] || '';
       document.getElementById('custPhone').value = row[4] || '';
       document.getElementById('custTRN').value = row[5] || '';
