@@ -1016,9 +1016,10 @@ window.saveAndPrint = async function() {
         }
       }
     }
+      printInvoice(invNum);
     
-    lockInvoiceFields();
-    printInvoice(invNum);    setTimeout(() => {
+    // After print dialog closes, reset to new invoice
+    setTimeout(() => {
       isReprintMode = false;
       reprintInvoiceId = null;
       clearForm();
@@ -1027,7 +1028,7 @@ window.saveAndPrint = async function() {
       loadRecentInvoices();
       btn.disabled = false;
       btn.textContent = '🖨️ Print Invoice';
-    }, 200);
+    }, 1000);
     return;
   }
   
@@ -1065,9 +1066,9 @@ window.saveAndPrint = async function() {
       invNum, item.model, item.desc, item.qty, item.price, (item.qty * item.price).toFixed(2), invDate
     ]);
     await appendToSheet('InvoiceItems!A:H', itemRows);    showToast('Invoice saved successfully!', 'success');
-    lockInvoiceFields();
     printInvoice(invNum);
     
+    // Wait for print dialog to close, then reset form for new invoice
     setTimeout(() => {
       clearForm();
       loadNextInvoiceNumber();
@@ -1075,7 +1076,7 @@ window.saveAndPrint = async function() {
       loadRecentInvoices();
       btn.disabled = false;
       btn.textContent = '🖨️ Print Invoice';
-    }, 200);
+    }, 1000);
   } else {
     console.warn('⚠️ Failed to save invoice online, using offline emergency mode.');
     const queue = loadOfflineInvoices();
@@ -1084,9 +1085,9 @@ window.saveAndPrint = async function() {
       createdAt: Date.now()
     });
     saveOfflineInvoices(queue);    showToast('⚠️ Network issue: printing in OFFLINE mode. Invoice will sync later.', 'warning');
-    lockInvoiceFields();
     printInvoice(invNum + ' (OFFLINE)');
 
+    // Wait for print dialog to close, then reset form for new invoice
     setTimeout(() => {
       clearForm();
       loadNextInvoiceNumber();
@@ -1094,7 +1095,7 @@ window.saveAndPrint = async function() {
       loadRecentInvoices();
       btn.disabled = false;
       btn.textContent = '🖨️ Print Invoice';
-    }, 200);
+    }, 1000);
   }
 };
 
