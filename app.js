@@ -732,11 +732,22 @@ async function loadDashboardData() {
     const grandTotal = parseFloat(row[9]) || 0;
     const status = row[14];
     const cashImpact = parseFloat(row[15]) || 0;
-    
-    // Normalize date format - handle both YYYY-MM-DD and DD/MM/YYYY formats
+      // Normalize date format - handle YYYY-MM-DD, DD/MM/YYYY, and Excel serial numbers
     let normalizedDate = date;
-    if (date && date.includes('/')) {
-      // Convert DD/MM/YYYY to YYYY-MM-DD
+    
+    // Check if it's an Excel serial number (numeric value like 46003)
+    if (date && !isNaN(date) && Number(date) > 1000) {
+      // Convert Excel serial number to JavaScript Date
+      const excelEpoch = new Date(1900, 0, 1);
+      const daysOffset = Number(date) - 2; // -2 accounts for Excel's 1900 leap year bug and 0-indexing
+      const jsDate = new Date(excelEpoch.getTime() + daysOffset * 86400000);
+      const year = jsDate.getFullYear();
+      const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+      const day = String(jsDate.getDate()).padStart(2, '0');
+      normalizedDate = `${year}-${month}-${day}`;
+    }
+    // Handle DD/MM/YYYY format
+    else if (date && date.includes('/')) {
       const parts = date.split('/');
       if (parts.length === 3) {
         normalizedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
