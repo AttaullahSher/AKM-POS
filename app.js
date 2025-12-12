@@ -1289,17 +1289,27 @@ window.reprintInvoice = async function(invId) {
     if (data[i][0] === invId) {
       const row = data[i];
       document.getElementById('invNum').textContent = row[0];
-      
-      // FIX: Ensure date is in proper format (YYYY-MM-DD) for date input
+        // FIX: Ensure date is in proper format (YYYY-MM-DD) for date input
       const invoiceDate = row[1];
       if (invoiceDate) {
+        // Check if it's an Excel serial number (numeric value like 46003)
+        if (!isNaN(invoiceDate) && Number(invoiceDate) > 1000) {
+          // Convert Excel serial number to JavaScript Date
+          // Excel serial: days since 1/1/1900 (with 1900 leap year bug adjustment)
+          const excelEpoch = new Date(1900, 0, 1);
+          const daysOffset = Number(invoiceDate) - 2; // -2 accounts for Excel's 1900 leap year bug and 0-indexing
+          const jsDate = new Date(excelEpoch.getTime() + daysOffset * 86400000);
+          const year = jsDate.getFullYear();
+          const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+          const day = String(jsDate.getDate()).padStart(2, '0');
+          document.getElementById('invDate').value = `${year}-${month}-${day}`;
+        }
         // If date is already in YYYY-MM-DD format, use it directly
-        // Otherwise parse and format it
-        const dateMatch = invoiceDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (dateMatch) {
+        else if (invoiceDate.match(/^(\d{4})-(\d{2})-(\d{2})/)) {
           document.getElementById('invDate').value = invoiceDate;
-        } else {
-          // Try parsing other date formats
+        }
+        // Try parsing other date formats
+        else {
           const parsedDate = new Date(invoiceDate);
           if (!isNaN(parsedDate.getTime())) {
             const year = parsedDate.getFullYear();
