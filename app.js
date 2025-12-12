@@ -1086,14 +1086,13 @@ window.saveAndPrint = async function() {
   ];
 
   const appendResult = await appendToSheet("'AKM-POS'!A:T", [invoiceRow]);
-
   if (appendResult === true) {
     console.log('✅ Invoice saved successfully:', invNum);
     const itemRows = items.map((item, index) => [
       `ITM-${invNum.split('-')[1]}-${String(index + 1).padStart(3, '0')}`,
-      invNum, item.model, item.desc, item.qty, item.price, (item.qty * item.price).toFixed(2), invDate
+      invNum, item.model, item.desc, item.qty, item.price, (item.qty * item.price).toFixed(2), invDateFormatted
     ]);
-    await appendToSheet('InvoiceItems!A:H', itemRows);    showToast('Invoice saved successfully!', 'success');
+    await appendToSheet('InvoiceItems!A:H', itemRows);showToast('Invoice saved successfully!', 'success');
     printInvoice(invNum);
     
     // Wait for print dialog to close, then reset form for new invoice
