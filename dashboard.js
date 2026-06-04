@@ -16,6 +16,7 @@ import {
 } from './firestore-utils.js';
 import { collection, query, where, orderBy, getDocs, Timestamp } from './firebase-config.js';
 import { FIREBASE_CONFIG, APP_CONFIG, debugLog } from './config.js';
+import { showToast } from './utils.js';
 
 const ALLOWED_EMAIL = APP_CONFIG.ALLOWED_EMAIL;
 const app = initializeApp(FIREBASE_CONFIG);
@@ -188,30 +189,24 @@ function displayInvoices(invoices) {
     tbody.innerHTML = '<tr><td colspan="7" class="table-empty">No invoices for this period</td></tr>';
     return;
   }
-  
-  tbody.innerHTML = invoices.map(inv => `
+    tbody.innerHTML = invoices.map(inv => `
     <tr class="${inv.status === 'Refunded' ? 'row-refunded' : ''}">
       <td><strong>${inv.invoiceNumber}</strong></td>
       <td>${formatDate(new Date(inv.date), 'DD MMM YYYY')}</td>
       <td>${inv.customer || 'Walk-in'}</td>
       <td><strong>AED ${inv.grandTotal.toFixed(2)}</strong></td>
-      <td><span class="badge badge-${inv.payment.toLowerCase()}">${inv.payment}</span></td>
-      <td><span class="status-badge status-${inv.status.toLowerCase()}">${inv.status}</span></td>
+      <td><span class="payment-badge ${inv.payment.toLowerCase()}">${inv.payment}</span></td>
+      <td><span class="status-badge ${inv.status.toLowerCase()}">${inv.status}</span></td>
       <td>
-        <div class="action-buttons">
-          <button onclick="reprintInvoice('${inv.id}')" class="btn-action btn-reprint" title="Reprint">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M4 5.33333V2.66667C4 2.48986 4.07024 2.32029 4.19526 2.19526C4.32029 2.07024 4.48986 2 4.66667 2H11.3333C11.5101 2 11.6797 2.07024 11.8047 2.19526C11.9298 2.32029 12 2.48986 12 2.66667V5.33333M4 11.3333H3.33333C2.97971 11.3333 2.64057 11.1929 2.39052 10.9428C2.14048 10.6928 2 10.3536 2 10V7.33333C2 6.97971 2.14048 6.64057 2.39052 6.39052C2.64057 6.14048 2.97971 6 3.33333 6H12.6667C13.0203 6 13.3594 6.14048 13.6095 6.39052C13.8595 6.64057 14 6.97971 14 7.33333V10C14 10.3536 13.8595 10.6928 13.6095 10.9428C13.3594 11.1929 13.0203 11.3333 12.6667 11.3333H12M4.66667 9.33333H11.3333V13.3333C11.3333 13.5101 11.2631 13.6797 11.1381 13.8047C11.013 13.9298 10.8435 14 10.6667 14H5.33333C5.15652 14 4.98695 13.9298 4.86193 13.8047C4.7369 13.6797 4.66667 13.5101 4.66667 13.3333V9.33333Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+        <div class="table-action-buttons">
+          <button onclick="reprintInvoice('${inv.id}')" class="btn-table-action btn-view" title="View & Reprint">
+            View
           </button>
           ${inv.status !== 'Refunded' ? `
-            <button onclick="refundInvoice('${inv.id}', '${inv.invoiceNumber}')" class="btn-action btn-refund" title="Refund">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 6L6 10M6 6l4 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+            <button onclick="refundInvoice('${inv.id}', '${inv.invoiceNumber}')" class="btn-table-action btn-refund" title="Refund Invoice">
+              Refund
             </button>
-          ` : ''}
+          ` : '<span class="refunded-label">Refunded</span>'}
         </div>
       </td>
     </tr>
@@ -551,15 +546,406 @@ window.printTaxReport = function() {
 // ============================================
 
 window.printDailyReport = async function() {
-  showToast('Daily report feature coming soon', 'info');
+  try {
+    showToast('Generating daily report...', 'info');
+    
+    const today = new Date();
+    const todayStr = formatDate(today, 'YYYY-MM-DD');
+    
+    const [invoices, deposits, expenses] = await Promise.all([
+      getTodayInvoices(todayStr),
+      getTodayDeposits(todayStr),
+      getTodayExpenses(todayStr)
+    ]);
+    
+    // Calculate totals
+    let totalSales = 0, totalVAT = 0;
+    let cash = 0, card = 0, tabby = 0, cheque = 0;
+    let paidInvoices = 0;
+    
+    invoices.forEach(inv => {
+      if (inv.status === 'Paid') {
+        totalSales += inv.payment?.grandTotal || 0;
+        totalVAT += inv.payment?.vat || 0;
+        cash += inv.impacts?.cash || 0;
+        card += inv.impacts?.card || 0;
+        tabby += inv.impacts?.tabby || 0;
+        cheque += inv.impacts?.cheque || 0;
+        paidInvoices++;
+      }
+    });
+    
+    const totalDeposits = deposits.reduce((sum, d) => sum + (d.amount || 0), 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const cashInHand = cash - totalDeposits - totalExpenses;
+    
+    // Create print window
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Daily Report - ${formatDate(today, 'DD MMM YYYY')}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: 'Montserrat', Arial, sans-serif; 
+            padding: 40px; 
+            background: white;
+            color: #333;
+          }
+          .report-header { 
+            text-align: center; 
+            border-bottom: 3px solid #A8C5E6; 
+            padding-bottom: 20px; 
+            margin-bottom: 30px; 
+          }
+          .report-header h1 { 
+            font-size: 28px; 
+            color: #4B5563; 
+            margin-bottom: 8px; 
+          }
+          .report-header .date { 
+            font-size: 16px; 
+            color: #6B7280; 
+            font-weight: 600; 
+          }
+          .section { 
+            margin-bottom: 30px; 
+          }
+          .section-title { 
+            font-size: 18px; 
+            font-weight: 700; 
+            color: #374151; 
+            margin-bottom: 15px; 
+            padding-bottom: 8px; 
+            border-bottom: 2px solid #E5E7EB; 
+          }
+          .summary-grid { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 15px; 
+            margin-bottom: 20px; 
+          }
+          .summary-item { 
+            padding: 15px; 
+            background: #F9FAFB; 
+            border-radius: 8px; 
+            border-left: 4px solid #A8C5E6; 
+          }
+          .summary-label { 
+            font-size: 12px; 
+            color: #6B7280; 
+            font-weight: 600; 
+            text-transform: uppercase; 
+            margin-bottom: 5px; 
+          }
+          .summary-value { 
+            font-size: 24px; 
+            font-weight: 700; 
+            color: #1F2937; 
+          }
+          .summary-value.highlight { 
+            color: #B8E6B8; 
+            font-size: 28px; 
+          }
+          table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 10px; 
+          }
+          th, td { 
+            padding: 10px; 
+            text-align: left; 
+            border-bottom: 1px solid #E5E7EB; 
+          }
+          th { 
+            background: #F3F4F6; 
+            font-weight: 700; 
+            font-size: 13px; 
+            color: #374151; 
+          }
+          td { 
+            font-size: 12px; 
+            color: #4B5563; 
+          }
+          .total-row { 
+            font-weight: 700; 
+            background: #F9FAFB; 
+            font-size: 14px; 
+          }
+          .report-footer { 
+            margin-top: 40px; 
+            padding-top: 20px; 
+            border-top: 2px solid #E5E7EB; 
+            text-align: center; 
+            font-size: 11px; 
+            color: #9CA3AF; 
+          }
+          @media print {
+            body { padding: 20px; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="report-header">
+          <h1>AKM Music Centre LLC</h1>
+          <div class="date">Daily Report - ${formatDate(today, 'DD MMM YYYY')}</div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">📊 Sales Summary</div>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <div class="summary-label">Total Sales (incl. VAT)</div>
+              <div class="summary-value highlight">AED ${totalSales.toFixed(2)}</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Total VAT (5%)</div>
+              <div class="summary-value">AED ${totalVAT.toFixed(2)}</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Net Sales (excl. VAT)</div>
+              <div class="summary-value">AED ${(totalSales - totalVAT).toFixed(2)}</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Total Invoices</div>
+              <div class="summary-value">${paidInvoices}</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">💳 Payment Breakdown</div>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <div class="summary-label">💵 Cash</div>
+              <div class="summary-value">AED ${cash.toFixed(2)}</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">💳 Card</div>
+              <div class="summary-value">AED ${card.toFixed(2)}</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">📱 Tabby</div>
+              <div class="summary-value">AED ${tabby.toFixed(2)}</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">📝 Cheque</div>
+              <div class="summary-value">AED ${cheque.toFixed(2)}</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">💰 Cash Flow</div>
+          <table>
+            <tr>
+              <td>Cash Sales</td>
+              <td style="text-align: right; font-weight: 700;">AED ${cash.toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td>Bank Deposits</td>
+              <td style="text-align: right; color: #F5B8B8;">- AED ${totalDeposits.toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td>Expenses</td>
+              <td style="text-align: right; color: #F5B8B8;">- AED ${totalExpenses.toFixed(2)}</td>
+            </tr>
+            <tr class="total-row">
+              <td>Cash in Hand</td>
+              <td style="text-align: right; color: #B8E6B8;">AED ${cashInHand.toFixed(2)}</td>
+            </tr>
+          </table>
+        </div>
+        
+        ${deposits.length > 0 ? `
+        <div class="section">
+          <div class="section-title">🏦 Bank Deposits</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${deposits.map(d => `
+                <tr>
+                  <td>${formatDate(new Date(d.date), 'DD MMM YYYY')}</td>
+                  <td>AED ${d.amount.toFixed(2)}</td>
+                  <td>${d.notes || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
+        
+        ${expenses.length > 0 ? `
+        <div class="section">
+          <div class="section-title">💸 Expenses</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${expenses.map(e => `
+                <tr>
+                  <td>${e.category || 'General'}</td>
+                  <td>${e.description || '-'}</td>
+                  <td>AED ${e.amount.toFixed(2)}</td>
+                </tr>
+              `).join('')}
+              <tr class="total-row">
+                <td colspan="2">Total Expenses</td>
+                <td>AED ${totalExpenses.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
+        
+        <div class="report-footer">
+          <p>Generated on ${formatDate(new Date(), 'DD MMM YYYY')} at ${formatTime(new Date())}</p>
+          <p>AKM Music Centre LLC - Point of Sale System</p>
+        </div>
+        
+        <div class="no-print" style="margin-top: 30px; text-align: center;">
+          <button onclick="window.print()" style="padding: 12px 24px; background: #A8C5E6; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;">
+            🖨️ Print Report
+          </button>
+          <button onclick="window.close()" style="padding: 12px 24px; background: #E5E7EB; color: #374151; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; margin-left: 10px;">
+            ✖️ Close
+          </button>
+        </div>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    showToast('Daily report generated successfully', 'success');
+    
+  } catch (error) {
+    console.error('❌ Error generating daily report:', error);
+    showToast('Failed to generate daily report', 'error');
+  }
 };
 
 window.exportAllData = async function() {
-  showToast('Export all data feature coming soon', 'info');
+  try {
+    showToast('Exporting all data...', 'info');
+    
+    const today = new Date();
+    const todayStr = formatDate(today, 'YYYY-MM-DD');
+    
+    // Get all data
+    const [invoices, deposits, expenses] = await Promise.all([
+      getTodayInvoices(todayStr),
+      getTodayDeposits(todayStr),
+      getTodayExpenses(todayStr)
+    ]);
+    
+    // Create comprehensive CSV export
+    let csv = 'AKM Music Centre LLC - Data Export\n';
+    csv += `Export Date:,${formatDate(today, 'DD MMM YYYY HH:mm:ss')}\n\n`;
+    
+    // Invoices
+    csv += 'INVOICES\n';
+    csv += 'Invoice Number,Date,Customer,Subtotal,VAT,Grand Total,Payment Method,Status,Cash Impact,Card Impact,Tabby Impact,Cheque Impact\n';
+    invoices.forEach(inv => {
+      csv += `${inv.invoiceNumber},${inv.date},${inv.customer || 'Walk-in'},${inv.payment?.subtotal || 0},${inv.payment?.vat || 0},${inv.payment?.grandTotal || 0},${inv.payment?.method || 'Cash'},${inv.status},${inv.impacts?.cash || 0},${inv.impacts?.card || 0},${inv.impacts?.tabby || 0},${inv.impacts?.cheque || 0}\n`;
+    });
+    csv += '\n';
+    
+    // Deposits
+    csv += 'BANK DEPOSITS\n';
+    csv += 'Date,Amount,Notes\n';
+    deposits.forEach(d => {
+      csv += `${d.date},${d.amount},"${d.notes || ''}"\n`;
+    });
+    csv += '\n';
+    
+    // Expenses
+    csv += 'EXPENSES\n';
+    csv += 'Date,Category,Description,Amount\n';
+    expenses.forEach(e => {
+      csv += `${e.date},${e.category || 'General'},"${e.description || ''}",${e.amount}\n`;
+    });
+    
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `AKM_Export_${formatDate(today, 'YYYY-MM-DD')}.csv`;
+    link.click();
+    
+    showToast('Data exported successfully', 'success');
+    
+  } catch (error) {
+    console.error('❌ Error exporting data:', error);
+    showToast('Failed to export data', 'error');
+  }
 };
 
 window.createBackup = async function() {
-  showToast('Firestore backup feature coming soon', 'info');
+  try {
+    showToast('Creating backup...', 'info');
+    
+    const today = new Date();
+    const todayStr = formatDate(today, 'YYYY-MM-DD');
+    
+    // Get all data for backup
+    const [invoices, deposits, expenses] = await Promise.all([
+      getRecentInvoices(1000), // Get up to 1000 recent invoices
+      getTodayDeposits(todayStr),
+      getTodayExpenses(todayStr)
+    ]);
+    
+    const backupData = {
+      backupDate: today.toISOString(),
+      backupVersion: '1.0',
+      system: 'AKM-POS',
+      data: {
+        invoices: invoices.map(inv => ({
+          id: inv.id,
+          invoiceNumber: inv.invoiceNumber,
+          date: inv.date,
+          customer: inv.customer,
+          items: inv.items,
+          payment: inv.payment,
+          status: inv.status,
+          impacts: inv.impacts,
+          createdAt: inv.createdAt
+        })),
+        deposits: deposits,
+        expenses: expenses
+      },
+      stats: {
+        totalInvoices: invoices.length,
+        totalDeposits: deposits.length,
+        totalExpenses: expenses.length
+      }
+    };
+    
+    // Create JSON backup file
+    const jsonBlob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(jsonBlob);
+    link.download = `AKM_Backup_${formatDate(today, 'YYYY-MM-DD_HH-mm')}.json`;
+    link.click();
+    
+    showToast(`Backup created: ${invoices.length} invoices, ${deposits.length} deposits, ${expenses.length} expenses`, 'success');
+    
+  } catch (error) {
+    console.error('❌ Error creating backup:', error);
+    showToast('Failed to create backup', 'error');
+  }
 };
 
 // ============================================
@@ -567,20 +953,7 @@ window.createBackup = async function() {
 // ============================================
 
 function updateElement(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = value;
-}
-
-function showToast(message, type = 'info') {
-  const toast = document.getElementById('toast');
-  if (!toast) return;
-  
-  toast.textContent = message;
-  toast.className = `toast show toast-${type}`;
-  
-  setTimeout(() => {
-    toast.className = 'toast';
-  }, 4000);
+  const el = document.getElementById(id);  if (el) el.textContent = value;
 }
 
 // ============================================

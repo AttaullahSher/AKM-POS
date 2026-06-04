@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">  <title>AKM-POS | Point of Sale System</title><link rel="icon" type="image/png" href="/Favicon.png">  <link rel="preconnect" href="https://fonts.googleapis.com">  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">  <link rel="stylesheet" href="styles.css?v=127.6">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">  <title>AKM-POS | Point of Sale System</title><link rel="icon" type="image/png" href="/Favicon.png">  <link rel="preconnect" href="https://fonts.googleapis.com">  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=2.1.3">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
 <body>  <!-- Loading Screen -->
@@ -32,10 +33,27 @@
   </div>
 
   <!-- Main App -->
-  <div id="mainApp" class="main-app" style="display: none;">    <!-- Sidebar -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <h3>🎵 AKM-POS</h3>
+  <div id="mainApp" class="main-app" style="display: none;">
+    <!-- Global Header -->
+    <header class="app-header">
+      <div class="app-header-left">
+        <div class="app-logo">🎵</div>
+        <div class="app-title-group">
+          <h1 class="app-title">AKM-POS</h1>
+          <p class="app-subtitle">Point of Sale & Repairs</p>
+        </div>
+      </div>
+      <div class="app-header-right">
+        <div class="app-summary">
+          <div class="summary-item">
+            <span class="summary-label">Today's Sales</span>
+            <span class="summary-value" id="todaySalesQuick">0.00</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Cash in Hand</span>
+            <span class="summary-value" id="cashInHandQuick">0.00</span>
+          </div>
+        </div>
         <button id="logoutBtn" class="logout-btn" title="Logout" aria-label="Logout">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M6 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V3.33333C2 2.97971 2.14048 2.64057 2.39052 2.39052C2.64057 2.14048 2.97971 2 3.33333 2H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -44,41 +62,48 @@
           </svg>
         </button>
       </div>
-      
-      <div class="sidebar-quick-actions">
-        <button onclick="window.location.href='dashboard.html'" class="quick-action-btn action-dashboard">
-          <div class="action-icon">📊</div>
-          <div class="action-label">Dashboard</div>
-        </button>
-        
-        <button onclick="openExpenseModal()" class="quick-action-btn action-expense">
-          <div class="action-icon">💸</div>
-          <div class="action-label">Expense</div>
-        </button>
-        
-        <button onclick="openRepairModal()" class="quick-action-btn action-repair">
-          <div class="action-icon">🔧</div>
-          <div class="action-label">Repairs</div>
-        </button>
-      </div>
+    </header>    <!-- Main Layout -->
+    <div class="app-layout">
+      <!-- Sidebar Quick Actions -->
+      <aside class="sidebar">
+        <div class="sidebar-quick-actions">
+          <button onclick="window.location.href='dashboard.html'" class="quick-action-btn action-dashboard">
+            <div class="action-icon">📊</div>
+            <div class="action-text">
+              <div class="action-label">Dashboard</div>
+              <div class="action-desc">Reports & Analytics</div>
+            </div>
+          </button>
 
-      <div class="sidebar-info">
-        <h4 class="info-title">Quick Info</h4>
-        <div class="info-item">
-          <span class="info-label">Today's Sales:</span>
-          <span class="info-value" id="todaySalesQuick">0.00</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">Cash in Hand:</span>
-          <span class="info-value" id="cashInHandQuick">0.00</span>
-        </div>
-        <p class="info-note">Visit Dashboard for detailed reports</p>
-      </div>
-    </aside>
+          <button onclick="openDepositModal()" class="quick-action-btn action-deposit">
+            <div class="action-icon">🏦</div>
+            <div class="action-text">
+              <div class="action-label">Deposit</div>
+              <div class="action-desc">Bank deposits</div>
+            </div>
+          </button>
 
-    <!-- Main Content -->
-    <main class="main-content">
-      <div class="invoice-container">        <!-- Header -->        <div class="invoice-header">          <div class="company-name-row">
+          <button onclick="openExpenseModal()" class="quick-action-btn action-expense">
+            <div class="action-icon">💸</div>
+            <div class="action-text">
+              <div class="action-label">Expense</div>
+              <div class="action-desc">Record expenses</div>
+            </div>
+          </button>
+
+          <button onclick="openRepairModal()" class="quick-action-btn action-repair">
+            <div class="action-icon">🔧</div>
+            <div class="action-text">
+              <div class="action-label">Repairs</div>
+              <div class="action-desc">Repair jobs</div>
+            </div>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="invoice-container">        <!-- Header -->        <div class="invoice-header">          <div class="company-name-row">
             <span class="company-name-ar">مركز أجمل خان محمد للموسيقى ذ.م.م</span>
             <span class="company-name-en">Ajmal Khan Mohammed Music Centre LLC.</span>
           </div>
@@ -393,110 +418,9 @@
               </button>
             </div>
           </div>
-        </div>
-      </div>
+        </div>      </div>
     </div>
   </div>
-  <!-- Modals for Expense & Repair -->
-  <div id="expenseModal" class="modal-overlay">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>💸 Add Expense</h3>
-        <button class="modal-close" onclick="closeExpenseModal()">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Category <span style="color: red;">*</span></label>
-          <select id="expenseCategory" aria-label="Expense category" required>
-            <option value="">-- Select Category --</option>
-            <option value="Local Purchase">Local Purchase</option>
-            <option value="Grocery">Grocery</option>
-            <option value="Refund">Refund</option>
-            <option value="Transport">Transport</option>
-            <option value="Salary">Salary</option>
-            <option value="Bills">Bills</option>
-            <option value="Cash given">Cash given</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Description <span style="color: red;">*</span></label>
-          <textarea id="expenseDesc" rows="3" placeholder="Enter detailed description" aria-label="Expense description" required></textarea>
-        </div>
-        <div class="form-group">
-          <label>Amount (AED) <span style="color: red;">*</span></label>
-          <input type="number" id="expenseAmount" step="0.01" min="0" placeholder="0.00" aria-label="Expense amount" required>
-        </div>
-        <div class="form-group">
-          <label>Receipt Number <span style="color: red;">*</span></label>
-          <input type="text" id="expenseReceipt" placeholder="Enter receipt number" aria-label="Expense receipt number" required>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeExpenseModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="submitExpense()">Submit</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Repair Modal -->
-  <div id="repairModal" class="modal-overlay">
-    <div class="modal-content modal-large">
-      <div class="modal-header">
-        <h2>🔧 Repair Jobs</h2>
-        <button onclick="closeRepairModal()" class="modal-close">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="repair-search-bar">
-          <input type="text" id="repairSearchInput" placeholder="Search by name, job number, or product..." oninput="searchRepairJobs()">
-          <button onclick="openNewRepairForm()" class="btn-new-repair">+ New Job</button>
-        </div>
-        <div id="repairJobsList" class="repair-jobs-list"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- New Repair Form Modal -->
-  <div id="newRepairModal" class="modal-overlay">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>New Repair Job</h2>
-        <button onclick="closeNewRepairForm()" class="modal-close">×</button>
-      </div>
-      <div class="modal-body">
-        <form onsubmit="event.preventDefault(); submitNewRepairJob();">
-          <div class="form-group">
-            <label>Name:</label>
-            <input type="text" id="repairCustomerName" autocomplete="off">
-          </div>
-          <div class="form-group">
-            <label>Phone: <span style="color: red;">*</span></label>
-            <input type="tel" id="repairCustomerMobile" required autocomplete="off" placeholder="e.g., 0501234567">
-          </div>
-          <div class="form-group">
-            <label>Product/Model: <span style="color: red;">*</span></label>
-            <input type="text" id="repairProductModel" required autocomplete="off">
-          </div>
-          <div class="form-group">
-            <label>Service:</label>
-            <input type="text" id="repairService" autocomplete="off">
-          </div>
-          <div class="form-group">
-            <label>Estimated Charges (AED):</label>
-            <input type="number" id="repairCharges" step="0.01" min="0" autocomplete="off">
-          </div>
-          <div class="modal-footer">
-            <button type="button" onclick="closeNewRepairForm()" class="btn btn-secondary">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save & Print</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Repair Slip Container (for printing) -->
-  <div id="repairSlipContainer" class="repair-slip-container"></div>
-  <!-- Toast Notification -->
-  <div id="toast" class="toast"></div>
 
   <!-- Firestore Migration - v2.1 - Centralized Configuration -->
   <script type="module" src="config.js?v=2.1"></script>

@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===== HELPER FUNCTIONS =====
+    
+    // Check if user is authenticated with authorized email
+    function isAuthorized() {
+      return request.auth != null 
+        && request.auth.token.email == 'sales@akm-music.com';
+    }
+    
+    // Validate invoice document structure
+    function isValidInvoice() {
+      let data = request.resource.data;
+      return data.invoiceNumber is string
+        && data.year is int
+        && data.sequence is int
+        && data.date is string
+        && data.dateObj is timestamp
+        && data.payment.method in ['Cash', 'Card', 'Tabby', 'Cheque']
+        && data.payment.grandTotal is number
+        && data.payment.grandTotal > 0
+        && data.status in ['Paid', 'Refunded']
+        && data.items is list
+        && data.items.size() >= 1
+        && data.items.size() <= 10;
+    }
+    
+    // ===== INVOICES COLLECTION =====
+    match /invoices/{invoiceId} {
+      allow read: if isAuthorized();
+      allow create: if isAuthorized() && isValidInvoice();
+      allow update: if isAuthorized(); // For refunds & customer updates
+      allow delete: if false; // Never delete invoices (audit trail)
+    }
+    
+    // ===== DEPOSITS COLLECTION =====
+    match /deposits/{depositId} {
+      allow read: if isAuthorized();
+      allow create: if isAuthorized()
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.depositId is string
+        && request.resource.data.yearMonth is string;
+      allow update: if false; // Immutable after creation
+      allow delete: if false; // Never delete deposits
+    }
+    
+    // ===== EXPENSES COLLECTION =====
+    match /expenses/{expenseId} {
+      allow read: if isAuthorized();
+      allow create: if isAuthorized()
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.category is string
+        && request.resource.data.expenseId is string;
+      allow update: if false; // Immutable after creation
+      allow delete: if false; // Never delete expenses
+    }
+    
+    // ===== REPAIRS COLLECTION =====
+    match /repairs/{repairId} {
+      allow read: if isAuthorized();
+      allow create: if isAuthorized()
+        && request.resource.data.jobNumber is string
+        && request.resource.data.customer.phone is string;
+      allow update: if isAuthorized(); // For status updates
+      allow delete: if false; // Never delete repair jobs
+    }
+      // ===== COUNTERS COLLECTION =====
+    // Critical for invoice number generation
+    match /counters/{counterId} {
+      allow read: if isAuthorized();
+      // Allow create for initialization, update for transactions
+      allow create, update: if isAuthorized();
+      allow delete: if false;
+    }
+  }
+}

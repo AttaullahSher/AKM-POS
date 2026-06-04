@@ -2,11 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard | AKM-POS</title>
-  <link rel="icon" type="image/png" href="/Favicon.png">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=135">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <title>Dashboard | AKM-POS</title>  <link rel="icon" type="image/png" href="/Favicon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=2.1.3">
 </head>
 <body class="dashboard-page">
   <!-- Loading Screen -->
@@ -16,12 +14,29 @@
   </div>
 
   <!-- Main Dashboard -->
-  <div id="dashboardApp" class="dashboard-app" style="display: none;">
-    <!-- Header -->
+  <div id="dashboardApp" class="dashboard-app" style="display: none;">    <!-- Header -->
     <header class="dashboard-header">
       <div class="header-left">
         <h1>📊 AKM Dashboard</h1>
         <p class="header-subtitle">Business Intelligence & Reports</p>
+      </div>
+      <div class="header-actions">
+        <button class="header-action-btn" onclick="openTaxReportModal()" title="Tax Reports">
+          <span class="action-icon">📊</span>
+          <span class="action-label">Tax Reports</span>
+        </button>
+        <button class="header-action-btn" onclick="printDailyReport()" title="Daily Report">
+          <span class="action-icon">📄</span>
+          <span class="action-label">Daily Report</span>
+        </button>
+        <button class="header-action-btn" onclick="exportAllData()" title="Export Data">
+          <span class="action-icon">💾</span>
+          <span class="action-label">Export</span>
+        </button>
+        <button class="header-action-btn" onclick="createBackup()" title="Backup">
+          <span class="action-icon">🗄️</span>
+          <span class="action-label">Backup</span>
+        </button>
       </div>
       <div class="header-right">
         <button onclick="window.location.href='index.html'" class="btn-back-to-pos">
@@ -42,30 +57,12 @@
     <div class="dashboard-container">
       <!-- Stats Cards -->
       <div class="stats-grid">
-        <div class="stat-card stat-primary">
-          <div class="stat-icon">💰</div>
-          <div class="stat-content">
-            <div class="stat-label">Today's Sales</div>
-            <div class="stat-value" id="todayTotalSales">0.00</div>
-            <div class="stat-meta" id="todayInvoiceCount">0 invoices</div>
-          </div>
-        </div>
-
         <div class="stat-card stat-success">
           <div class="stat-icon">💵</div>
           <div class="stat-content">
             <div class="stat-label">Cash in Hand</div>
             <div class="stat-value" id="cashInHand">0.00</div>
             <div class="stat-meta">After deposits & expenses</div>
-          </div>
-        </div>
-
-        <div class="stat-card stat-info">
-          <div class="stat-icon">📊</div>
-          <div class="stat-content">
-            <div class="stat-label">Total VAT (Today)</div>
-            <div class="stat-value" id="todayVAT">0.00</div>
-            <div class="stat-meta">5% collected</div>
           </div>
         </div>
 
@@ -77,10 +74,41 @@
             <div class="stat-meta">Jobs in process</div>
           </div>
         </div>
+      </div>      <!-- Today's Sales Breakdown -->
+      <div class="section-card">
+        <h2 class="section-title">Today's Sales Breakdown</h2>
+        <div class="sales-breakdown-grid">
+          <div class="breakdown-item">
+            <div class="breakdown-icon">💰</div>
+            <div class="breakdown-label">Total Sales</div>
+            <div class="breakdown-value" id="todayTotalSales">0.00</div>
+            <div class="breakdown-meta" id="todayInvoiceCount">0 invoices</div>
+          </div>
+          <div class="breakdown-item">
+            <div class="breakdown-icon">💵</div>
+            <div class="breakdown-label">Cash</div>
+            <div class="breakdown-value" id="cashSales">0.00</div>
+          </div>
+          <div class="breakdown-item">
+            <div class="breakdown-icon">💳</div>
+            <div class="breakdown-label">Card</div>
+            <div class="breakdown-value" id="cardSales">0.00</div>
+          </div>
+          <div class="breakdown-item">
+            <div class="breakdown-icon">📱</div>
+            <div class="breakdown-label">Tabby</div>
+            <div class="breakdown-value" id="tabbySales">0.00</div>
+          </div>
+          <div class="breakdown-item">
+            <div class="breakdown-icon">📝</div>
+            <div class="breakdown-label">Cheque</div>
+            <div class="breakdown-value" id="chequeSales">0.00</div>
+          </div>
+        </div>
       </div>
 
       <!-- Payment Breakdown -->
-      <div class="section-card">
+      <div class="section-card" style="display: none;">
         <h2 class="section-title">Today's Payment Breakdown</h2>
         <div class="payment-grid">
           <div class="payment-item">
@@ -99,43 +127,7 @@
             <span class="payment-label">📝 Cheque</span>
             <span class="payment-value" id="chequeSales">0.00</span>
           </div>
-        </div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="actions-grid">
-        <button class="action-btn action-primary" onclick="openTaxReportModal()">
-          <div class="action-icon">📊</div>
-          <div class="action-text">
-            <div class="action-title">Tax Reports</div>
-            <div class="action-desc">Quarterly VAT reports</div>
-          </div>
-        </button>
-
-        <button class="action-btn action-success" onclick="printDailyReport()">
-          <div class="action-icon">📄</div>
-          <div class="action-text">
-            <div class="action-title">Daily Report</div>
-            <div class="action-desc">Print today's summary</div>
-          </div>
-        </button>
-
-        <button class="action-btn action-info" onclick="exportAllData()">
-          <div class="action-icon">💾</div>
-          <div class="action-text">
-            <div class="action-title">Export Data</div>
-            <div class="action-desc">Download all records</div>
-          </div>
-        </button>
-
-        <button class="action-btn action-warning" onclick="createBackup()">
-          <div class="action-icon">🗄️</div>
-          <div class="action-text">
-            <div class="action-title">Backup</div>
-            <div class="action-desc">Firestore backup</div>
-          </div>
-        </button>
-      </div>
+        </div>      </div>
 
       <!-- Recent Invoices -->
       <div class="section-card">

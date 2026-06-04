@@ -27,6 +27,7 @@ import {
 
 // Import centralized configuration
 import { FIREBASE_CONFIG, APP_CONFIG, debugLog } from './config.js';
+import { showToast } from './utils.js';
 
 const ALLOWED_EMAIL = APP_CONFIG.ALLOWED_EMAIL;
 const CONFIG = APP_CONFIG.VALIDATION;
@@ -154,11 +155,6 @@ window.removeEventListener('beforeprint', preparePrintLayout);
 window.removeEventListener('afterprint', restorePrintLayout);
 window.addEventListener('beforeprint', preparePrintLayout);
 window.addEventListener('afterprint', restorePrintLayout);
-
-// Debug logging
-function debugLog(...args) {
-  console.log('%c[AKM-POS]', 'color: #4CAF50; font-weight: bold', ...args);
-}
 
 // Error handlers (preserved)
 window.addEventListener('unhandledrejection', (event) => {
@@ -421,6 +417,12 @@ async function loadNextInvoiceNumber() {
 
 async function loadDashboardData() {
   try {
+    // Check if user is authenticated
+    if (!currentUser) {
+      debugLog('⚠️ User not authenticated, skipping dashboard load');
+      return;
+    }
+    
     const today = formatDate(new Date(), 'YYYY-MM-DD');
     
     // Load today's data in parallel (3 queries, ~200ms total!)
@@ -477,6 +479,12 @@ function updateElement(id, value) {
 
 async function loadRecentInvoices() {
   try {
+    // Check if user is authenticated
+    if (!currentUser) {
+      debugLog('⚠️ User not authenticated, skipping recent invoices load');
+      return;
+    }
+    
     const invoices = await getRecentInvoicesFromFirestore(CONFIG.RECENT_INVOICES_LOAD_LIMIT);
     
     const container = document.getElementById('recentInvoices');
@@ -814,7 +822,11 @@ function setupAutoRefresh() {
   setInterval(async () => {
     try {
       await loadDashboardData();
-      await loadRecentInvoices();
+      // Only load recent invoices if container exists (not on all pages)
+      const recentInvoicesContainer = document.getElementById('recentInvoices');
+      if (recentInvoicesContainer) {
+        await loadRecentInvoices();
+      }
     } catch (error) {
       console.error('Auto-refresh error:', error);
     }
@@ -822,21 +834,6 @@ function setupAutoRefresh() {
 }
 
 // ============================================
-// UTILITY FUNCTIONS (PRESERVED)
-// ============================================
-
-function showToast(message, type = 'info') {
-  const toast = document.getElementById('toast');
-  if (!toast) return;
-  
-  toast.textContent = message;
-  toast.className = `toast show ${type}`;
-  
-  setTimeout(() => {
-    toast.className = 'toast';
-  }, 4000);
-}
-
 // ============================================
 // AUTH STATE OBSERVER (UNCHANGED)
 // ============================================

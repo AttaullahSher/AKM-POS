@@ -13,6 +13,7 @@ import {
 } from './firestore-utils.js';
 
 import { APP_CONFIG, debugLog } from './config.js';
+import { showToast } from './utils.js';
 
 const DEBUG_MODE = APP_CONFIG.DEBUG_MODE;
 
@@ -483,17 +484,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
       });
-    }
-  });
+    }  });
 });
-
-// Toast helper (uses main app's showToast if available)
-function showToast(message, type = 'info') {
-  if (window.showToast) {
-    window.showToast(message, type);
-  } else {
-    console.log(`[${type.toUpperCase()}] ${message}`);
-  }
-}
 
 debugLog('✅ repair-management-firestore.js loaded');
