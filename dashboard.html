@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | AKM-POS</title>
+  <link rel="icon" type="image/png" href="/Favicon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=135">
+</head>
+<body class="dashboard-page">
+  <!-- Loading Screen -->
+  <div id="loadingScreen" class="loading-screen">
+    <div class="loading-spinner"></div>
+    <p id="loadingText">Loading Dashboard...</p>
+  </div>
+
+  <!-- Main Dashboard -->
+  <div id="dashboardApp" class="dashboard-app" style="display: none;">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <div class="header-left">
+        <h1>📊 AKM Dashboard</h1>
+        <p class="header-subtitle">Business Intelligence & Reports</p>
+      </div>
+      <div class="header-right">
+        <button onclick="window.location.href='index.html'" class="btn-back-to-pos">
+          ← Back to POS
+        </button>
+        <button id="logoutBtn" class="btn-logout">
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+            <path d="M6 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V3.33333C2 2.97971 2.14048 2.64057 2.39052 2.39052C2.64057 2.14048 2.97971 2 3.33333 2H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M10.6667 11.3333L14 8L10.6667 4.66667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M14 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Logout
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="dashboard-container">
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card stat-primary">
+          <div class="stat-icon">💰</div>
+          <div class="stat-content">
+            <div class="stat-label">Today's Sales</div>
+            <div class="stat-value" id="todayTotalSales">0.00</div>
+            <div class="stat-meta" id="todayInvoiceCount">0 invoices</div>
+          </div>
+        </div>
+
+        <div class="stat-card stat-success">
+          <div class="stat-icon">💵</div>
+          <div class="stat-content">
+            <div class="stat-label">Cash in Hand</div>
+            <div class="stat-value" id="cashInHand">0.00</div>
+            <div class="stat-meta">After deposits & expenses</div>
+          </div>
+        </div>
+
+        <div class="stat-card stat-info">
+          <div class="stat-icon">📊</div>
+          <div class="stat-content">
+            <div class="stat-label">Total VAT (Today)</div>
+            <div class="stat-value" id="todayVAT">0.00</div>
+            <div class="stat-meta">5% collected</div>
+          </div>
+        </div>
+
+        <div class="stat-card stat-warning">
+          <div class="stat-icon">🔧</div>
+          <div class="stat-content">
+            <div class="stat-label">Pending Repairs</div>
+            <div class="stat-value" id="pendingRepairs">0</div>
+            <div class="stat-meta">Jobs in process</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Breakdown -->
+      <div class="section-card">
+        <h2 class="section-title">Today's Payment Breakdown</h2>
+        <div class="payment-grid">
+          <div class="payment-item">
+            <span class="payment-label">💵 Cash</span>
+            <span class="payment-value" id="cashSales">0.00</span>
+          </div>
+          <div class="payment-item">
+            <span class="payment-label">💳 Card</span>
+            <span class="payment-value" id="cardSales">0.00</span>
+          </div>
+          <div class="payment-item">
+            <span class="payment-label">📱 Tabby</span>
+            <span class="payment-value" id="tabbySales">0.00</span>
+          </div>
+          <div class="payment-item">
+            <span class="payment-label">📝 Cheque</span>
+            <span class="payment-value" id="chequeSales">0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="actions-grid">
+        <button class="action-btn action-primary" onclick="openTaxReportModal()">
+          <div class="action-icon">📊</div>
+          <div class="action-text">
+            <div class="action-title">Tax Reports</div>
+            <div class="action-desc">Quarterly VAT reports</div>
+          </div>
+        </button>
+
+        <button class="action-btn action-success" onclick="printDailyReport()">
+          <div class="action-icon">📄</div>
+          <div class="action-text">
+            <div class="action-title">Daily Report</div>
+            <div class="action-desc">Print today's summary</div>
+          </div>
+        </button>
+
+        <button class="action-btn action-info" onclick="exportAllData()">
+          <div class="action-icon">💾</div>
+          <div class="action-text">
+            <div class="action-title">Export Data</div>
+            <div class="action-desc">Download all records</div>
+          </div>
+        </button>
+
+        <button class="action-btn action-warning" onclick="createBackup()">
+          <div class="action-icon">🗄️</div>
+          <div class="action-text">
+            <div class="action-title">Backup</div>
+            <div class="action-desc">Firestore backup</div>
+          </div>
+        </button>
+      </div>
+
+      <!-- Recent Invoices -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2 class="section-title">Recent Invoices</h2>
+          <div class="section-actions">
+            <button class="btn-filter active" data-filter="all" onclick="filterInvoices('all')">All</button>
+            <button class="btn-filter" data-filter="today" onclick="filterInvoices('today')">Today</button>
+            <button class="btn-filter" data-filter="week" onclick="filterInvoices('week')">This Week</button>
+            <button class="btn-filter" data-filter="month" onclick="filterInvoices('month')">This Month</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Invoice #</th>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Total</th>
+                <th>Payment</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="invoicesTableBody">
+              <tr>
+                <td colspan="7" class="table-loading">Loading invoices...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination">
+          <button class="btn-pagination" onclick="loadMoreInvoices()">Load More</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tax Report Modal -->
+  <div id="taxReportModal" class="modal-overlay">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>📊 Tax/VAT Reports</h2>
+        <button onclick="closeTaxReportModal()" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Quarter Selection -->
+        <div class="quarter-section">
+          <h3>Select Financial Quarter</h3>
+          <div class="quarter-grid">
+            <button onclick="generateQuarterlyReport('Q1')" class="quarter-btn">
+              <div class="quarter-name">Q1</div>
+              <div class="quarter-period">Aug-Nov</div>
+              <div class="quarter-label">Tax Period 1</div>
+            </button>
+            <button onclick="generateQuarterlyReport('Q2')" class="quarter-btn">
+              <div class="quarter-name">Q2</div>
+              <div class="quarter-period">Dec-Feb</div>
+              <div class="quarter-label">Tax Period 2</div>
+            </button>
+            <button onclick="generateQuarterlyReport('Q3')" class="quarter-btn">
+              <div class="quarter-name">Q3</div>
+              <div class="quarter-period">Mar-May</div>
+              <div class="quarter-label">Tax Period 3</div>
+            </button>
+            <button onclick="generateQuarterlyReport('Q4')" class="quarter-btn">
+              <div class="quarter-name">Q4</div>
+              <div class="quarter-period">Jun-Jul</div>
+              <div class="quarter-label">Tax Period 4</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Custom Date Range -->
+        <div class="date-range-section">
+          <h3>Custom Date Range</h3>
+          <div class="date-range-inputs">
+            <div class="input-group">
+              <label>From Date</label>
+              <input type="date" id="taxReportFromDate" class="input-date">
+            </div>
+            <div class="input-group">
+              <label>To Date</label>
+              <input type="date" id="taxReportToDate" class="input-date">
+            </div>
+            <button onclick="generateCustomDateReport()" class="btn-generate">Generate</button>
+          </div>
+        </div>
+
+        <!-- Report Display -->
+        <div id="taxReportDisplay" style="display: none;">
+          <div id="taxReportContent"></div>
+          <div class="report-actions">
+            <button onclick="exportTaxReportCSV()" class="btn-export btn-csv">📥 Export CSV</button>
+            <button onclick="exportTaxReportExcel()" class="btn-export btn-excel">📥 Export Excel</button>
+            <button onclick="printTaxReport()" class="btn-export btn-print">🖨️ Print</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Toast Notification -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Scripts - v2.1 Centralized Configuration -->
+  <script type="module" src="config.js?v=2.1"></script>
+  <script type="module" src="utils.js?v=2.1"></script>
+  <script type="module" src="firebase-config.js?v=2.1"></script>
+  <script type="module" src="firestore-utils.js?v=2.1"></script>
+  <script type="module" src="dashboard.js?v=2.1"></script>
+</body>
+</html>

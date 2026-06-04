@@ -8,7 +8,7 @@
   <div id="loadingScreen" class="loading-screen">
     <div class="loading-spinner"></div>
     <p id="loadingText">Initializing...</p>
-    <div style="font-size: 11px; color: #999; margin-top: 8px;">First load may take 20-30s</div>
+    <div style="font-size: 11px; color: #999; margin-top: 8px;">Powered by Firestore - Loads in <200ms</div>
   </div>
 
   <!-- Login Screen -->
@@ -32,10 +32,10 @@
   </div>
 
   <!-- Main App -->
-  <div id="mainApp" class="main-app" style="display: none;">
-    <!-- Sidebar -->
-    <aside class="sidebar">      <div class="sidebar-header">
-        <h3>📊 Today's Sales</h3>
+  <div id="mainApp" class="main-app" style="display: none;">    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h3>🎵 AKM-POS</h3>
         <button id="logoutBtn" class="logout-btn" title="Logout" aria-label="Logout">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M6 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V3.33333C2 2.97971 2.14048 2.64057 2.39052 2.39052C2.64057 2.14048 2.97971 2 3.33333 2H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -45,53 +45,35 @@
         </button>
       </div>
       
-      <div class="metrics">
-        <div class="metric">
-          <div class="metric-label">Cash</div>
-          <div class="metric-value" id="cashSales">0.00</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Card</div>
-          <div class="metric-value" id="cardSales">0.00</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Tabby</div>
-          <div class="metric-value" id="tabbySales">0.00</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Cheque</div>
-          <div class="metric-value" id="chequeSales">0.00</div>
-        </div>
-        <div class="metric metric-full">
-          <div class="metric-label">💰 Cash in Hand</div>
-          <div class="metric-value" id="cashInHand">0.00</div>
-        </div>
-      </div>      <div class="sidebar-actions">
-        <button onclick="openDepositModal()" aria-label="Open deposit modal" title="Deposit"> Deposit</button>
-        <button onclick="openExpenseModal()" aria-label="Open expense modal" title="Add Expense"> Expense</button>
-        <button onclick="printDailyReport()" aria-label="Print daily report" title="Report"> Report</button>
-      </div>
-
-      <!-- Repair Jobs Button -->
-      <div class="sidebar-actions" style="margin-top: 12px;">
-        <button onclick="openRepairModal()" aria-label="Open repair jobs" 
-                title="Repair Jobs" style="grid-column: 1 / -1; background: #ff9800; color: white;">
-          🔧 Repair Jobs
+      <div class="sidebar-quick-actions">
+        <button onclick="window.location.href='dashboard.html'" class="quick-action-btn action-dashboard">
+          <div class="action-icon">📊</div>
+          <div class="action-label">Dashboard</div>
         </button>
-      </div>      <div class="recent-wrapper">
-        <h4 class="recent-title">Recent Invoices</h4>
-        <div id="recentInvoices">
-          <div class="loading-text">Loading...</div>
-        </div>
-        <button class="btn-load-more" onclick="loadMoreInvoices()">Show More Days</button>
+        
+        <button onclick="openExpenseModal()" class="quick-action-btn action-expense">
+          <div class="action-icon">💸</div>
+          <div class="action-label">Expense</div>
+        </button>
+        
+        <button onclick="openRepairModal()" class="quick-action-btn action-repair">
+          <div class="action-icon">🔧</div>
+          <div class="action-label">Repairs</div>
+        </button>
       </div>
 
-      <!-- Back to Top Button (Dashboard) -->
-      <button class="back-to-top" id="backToTopBtn" onclick="scrollToTop()" title="Back to Top" aria-label="Back to Top">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 19V5M12 5L5 12M12 5L19 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
+      <div class="sidebar-info">
+        <h4 class="info-title">Quick Info</h4>
+        <div class="info-item">
+          <span class="info-label">Today's Sales:</span>
+          <span class="info-value" id="todaySalesQuick">0.00</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Cash in Hand:</span>
+          <span class="info-value" id="cashInHandQuick">0.00</span>
+        </div>
+        <p class="info-note">Visit Dashboard for detailed reports</p>
+      </div>
     </aside>
 
     <!-- Main Content -->
@@ -346,8 +328,181 @@
       </div>
     </div>
   </div>  <!-- Repair Slip Container (for printing) -->
-  <div id="repairSlipContainer" class="repair-slip-container"></div>  <!-- Load configuration before app scripts -->
-  <script src="config.js" onerror="console.warn('⚠️ config.js not found. Using default configuration.')"></script>  <script type="module" src="app.js?v=127.9"></script>
-  <script type="module" src="repair-management.js?v=127.9"></script>
+  <div id="repairSlipContainer" class="repair-slip-container"></div>
+
+  <!-- Tax/VAT Report Modal -->
+  <div id="taxReportModal" class="modal">
+    <div class="modal-content" style="max-width: 900px;">
+      <div class="modal-header">
+        <h2>📊 Tax/VAT Reports</h2>
+        <button onclick="closeTaxReportModal()" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Quarter Selection -->
+        <div style="margin-bottom: 20px;">
+          <h3 style="margin-bottom: 15px;">Select Financial Quarter</h3>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+            <button onclick="generateQuarterlyReport('Q1')" class="quarter-btn">
+              Q1: Aug-Nov<br><small>Tax Period 1</small>
+            </button>
+            <button onclick="generateQuarterlyReport('Q2')" class="quarter-btn">
+              Q2: Dec-Feb<br><small>Tax Period 2</small>
+            </button>
+            <button onclick="generateQuarterlyReport('Q3')" class="quarter-btn">
+              Q3: Mar-May<br><small>Tax Period 3</small>
+            </button>
+            <button onclick="generateQuarterlyReport('Q4')" class="quarter-btn">
+              Q4: Jun-Jul<br><small>Tax Period 4</small>
+            </button>
+          </div>
+        </div>
+
+        <!-- Custom Date Range -->
+        <div style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+          <h3 style="margin-bottom: 15px;">Custom Date Range</h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end;">
+            <div>
+              <label>From Date</label>
+              <input type="date" id="taxReportFromDate" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div>
+              <label>To Date</label>
+              <input type="date" id="taxReportToDate" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <button onclick="generateCustomDateReport()" style="padding: 9px 20px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              Generate
+            </button>
+          </div>
+        </div>
+
+        <!-- Report Display Area -->
+        <div id="taxReportDisplay" style="margin-top: 20px; display: none;">
+          <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+            <div id="taxReportContent"></div>
+            
+            <!-- Export Buttons -->
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+              <button onclick="exportTaxReportCSV()" style="padding: 10px 20px; background: #16a34a; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                📥 Export CSV
+              </button>
+              <button onclick="exportTaxReportExcel()" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                📥 Export Excel
+              </button>
+              <button onclick="printTaxReport()" style="padding: 10px 20px; background: #6366f1; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                🖨️ Print
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Modals for Expense & Repair -->
+  <div id="expenseModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>💸 Add Expense</h3>
+        <button class="modal-close" onclick="closeExpenseModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Category <span style="color: red;">*</span></label>
+          <select id="expenseCategory" aria-label="Expense category" required>
+            <option value="">-- Select Category --</option>
+            <option value="Local Purchase">Local Purchase</option>
+            <option value="Grocery">Grocery</option>
+            <option value="Refund">Refund</option>
+            <option value="Transport">Transport</option>
+            <option value="Salary">Salary</option>
+            <option value="Bills">Bills</option>
+            <option value="Cash given">Cash given</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Description <span style="color: red;">*</span></label>
+          <textarea id="expenseDesc" rows="3" placeholder="Enter detailed description" aria-label="Expense description" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>Amount (AED) <span style="color: red;">*</span></label>
+          <input type="number" id="expenseAmount" step="0.01" min="0" placeholder="0.00" aria-label="Expense amount" required>
+        </div>
+        <div class="form-group">
+          <label>Receipt Number <span style="color: red;">*</span></label>
+          <input type="text" id="expenseReceipt" placeholder="Enter receipt number" aria-label="Expense receipt number" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeExpenseModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitExpense()">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Repair Modal -->
+  <div id="repairModal" class="modal-overlay">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>🔧 Repair Jobs</h2>
+        <button onclick="closeRepairModal()" class="modal-close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="repair-search-bar">
+          <input type="text" id="repairSearchInput" placeholder="Search by name, job number, or product..." oninput="searchRepairJobs()">
+          <button onclick="openNewRepairForm()" class="btn-new-repair">+ New Job</button>
+        </div>
+        <div id="repairJobsList" class="repair-jobs-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Repair Form Modal -->
+  <div id="newRepairModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>New Repair Job</h2>
+        <button onclick="closeNewRepairForm()" class="modal-close">×</button>
+      </div>
+      <div class="modal-body">
+        <form onsubmit="event.preventDefault(); submitNewRepairJob();">
+          <div class="form-group">
+            <label>Name:</label>
+            <input type="text" id="repairCustomerName" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>Phone: <span style="color: red;">*</span></label>
+            <input type="tel" id="repairCustomerMobile" required autocomplete="off" placeholder="e.g., 0501234567">
+          </div>
+          <div class="form-group">
+            <label>Product/Model: <span style="color: red;">*</span></label>
+            <input type="text" id="repairProductModel" required autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>Service:</label>
+            <input type="text" id="repairService" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>Estimated Charges (AED):</label>
+            <input type="number" id="repairCharges" step="0.01" min="0" autocomplete="off">
+          </div>
+          <div class="modal-footer">
+            <button type="button" onclick="closeNewRepairForm()" class="btn btn-secondary">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save & Print</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Repair Slip Container (for printing) -->
+  <div id="repairSlipContainer" class="repair-slip-container"></div>
+  <!-- Toast Notification -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Firestore Migration - v2.1 - Centralized Configuration -->
+  <script type="module" src="config.js?v=2.1"></script>
+  <script type="module" src="firebase-config.js?v=2.1"></script>
+  <script type="module" src="firestore-utils.js?v=2.1"></script>
+  <script type="module" src="app-firestore.js?v=2.1"></script>
+  <script type="module" src="repair-management-firestore.js?v=2.1"></script>
 </body>
 </html>
