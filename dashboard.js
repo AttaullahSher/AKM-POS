@@ -1,9 +1,7 @@
-// dashboard.js - AKM-POS Dashboard Management
+// dashboard.js - AKM-POS Dashboard Management v3.0
 // Handles dashboard analytics, reports, and invoice management
-// v2.1 - Centralized Configuration
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import { auth, onAuthStateChanged, signOut } from './firebase-config.js';
 import {
   db,
   getTodayInvoices,
@@ -15,12 +13,10 @@ import {
   formatTime
 } from './firestore-utils.js';
 import { collection, query, where, orderBy, getDocs, Timestamp } from './firebase-config.js';
-import { FIREBASE_CONFIG, APP_CONFIG, debugLog } from './config.js';
+import { APP_CONFIG, debugLog } from './config.js';
 import { showToast } from './utils.js';
 
 const ALLOWED_EMAIL = APP_CONFIG.ALLOWED_EMAIL;
-const app = initializeApp(FIREBASE_CONFIG);
-const auth = getAuth(app);
 
 let currentUser = null;
 let currentFilter = 'all';
@@ -72,12 +68,10 @@ async function initDashboard() {
 
 async function loadDashboardStats() {
   try {
-    const today = formatDate(new Date(), 'YYYY-MM-DD');
-    
     const [invoices, deposits, expenses] = await Promise.all([
-      getTodayInvoices(today),
-      getTodayDeposits(today),
-      getTodayExpenses(today)
+      getTodayInvoices(),
+      getTodayDeposits(),
+      getTodayExpenses()
     ]);
     
     // Calculate stats
@@ -548,14 +542,13 @@ window.printTaxReport = function() {
 window.printDailyReport = async function() {
   try {
     showToast('Generating daily report...', 'info');
-    
+
     const today = new Date();
-    const todayStr = formatDate(today, 'YYYY-MM-DD');
-    
+
     const [invoices, deposits, expenses] = await Promise.all([
-      getTodayInvoices(todayStr),
-      getTodayDeposits(todayStr),
-      getTodayExpenses(todayStr)
+      getTodayInvoices(),
+      getTodayDeposits(),
+      getTodayExpenses()
     ]);
     
     // Calculate totals
@@ -840,15 +833,14 @@ window.printDailyReport = async function() {
 window.exportAllData = async function() {
   try {
     showToast('Exporting all data...', 'info');
-    
+
     const today = new Date();
-    const todayStr = formatDate(today, 'YYYY-MM-DD');
-    
-    // Get all data
+
+    // Export last 365 days of invoices + today's deposits and expenses
     const [invoices, deposits, expenses] = await Promise.all([
-      getTodayInvoices(todayStr),
-      getTodayDeposits(todayStr),
-      getTodayExpenses(todayStr)
+      getRecentInvoices(365),
+      getTodayDeposits(),
+      getTodayExpenses()
     ]);
     
     // Create comprehensive CSV export
@@ -898,13 +890,12 @@ window.createBackup = async function() {
     showToast('Creating backup...', 'info');
     
     const today = new Date();
-    const todayStr = formatDate(today, 'YYYY-MM-DD');
-    
+
     // Get all data for backup
     const [invoices, deposits, expenses] = await Promise.all([
-      getRecentInvoices(1000), // Get up to 1000 recent invoices
-      getTodayDeposits(todayStr),
-      getTodayExpenses(todayStr)
+      getRecentInvoices(365),
+      getTodayDeposits(),
+      getTodayExpenses()
     ]);
     
     const backupData = {

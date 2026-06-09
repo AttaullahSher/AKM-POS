@@ -1,10 +1,16 @@
-// Firebase Firestore Configuration & Initialization
-// AKM-POS v2.1 - Centralized Configuration
+// Firebase Configuration & Initialization — AKM-POS v3.0
+// Single source of truth for all Firebase instances.
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-import { 
-  getFirestore, 
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  onAuthStateChanged,
+  signOut
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import {
+  getFirestore,
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
@@ -24,14 +30,13 @@ import {
   Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-// Import centralized configuration
 import { FIREBASE_CONFIG, CACHE_CONFIG } from './config.js';
 
-// Initialize Firebase
+// ── Init (single instance) ──────────────────────────────────
 const app = initializeApp(FIREBASE_CONFIG);
+
 const auth = getAuth(app);
 
-// Initialize Firestore with modern cache settings
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     cacheSizeBytes: CACHE_CONFIG.SIZE_BYTES,
@@ -39,14 +44,22 @@ const db = initializeFirestore(app, {
   })
 });
 
-console.log('✅ Firestore initialized with offline persistence (modern API)');
+// Google provider locked to akm-music.com domain hint
+const provider = new GoogleAuthProvider();
+provider.setCustomParameters({ hd: 'akm-music.com' });
 
-// Export Firebase instances
+console.log('✅ Firebase initialised (single instance)');
+
 export {
   app,
   auth,
+  provider,
   db,
-  // Firestore functions
+  // Auth helpers
+  signInWithPopup,
+  onAuthStateChanged,
+  signOut,
+  // Firestore helpers
   collection,
   doc,
   getDoc,

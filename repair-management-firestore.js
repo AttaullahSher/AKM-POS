@@ -140,8 +140,8 @@ window.searchRepairJobs = function() {
 
 function sortRepairJobs() {
   const statusOrder = {
-    'completed': 1,
-    'inprocess': 2,
+    'inprocess': 1,
+    'completed': 2,
     'collected': 3
   };
   
@@ -329,14 +329,14 @@ window.submitNewRepairJob = async function() {
     
     debugLog('💾 Saving repair job:', repairData);
     
-    // Save to Firestore
-    const docRef = await saveRepairJob(repairData);
-    
+    // Save to Firestore (returns plain string docId)
+    const docId = await saveRepairJob(repairData);
+
     showToast('✅ Repair job created successfully', 'success');
-    
+
     // Create job object for printing
     const newJob = {
-      id: docRef.id,
+      id: docId,
       jobNumber,
       date: formatDate(today, 'DD/MM/YYYY'), // UAE format for display
       name,

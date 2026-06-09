@@ -1,15 +1,13 @@
-// AKM-POS v2.1 - FIRESTORE MIGRATION
-// Migrated from Google Sheets to Firebase Firestore
-// Benefits: <200ms load times (vs 20-30s), native offline mode, real-time sync
-// Centralized configuration for better maintainability
+// AKM-POS v3.0 — Main POS Application
+// Fixes: VAT NaN, deposit/expense crash, auto-refresh storm, print timing,
+//        addItemRow override, refund arg, triple Firebase init, keyboard nav.
 
-// Firebase imports
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-
-// Import Firestore utilities (handles all database operations)
 import {
-  db,
+  auth, provider,
+  signInWithPopup, onAuthStateChanged, signOut
+} from './firebase-config.js';
+
+import {
   getNextInvoiceNumber,
   getNextDepositId,
   getNextExpenseId,
@@ -19,175 +17,119 @@ import {
   getTodayInvoices,
   getTodayDeposits,
   getTodayExpenses,
-  loadRecentInvoices as getRecentInvoicesFromFirestore,
+  loadRecentInvoices,
   markInvoiceAsRefunded,
+  getInvoiceByNumber,
   formatDate,
-  formatTime
+  formatTime,
 } from './firestore-utils.js';
 
-// Import centralized configuration
-import { FIREBASE_CONFIG, APP_CONFIG, debugLog } from './config.js';
+import { APP_CONFIG, debugLog } from './config.js';
 import { showToast } from './utils.js';
 
-const ALLOWED_EMAIL = APP_CONFIG.ALLOWED_EMAIL;
-const CONFIG = APP_CONFIG.VALIDATION;
-const BUSINESS_CONFIG = APP_CONFIG.BUSINESS;
+const ALLOWED_EMAIL  = APP_CONFIG.ALLOWED_EMAIL;
+const VALIDATION     = APP_CONFIG.VALIDATION;
+const BUSINESS       = APP_CONFIG.BUSINESS;
+const PERF           = APP_CONFIG.PERFORMANCE;
 
-const app = initializeApp(FIREBASE_CONFIG);
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
-provider.setCustomParameters({ hd: 'akm-music.com' });
+function updateEl(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
 
-// Global state
-let currentUser = null;
+// ─── Global State ────────────────────────────────────────────
+let currentUser          = null;
 let currentPaymentMethod = null;
-let invoiceCounter = 15001;
-let recentInvoicesDays = 7;
-let isReprintMode = false;
-let reprintInvoiceId = null;
-let originalInputStates = [];
+let isReprintMode        = false;
+let reprintInvoiceData   = null;
+let originalInputStates  = [];
 
-// PRINT FIX: Convert inputs to text spans before printing (preserved from v127)
+// ─── Print Helpers ───────────────────────────────────────────
+
 function preparePrintLayout() {
-  debugLog('📝 Preparing print layout - converting inputs to text spans');
   originalInputStates = [];
-  
-  const invoiceContainer = document.querySelector('.invoice-container');
-  if (!invoiceContainer) return;
-  
-  // Hide empty item rows before printing
-  const itemsBody = document.getElementById('itemsBody');
-  if (itemsBody) {
-    for (let i = 1; i <= CONFIG.MAX_ITEMS_PER_INVOICE; i++) {
-      const row = itemsBody.querySelector(`tr[data-row-index="${i}"]`);
-      const modelInput = document.getElementById(`model${i}`);
-      const descInput = document.getElementById(`description${i}`);
-      
-      // Hide row if both model and description are empty
-      if (row && modelInput && descInput) {
-        const isEmpty = !modelInput.value.trim() && !descInput.value.trim();
-        if (isEmpty) {
-          row.classList.add('print-hidden-row');
-          row.style.display = 'none';
-        }
-      }
+  const container = document.querySelector('.invoice-card');
+  if (!container) return;
+
+  // Hide empty rows
+  for (let i = 1; i <= VALIDATION.MAX_ITEMS_PER_INVOICE; i++) {
+    const row   = document.querySelector(`tr[data-row-index="${i}"]`);
+    const model = document.getElementById(`model${i}`);
+    const desc  = document.getElementById(`description${i}`);
+    if (row && model && desc && !model.value.trim() && !desc.value.trim()) {
+      row.style.display = 'none';
+      row.dataset.hiddenForPrint = '1';
     }
   }
-  
-  const inputs = invoiceContainer.querySelectorAll('input, select, .amount-display');
-  
-  inputs.forEach(input => {
-    const state = {
-      element: input,
-      display: input.style.display,
-      parent: input.parentNode
-    };
+
+  // Replace inputs with static spans
+  container.querySelectorAll('input, .amount-cell').forEach(el => {
+    const state = { element: el, display: el.style.display, parent: el.parentNode };
     originalInputStates.push(state);
-    
-    const textSpan = document.createElement('span');
-    textSpan.className = 'print-text-replacement';
-    
-    let value = '';
-    if (input.classList.contains('amount-display')) {
-      value = input.textContent || input.innerText;
-    } else if (input.tagName === 'SELECT') {
-      value = input.options[input.selectedIndex]?.text || '';
-    } else if (input.type === 'date') {
-      value = input.value;
-    } else {
-      value = input.value;
+
+    const span = document.createElement('span');
+    span.className = 'print-text-replacement';
+    span.textContent = el.classList.contains('amount-cell')
+      ? (el.textContent || ' ')
+      : (el.value || ' ');
+
+    if (el.id?.includes('description')) {
+      span.style.whiteSpace = 'pre-wrap';
+      span.style.wordBreak  = 'break-word';
     }
-    
-    // Preserve whitespace for description fields
-    if (input.id?.includes('description')) {
-      textSpan.style.whiteSpace = 'pre-wrap';
-      textSpan.style.wordBreak = 'break-word';
-    }
-    
-    textSpan.textContent = value || '\u00A0'; // Non-breaking space if empty
-    textSpan.style.display = 'inline-block';
-    textSpan.style.width = '100%';
-    
-    input.style.display = 'none';
-    input.parentNode.insertBefore(textSpan, input);
+
+    el.style.display = 'none';
+    el.parentNode.insertBefore(span, el);
   });
-  
-  debugLog('✅ Print layout prepared:', originalInputStates.length, 'inputs converted');
 }
 
 function restorePrintLayout() {
-  debugLog('🔄 Restoring normal layout');
-  
-  const textSpans = document.querySelectorAll('.print-text-replacement');
-  textSpans.forEach(span => span.remove());
-  
-  originalInputStates.forEach(state => {
-    state.element.style.display = state.display;
-  });
-  
-  // Restore hidden empty rows (show only first 3, keep rest hidden unless they were already visible)
-  const itemsBody = document.getElementById('itemsBody');
-  if (itemsBody) {
-    for (let i = 1; i <= CONFIG.MAX_ITEMS_PER_INVOICE; i++) {
-      const row = itemsBody.querySelector(`tr[data-row-index="${i}"]`);
-      if (row && row.classList.contains('print-hidden-row')) {
-        row.classList.remove('print-hidden-row');
-        // Keep rows 1-3 visible, hide the rest if they were auto-hidden
-        if (i > 3) {
-          const modelInput = document.getElementById(`model${i}`);
-          const isEmpty = !modelInput || !modelInput.value.trim();
-          if (isEmpty) {
-            row.style.display = 'none';
-          }
-        } else {
-          row.style.display = '';
-        }
+  document.querySelectorAll('.print-text-replacement').forEach(s => s.remove());
+  originalInputStates.forEach(s => { s.element.style.display = s.display; });
+  originalInputStates = [];
+
+  for (let i = 1; i <= VALIDATION.MAX_ITEMS_PER_INVOICE; i++) {
+    const row = document.querySelector(`tr[data-row-index="${i}"]`);
+    if (row && row.dataset.hiddenForPrint) {
+      if (i > 3) {
+        const model = document.getElementById(`model${i}`);
+        if (!model?.value.trim()) row.style.display = 'none';
+        else row.style.display = '';
+      } else {
+        row.style.display = '';
       }
+      delete row.dataset.hiddenForPrint;
     }
   }
-  
-  originalInputStates = [];
-  debugLog('✅ Layout restored');
 }
 
-// Register print event handlers
-window.removeEventListener('beforeprint', preparePrintLayout);
-window.removeEventListener('afterprint', restorePrintLayout);
 window.addEventListener('beforeprint', preparePrintLayout);
-window.addEventListener('afterprint', restorePrintLayout);
+window.addEventListener('afterprint',  restorePrintLayout);
 
-// Error handlers (preserved)
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('❌ Unhandled promise rejection:', event.reason);
-  if (event.reason?.message?.includes('Failed to fetch')) {
-    showToast('⚠️ Network connection issue. Check your internet.', 'error');
+// ─── Error Handlers ──────────────────────────────────────────
+
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('❌ Unhandled rejection:', e.reason);
+  if (e.reason?.message?.includes('Failed to fetch')) {
+    showToast('⚠️ Network issue. Check your connection.', 'error');
   }
-  event.preventDefault();
+  e.preventDefault();
 });
 
-window.addEventListener('error', (event) => {
-  console.error('❌ Global error:', event.message, event.filename, event.lineno);
-});
-
-// ============================================
-// AUTHENTICATION (UNCHANGED)
-// ============================================
+// ─── Auth ────────────────────────────────────────────────────
 
 async function signInWithGoogle() {
   try {
     const result = await signInWithPopup(auth, provider);
-    const email = result.user.email;
-    
-    if (email !== ALLOWED_EMAIL) {
+    if (result.user.email !== ALLOWED_EMAIL) {
       await signOut(auth);
-      showToast(`Access denied. Only ${ALLOWED_EMAIL} is allowed.`, 'error');
+      showToast(`Access denied. Only ${ALLOWED_EMAIL} may sign in.`, 'error');
       return;
     }
-    
     currentUser = result.user;
     showMainApp();
-  } catch (error) {
-    console.error('Login error:', error);
+  } catch (err) {
+    console.error('Login error:', err);
     showToast('Login failed. Please try again.', 'error');
   }
 }
@@ -197,915 +139,513 @@ async function logout() {
     await signOut(auth);
     currentUser = null;
     showLoginScreen();
-  } catch (error) {
-    console.error('Logout error:', error);
+  } catch (err) {
+    console.error('Logout error:', err);
     showToast('Logout failed.', 'error');
   }
 }
 
 function showLoginScreen() {
   document.getElementById('loadingScreen').style.display = 'none';
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('loginScreen').style.display   = 'flex';
+  document.getElementById('mainApp').style.display       = 'none';
 }
 
 function showMainApp() {
   document.getElementById('loadingScreen').style.display = 'none';
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('mainApp').style.display = 'flex';
+  document.getElementById('loginScreen').style.display   = 'none';
+  document.getElementById('mainApp').style.display       = 'flex';
   initializePOS();
 }
 
-// ============================================
-// INITIALIZATION (REFACTORED FOR FIRESTORE)
-// ============================================
+// ─── Initialization ──────────────────────────────────────────
 
 async function initializePOS() {
-  debugLog('🚀 Initializing AKM-POS with Firestore...');
-  
-  const loadingScreen = document.getElementById('loadingScreen');
-  // FIX: Align with index.html where the loading text element id is 'loadingText'
-  const loadingTextEl = document.getElementById('loadingText');
-  
-  if (loadingScreen) {
-    loadingScreen.style.display = 'flex';
-  }
-    try {
-    // Step 0: Initialize items table
+  debugLog('🚀 Initializing AKM-POS v3.0');
+  const screen = document.getElementById('loadingScreen');
+  if (screen) screen.style.display = 'flex';
+
+  try {
     initializeItemsTable();
-    
-    // Step 1: Load invoice number (FAST with Firestore!)
-    updateLoadingProgress('Loading invoice number...');
+    setLoadingText('Loading invoice number…');
     await loadNextInvoiceNumber();
-    
-    // Step 2: Load dashboard data
-    updateLoadingProgress('Loading dashboard...');
+
+    setLoadingText('Loading dashboard…');
     await loadDashboardData();
-    
-    // Step 3: Load recent invoices
-    updateLoadingProgress('Loading recent invoices...');
-    await loadRecentInvoices();
-    
-    // Step 4: Setup auto-refresh (now much faster!)
+
+    setLoadingText('Loading recent invoices…');
+    await loadRecentInvoicesPanel();
+
     setupAutoRefresh();
-    
-    debugLog('✅ POS initialized successfully');
-    showToast('✅ POS ready! Firestore connected.', 'success');
-    
-  } catch (error) {
-    console.error('❌ Initialization error:', error);
-    showToast('⚠️ Initialization issue. You can still create invoices in offline mode.', 'warning');
+    showToast('✅ POS ready!', 'success');
+  } catch (err) {
+    console.error('❌ Init error:', err);
+    showToast('⚠️ Partial load — offline mode active.', 'warning');
   } finally {
-    if (loadingScreen) {
-      setTimeout(() => {
-        loadingScreen.style.display = 'none';
-      }, 300);
-    }
+    if (screen) setTimeout(() => { screen.style.display = 'none'; }, 300);
   }
 }
 
-function updateLoadingProgress(message) {
-  // FIX: Use the correct element id 'loadingText' from index.html
-  const loadingText = document.getElementById('loadingText');
-  if (loadingText) {
-    loadingText.textContent = message;
-  }
-  debugLog('⏳', message);
+function setLoadingText(msg) {
+  const el = document.getElementById('loadingText');
+  if (el) el.textContent = msg;
+  debugLog('⏳', msg);
 }
 
-// ============================================
-// ITEMS TABLE INITIALIZATION
-// ============================================
+// ─── Items Table ─────────────────────────────────────────────
 
 function initializeItemsTable() {
-  const itemsBody = document.getElementById('itemsBody');
-  if (!itemsBody) return;
-  
-  // Create 10 item rows (initially show only 3)
-  for (let i = 1; i <= CONFIG.MAX_ITEMS_PER_INVOICE; i++) {
+  const body = document.getElementById('itemsBody');
+  if (!body) return;
+
+  for (let i = 1; i <= VALIDATION.MAX_ITEMS_PER_INVOICE; i++) {
     const row = document.createElement('tr');
     row.setAttribute('data-row-index', i);
     row.innerHTML = `
-      <td><input type="text" id="model${i}" class="item-input" placeholder="Model" autocomplete="off"></td>
-      <td><input type="text" id="description${i}" class="item-input" placeholder="Description" autocomplete="off"></td>
-      <td><input type="number" id="quantity${i}" class="item-input" min="1" value="1" autocomplete="off"></td>
-      <td><input type="number" id="price${i}" class="item-input" min="0" step="0.01" placeholder="0.00" autocomplete="off"></td>
-      <td class="amount-cell" id="amount${i}">0.00</td>
-    `;
-    
-    // Hide rows after the 3rd one
-    if (i > 3) {
-      row.style.display = 'none';
-    }
-    
-    itemsBody.appendChild(row);
-    
-    // Add event listeners for auto-calculation
-    const qtyInput = row.querySelector(`#quantity${i}`);
-    const priceInput = row.querySelector(`#price${i}`);
-    const amountCell = row.querySelector(`#amount${i}`);
-    
-    const calculateAmount = () => {
-      const qty = parseFloat(qtyInput.value) || 0;
-      const price = parseFloat(priceInput.value) || 0;
-      const amount = qty * price;
-      amountCell.textContent = amount.toFixed(2);
+      <td><input type="text"   id="model${i}"       class="item-input" placeholder="Model"       autocomplete="off"></td>
+      <td><input type="text"   id="description${i}" class="item-input" placeholder="Description" autocomplete="off"></td>
+      <td><input type="number" id="quantity${i}"     class="item-input" min="1" value="1"          autocomplete="off" style="text-align:right"></td>
+      <td><input type="number" id="price${i}"        class="item-input" min="0" step="0.01" placeholder="0.00" autocomplete="off" style="text-align:right"></td>
+      <td class="amount-cell"  id="amount${i}">0.00</td>`;
+
+    if (i > 3) row.style.display = 'none';
+    body.appendChild(row);
+
+    const qtyEl    = row.querySelector(`#quantity${i}`);
+    const priceEl  = row.querySelector(`#price${i}`);
+    const amountEl = row.querySelector(`#amount${i}`);
+
+    const recalc = () => {
+      const amt = (parseFloat(qtyEl.value) || 0) * (parseFloat(priceEl.value) || 0);
+      amountEl.textContent = amt.toFixed(2);
       calculateTotals();
     };
-    
-    qtyInput.addEventListener('input', calculateAmount);
-    priceInput.addEventListener('input', calculateAmount);
-    
-    // Tab navigation
-    const modelInput = row.querySelector(`#model${i}`);
-    const descInput = row.querySelector(`#description${i}`);
-    
-    priceInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && i < CONFIG.MAX_ITEMS_PER_INVOICE) {
-        e.preventDefault();
+
+    qtyEl.addEventListener('input',  recalc);
+    priceEl.addEventListener('input', recalc);
+
+    // Enter on price → move to next row
+    priceEl.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      if (i < VALIDATION.MAX_ITEMS_PER_INVOICE) {
         const nextRow = document.querySelector(`tr[data-row-index="${i + 1}"]`);
-        if (nextRow && nextRow.style.display === 'none') {
-          nextRow.style.display = '';
-        }
+        if (nextRow && nextRow.style.display === 'none') nextRow.style.display = '';
         document.getElementById(`model${i + 1}`)?.focus();
       }
     });
   }
-  
-  debugLog('✅ Items table initialized with', CONFIG.MAX_ITEMS_PER_INVOICE, 'rows (3 visible)');
+  debugLog('✅ Items table ready (3 visible / 10 total)');
 }
 
 function calculateTotals() {
   let subtotal = 0;
-  
-  for (let i = 1; i <= CONFIG.MAX_ITEMS_PER_INVOICE; i++) {
-    const amountCell = document.getElementById(`amount${i}`);
-    if (amountCell) {
-      subtotal += parseFloat(amountCell.textContent) || 0;
-    }
+  for (let i = 1; i <= VALIDATION.MAX_ITEMS_PER_INVOICE; i++) {
+    subtotal += parseFloat(document.getElementById(`amount${i}`)?.textContent || '0') || 0;
   }
-  
-  const vat = subtotal * CONFIG.VAT_RATE;
-  const grandTotal = subtotal + vat;
-  
-  const subtotalEl = document.getElementById('subTotal');
-  const vatEl = document.getElementById('vatAmount');
-  const grandTotalEl = document.getElementById('grandTotal');
-  
-  if (subtotalEl) subtotalEl.textContent = subtotal.toFixed(2);
-  if (vatEl) vatEl.textContent = vat.toFixed(2);
-  if (grandTotalEl) grandTotalEl.textContent = grandTotal.toFixed(2);
+  const vat   = parseFloat((subtotal * BUSINESS.VAT_RATE).toFixed(2));
+  const grand = parseFloat((subtotal + vat).toFixed(2));
+
+  updateEl('subTotal',   subtotal.toFixed(2));
+  updateEl('vatAmount',  vat.toFixed(2));
+  updateEl('grandTotal', grand.toFixed(2));
 }
 
-// Add item row (show next hidden row)
-function addItemRow() {
-  const itemsBody = document.getElementById('itemsBody');
-  if (!itemsBody) return;
-  
-  // Find the first hidden row
-  for (let i = 1; i <= CONFIG.MAX_ITEMS_PER_INVOICE; i++) {
-    const row = itemsBody.querySelector(`tr[data-row-index="${i}"]`);
+// Show the next hidden item row (fixes the override bug)
+function revealNextItemRow() {
+  for (let i = 1; i <= VALIDATION.MAX_ITEMS_PER_INVOICE; i++) {
+    const row = document.querySelector(`tr[data-row-index="${i}"]`);
     if (row && row.style.display === 'none') {
       row.style.display = '';
-      // Focus on the model input of the newly shown row
       document.getElementById(`model${i}`)?.focus();
-      debugLog(`✅ Added item row ${i}`);
       return;
     }
   }
-  
-  showToast('Maximum 10 items per invoice', 'warning');
+  showToast('Maximum 10 items per invoice.', 'warning');
 }
 
-// ============================================
-// INVOICE NUMBER GENERATION (FIRESTORE)
-// ============================================
+// ─── Invoice Number ──────────────────────────────────────────
 
 async function loadNextInvoiceNumber() {
-  const currentYear = new Date().getFullYear();
-  
   try {
-    // Get next invoice number from Firestore counter (atomic, fast!)
-    const invoiceNumber = await getNextInvoiceNumber();
-    
-    // Parse it: "2025-15001" -> 15001
-    const match = invoiceNumber.match(/(\d{4})-(\d+)/);
-    if (match) {
-      invoiceCounter = parseInt(match[2]);
-    }
-    
-    document.getElementById('invNum').textContent = invoiceNumber;
-    
-    const printBtn = document.getElementById('printBtn');
-    if (printBtn && !isReprintMode) {
-      printBtn.disabled = false;
-      printBtn.textContent = 'Print Invoice';
-    }
-    
-    debugLog('✅ Invoice number ready:', invoiceNumber);
-    
-  } catch (error) {
-    console.error('❌ Error loading invoice number:', error);
-    invoiceCounter = 15001;
-    document.getElementById('invNum').textContent = `${currentYear}-${String(invoiceCounter).padStart(5, '0')}`;
+    const num = await getNextInvoiceNumber();
+    updateEl('invNum', num);
+    const btn = document.getElementById('printBtn');
+    if (btn && !isReprintMode) { btn.disabled = false; btn.textContent = '🖨️ Save & Print Invoice'; }
+    debugLog('✅ Invoice number:', num);
+  } catch (err) {
+    console.error('❌ Invoice number error:', err);
+    const yy = String(new Date().getFullYear()).slice(-2);
+    updateEl('invNum', `${yy}-${BUSINESS.STARTING_INVOICE_NUMBER}`);
   }
 }
 
-// ============================================
-// DASHBOARD (FIRESTORE - REAL-TIME AGGREGATION)
-// ============================================
+// ─── Dashboard Data ──────────────────────────────────────────
 
 async function loadDashboardData() {
+  if (!currentUser) return;
   try {
-    // Check if user is authenticated
-    if (!currentUser) {
-      debugLog('⚠️ User not authenticated, skipping dashboard load');
-      return;
-    }
-    
-    const today = formatDate(new Date(), 'YYYY-MM-DD');
-    
-    // Load today's data in parallel (3 queries, ~200ms total!)
     const [invoices, deposits, expenses] = await Promise.all([
-      getTodayInvoices(today),
-      getTodayDeposits(today),
-      getTodayExpenses(today)
+      getTodayInvoices(),
+      getTodayDeposits(),
+      getTodayExpenses(),
     ]);
-    
-    // Aggregate sales
+
     let cash = 0, card = 0, tabby = 0, cheque = 0;
-    
-    invoices.forEach(invoice => {
-      if (invoice.status === 'Paid') {
-        cash += invoice.impacts.cash || 0;
-        card += invoice.impacts.card || 0;
-        tabby += invoice.impacts.tabby || 0;
-        cheque += invoice.impacts.cheque || 0;
+    invoices.forEach(inv => {
+      if (inv.status === 'Paid') {
+        cash   += inv.impacts?.cash   || 0;
+        card   += inv.impacts?.card   || 0;
+        tabby  += inv.impacts?.tabby  || 0;
+        cheque += inv.impacts?.cheque || 0;
       }
     });
-    
-    const totalSales = cash + card + tabby + cheque;
-    
-    // Sum deposits
-    const totalDeposits = deposits.reduce((sum, d) => sum + d.amount, 0);
-    
-    // Sum expenses
-    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-    
-    // Calculate cash in hand
-    const cashInHand = cash - totalDeposits - totalExpenses;
-    
-    // Update quick info in sidebar
-    updateElement('todaySalesQuick', totalSales.toFixed(2));
-    updateElement('cashInHandQuick', cashInHand.toFixed(2));
-    
-    debugLog('✅ Dashboard loaded:', { totalSales, cashInHand });
-    
-  } catch (error) {
-    console.error('❌ Error loading dashboard:', error);
-    updateElement('todaySalesQuick', '0.00');
-    updateElement('cashInHandQuick', '0.00');
+
+    const totalSales    = cash + card + tabby + cheque;
+    const totalDeposits = deposits.reduce((s, d) => s + (d.amount || 0), 0);
+    const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+    const cashInHand    = cash - totalDeposits - totalExpenses;
+
+    updateEl('todaySalesQuick',  `${totalSales.toFixed(2)}`);
+    updateEl('cashInHandQuick',  `${cashInHand.toFixed(2)}`);
+  } catch (err) {
+    console.error('❌ Dashboard error:', err);
+    updateEl('todaySalesQuick', '0.00');
+    updateEl('cashInHandQuick', '0.00');
   }
 }
 
-function updateElement(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = value;
-}
+// ─── Recent Invoices Panel (sidebar) ─────────────────────────
 
-// ============================================
-// RECENT INVOICES (FIRESTORE - FAST QUERIES)
-// ============================================
+async function loadRecentInvoicesPanel() {
+  if (!currentUser) return;
+  const container = document.getElementById('recentInvoices');
+  if (!container) return;
 
-async function loadRecentInvoices() {
   try {
-    // Check if user is authenticated
-    if (!currentUser) {
-      debugLog('⚠️ User not authenticated, skipping recent invoices load');
+    const invoices = await loadRecentInvoices(60); // last 60 days
+    if (!invoices.length) {
+      container.innerHTML = '<div class="sidebar-empty">No recent invoices</div>';
       return;
     }
-    
-    const invoices = await getRecentInvoicesFromFirestore(CONFIG.RECENT_INVOICES_LOAD_LIMIT);
-    
-    const container = document.getElementById('recentInvoices');
-    if (!container) {
-      debugLog('⚠️ recentInvoices container not found');
-      return;
-    }
-    
-    if (invoices.length === 0) {
-      container.innerHTML = '<div class="loading-text">No recent invoices</div>';
-      return;
-    }
-    
-    // Create invoice cards for sidebar
-    container.innerHTML = invoices.map(invoice => `
-      <div class="invoice-card ${invoice.status === 'Refunded' ? 'refunded' : ''}" onclick="reprintInvoice('${invoice.id}')">
-        <div class="invoice-number">${invoice.invoiceNumber}</div>
-        <div class="invoice-details">
-          <span>${invoice.date}</span>
-          <span>AED ${invoice.grandTotal.toFixed(2)}</span>
+    container.innerHTML = invoices.slice(0, 50).map(inv => `
+      <div class="recent-inv-card ${inv.status === 'Refunded' ? 'refunded' : ''}"
+           onclick="handleReprintInvoice('${inv.id}')">
+        <div class="recent-inv-top">
+          <span class="recent-inv-num">${inv.invoiceNumber}</span>
+          <span class="recent-inv-total">AED ${inv.grandTotal.toFixed(2)}</span>
         </div>
-        <div class="invoice-meta">
-          <span>${invoice.customer || 'Walk-in'}</span>
-          <span class="payment-badge">${invoice.payment}</span>
+        <div class="recent-inv-bottom">
+          <span class="recent-inv-customer">${inv.customer || 'Walk-in'}</span>
+          <span class="recent-inv-method">${inv.payment}</span>
         </div>
-        ${invoice.status === 'Refunded' ? '<div class="refunded-badge">REFUNDED</div>' : ''}
-      </div>
-    `).join('');
-    
-    debugLog('✅ Loaded', invoices.length, 'recent invoices');
-    
-  } catch (error) {
-    console.error('❌ Error loading recent invoices:', error);
-    const container = document.getElementById('recentInvoices');
-    if (container) {
-      container.innerHTML = '<div class="loading-text" style="color: #f44336;">Error loading invoices</div>';
-    }
+      </div>`).join('');
+  } catch (err) {
+    console.error('❌ Recent invoices error:', err);
+    container.innerHTML = '<div class="sidebar-empty" style="color:#F43F5E">Load error</div>';
   }
 }
 
-// ============================================
-// INVOICE CREATION (FIRESTORE - ATOMIC WRITES)
-// ============================================
+// ─── Save & Print ─────────────────────────────────────────────
 
 async function saveNewInvoice() {
-  const invoiceData = collectInvoiceData();
-  
-  if (!invoiceData) {
-    showToast('Please fill in all required fields', 'error');
-    return;
-  }
-  
+  const data = collectInvoiceData();
+  if (!data) return;
+
+  const btn = document.getElementById('printBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Saving…'; }
+
   try {
-    // Disable print button during save
-    const printBtn = document.getElementById('printBtn');
-    if (printBtn) {
-      printBtn.disabled = true;
-      printBtn.textContent = 'Saving...';
-    }
-    
-    // Save to Firestore (works offline too!)
-    const docRef = await saveInvoice(invoiceData);
-    
-    debugLog('✅ Invoice saved to Firestore:', docRef.id);
-    showToast('✅ Invoice saved successfully', 'success');
-    
-    // Print invoice
-    setTimeout(() => {
-      window.print();
-    }, 300);
-    
-    // Refresh dashboard & recent invoices
+    await saveInvoice(data);
+    showToast('✅ Invoice saved!', 'success');
+    setTimeout(() => window.print(), 300);
+  } catch (err) {
+    console.error('❌ Save error:', err);
+    showToast('⚠️ Save error — printing anyway (offline mode).', 'warning');
+    setTimeout(() => window.print(), 300);
+  } finally {
     setTimeout(async () => {
       await loadDashboardData();
-      await loadRecentInvoices();
+      await loadRecentInvoicesPanel();
       await loadNextInvoiceNumber();
       resetInvoiceForm();
-      
-      if (printBtn) {
-        printBtn.disabled = false;
-        printBtn.textContent = 'Print Invoice';
-      }
-    }, CONFIG.PRINT_RESTORE_DELAY_MS);
-    
-  } catch (error) {
-    console.error('❌ Error saving invoice:', error);
-    showToast('⚠️ Error saving invoice. It may be saved offline and synced later.', 'warning');
-    
-    // Still allow printing in offline mode
-    setTimeout(() => {
-      window.print();
-    }, 300);
-    
-    setTimeout(() => {
-      resetInvoiceForm();
-      const printBtn = document.getElementById('printBtn');
-      if (printBtn) {
-        printBtn.disabled = false;
-        printBtn.textContent = 'Print Invoice';
-      }
-    }, CONFIG.PRINT_RESTORE_DELAY_MS);
+      if (btn) { btn.disabled = false; btn.textContent = '🖨️ Save & Print Invoice'; }
+    }, PERF.PRINT_RESTORE_DELAY);
   }
 }
 
 function collectInvoiceData() {
-  // Get invoice number
-  const invoiceNumber = document.getElementById('invNum').textContent.trim();
-  
-  // Get date
-  const dateInput = document.getElementById('invDate').value;
-  if (!dateInput) {
-    showToast('Please select invoice date', 'error');
-    return null;
-  }
-    const invDate = new Date(dateInput);
-  const date = formatDate(invDate, 'YYYY-MM-DD');
-  const time = formatTime(new Date());
-  
-  // Get customer info (match HTML IDs: custName, custPhone, custTRN)
-  const customerName = document.getElementById('custName').value.trim() || 'Walk-in Customer';
-  const customerPhone = document.getElementById('custPhone').value.trim();
-  const customerTRN = document.getElementById('custTRN').value.trim();
-  
-  // Get payment method
-  if (!currentPaymentMethod) {
-    showToast('Please select payment method', 'error');
-    return null;
-  }
-    // Get totals
-  const subtotal = parseFloat(document.getElementById('subTotal').textContent) || 0;
-  const vat = parseFloat(document.getElementById('vatAmount').textContent) || 0;
-  const grandTotal = parseFloat(document.getElementById('grandTotal').textContent) || 0;
-  
-  if (grandTotal <= 0) {
-    showToast('Invoice total must be greater than zero', 'error');
-    return null;
-  }
-  
-  // Collect items
+  const invoiceNumber = document.getElementById('invNum')?.textContent.trim();
+  const dateInput     = document.getElementById('invDate')?.value;
+  if (!dateInput) { showToast('Please select invoice date.', 'error'); return null; }
+
+  const date         = formatDate(new Date(dateInput), 'YYYY-MM-DD');
+  const customerName = document.getElementById('custName')?.value.trim() || 'Walk-in Customer';
+  const customerPhone= document.getElementById('custPhone')?.value.trim() || '';
+  const customerTRN  = document.getElementById('custTRN')?.value.trim()   || '';
+
+  if (!currentPaymentMethod) { showToast('Please select a payment method.', 'error'); return null; }
+
+  const subtotal  = parseFloat(document.getElementById('subTotal')?.textContent)   || 0;
+  const vat       = parseFloat(document.getElementById('vatAmount')?.textContent)   || 0;
+  const grandTotal= parseFloat(document.getElementById('grandTotal')?.textContent)  || 0;
+
+  if (grandTotal <= 0) { showToast('Invoice total must be greater than zero.', 'error'); return null; }
+
   const items = [];
-  for (let i = 1; i <= CONFIG.MAX_ITEMS_PER_INVOICE; i++) {
-    const model = document.getElementById(`model${i}`).value.trim();
-    const description = document.getElementById(`description${i}`).value.trim();
-    const quantity = parseInt(document.getElementById(`quantity${i}`).value) || 0;
-    const price = parseFloat(document.getElementById(`price${i}`).value) || 0;
-    
-    if (model && quantity > 0 && price > 0) {
-      items.push({
-        model,
-        description: description || '',
-        quantity,
-        price,
-        amount: quantity * price
-      });
-    }
+  for (let i = 1; i <= VALIDATION.MAX_ITEMS_PER_INVOICE; i++) {
+    const model = document.getElementById(`model${i}`)?.value.trim();
+    const desc  = document.getElementById(`description${i}`)?.value.trim() || '';
+    const qty   = parseInt(document.getElementById(`quantity${i}`)?.value)  || 0;
+    const price = parseFloat(document.getElementById(`price${i}`)?.value)   || 0;
+    if (model && qty > 0 && price > 0) items.push({ model, description: desc, quantity: qty, price, amount: qty * price });
   }
-  
-  if (items.length === 0) {
-    showToast('Please add at least one item', 'error');
-    return null;
-  }
-  
-  // Calculate payment impacts
+  if (!items.length) { showToast('Please add at least one item.', 'error'); return null; }
+
   const impacts = {
-    cash: currentPaymentMethod === 'Cash' ? grandTotal : 0,
-    card: currentPaymentMethod === 'Card' ? grandTotal : 0,
-    tabby: currentPaymentMethod === 'Tabby' ? grandTotal : 0,
-    cheque: currentPaymentMethod === 'Cheque' ? grandTotal : 0
+    cash:   currentPaymentMethod === 'Cash'   ? grandTotal : 0,
+    card:   currentPaymentMethod === 'Card'   ? grandTotal : 0,
+    tabby:  currentPaymentMethod === 'Tabby'  ? grandTotal : 0,
+    cheque: currentPaymentMethod === 'Cheque' ? grandTotal : 0,
   };
-  
+
   return {
-    invoiceNumber,
-    date,
-    time,
-    customer: {
-      name: customerName,
-      phone: customerPhone,
-      trn: customerTRN
-    },
-    payment: {
-      method: currentPaymentMethod,
-      subtotal,
-      vat,
-      grandTotal
-    },
+    invoiceNumber, date,
+    customer: { name: customerName, phone: customerPhone, trn: customerTRN },
+    payment:  { method: currentPaymentMethod, subtotal, vat, grandTotal },
     items,
     status: 'Paid',
-    impacts
+    impacts,
   };
 }
 
 function resetInvoiceForm() {
-  // Reset customer fields (use correct element IDs: custName, custPhone, custTRN)
-  const custNameEl = document.getElementById('custName');
-  const custPhoneEl = document.getElementById('custPhone');
-  const custTRNEl = document.getElementById('custTRN');
-  
-  if (custNameEl) custNameEl.value = '';
-  if (custPhoneEl) custPhoneEl.value = '';
-  if (custTRNEl) custTRNEl.value = '';
-  
-  // Reset items and hide rows after 3rd
-  const itemsBody = document.getElementById('itemsBody');
-  for (let i = 1; i <= CONFIG.MAX_ITEMS_PER_INVOICE; i++) {
-    const modelEl = document.getElementById(`model${i}`);
-    const descEl = document.getElementById(`description${i}`);
-    const qtyEl = document.getElementById(`quantity${i}`);
-    const priceEl = document.getElementById(`price${i}`);
-    const amountEl = document.getElementById(`amount${i}`);
-    
-    if (modelEl) modelEl.value = '';
-    if (descEl) descEl.value = '';
-    if (qtyEl) qtyEl.value = '1';
-    if (priceEl) priceEl.value = '';
-    if (amountEl) amountEl.textContent = '0.00';
-    
-    // Hide rows after the 3rd one
-    if (itemsBody && i > 3) {
-      const row = itemsBody.querySelector(`tr[data-row-index="${i}"]`);
-      if (row) row.style.display = 'none';
-    }
-  }
-  
-  // Reset payment method
-  currentPaymentMethod = null;
-  document.querySelectorAll('.payment-btn').forEach(btn => btn.classList.remove('active'));
-  
-  // Reset totals
-  calculateTotals();
-  
-  // Reset date to today
-  const invDateEl = document.getElementById('invDate');
-  if (invDateEl) invDateEl.valueAsDate = new Date();
-}
-
-// ============================================
-// REPRINT & REFUND (FIRESTORE)
-// ============================================
-
-window.reprintInvoice = async function(invoiceId) {
-  // Implementation here - load invoice from Firestore and populate form
-  debugLog('🖨️ Reprint invoice:', invoiceId);
-  showToast('Reprint feature coming soon', 'info');
-};
-
-window.refundInvoice = async function(invoiceId) {
-  if (!confirm('Are you sure you want to refund this invoice?')) {
-    return;
-  }
-  
-  try {
-    await markInvoiceAsRefunded(invoiceId);
-    showToast('✅ Invoice refunded successfully', 'success');
-    
-    // Refresh lists
-    await loadDashboardData();
-    await loadRecentInvoices();
-    
-  } catch (error) {
-    console.error('❌ Error refunding invoice:', error);
-    showToast('Error refunding invoice', 'error');
-  }
-};
-
-// ============================================
-// ITEM CALCULATIONS (UNCHANGED)
-// ============================================
-
-window.updateRowTotal = function(rowNum) {
-  const quantity = parseFloat(document.getElementById(`quantity${rowNum}`).value) || 0;
-  const price = parseFloat(document.getElementById(`price${rowNum}`).value) || 0;
-  const amount = quantity * price;
-  
-  const amountCell = document.getElementById(`amount${rowNum}`);
-  if (amountCell) {
-    amountCell.textContent = amount.toFixed(2);
-  }
-  
-  updateTotals();
-};
-
-function updateTotals() {
-  let subtotal = 0;
-  
-  for (let i = 1; i <= CONFIG.MAX_ITEMS_PER_INVOICE; i++) {
-    const amountText = document.getElementById(`amount${i}`).textContent;
-    const amount = parseFloat(amountText) || 0;
-    subtotal += amount;
-  }
-  
-  const vat = subtotal * 0.05;
-  const grandTotal = subtotal + vat;
-  
-  document.getElementById('subtotalAmount').textContent = subtotal.toFixed(2);
-  document.getElementById('vatAmount').textContent = vat.toFixed(2);
-  document.getElementById('grandTotalAmount').textContent = grandTotal.toFixed(2);
-}
-
-// ============================================
-// PAYMENT METHOD SELECTION (UNCHANGED)
-// ============================================
-
-window.selectPaymentMethod = function(method) {
-  currentPaymentMethod = method;
-  
-  document.querySelectorAll('.payment-btn').forEach(btn => {
-    btn.classList.remove('active');
+  ['custName','custPhone','custTRN'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
   });
-  
-  const selectedBtn = document.querySelector(`.payment-btn[onclick*="${method}"]`);
-  if (selectedBtn) {
-    selectedBtn.classList.add('active');
+
+  for (let i = 1; i <= VALIDATION.MAX_ITEMS_PER_INVOICE; i++) {
+    ['model','description'].forEach(f => { const el = document.getElementById(`${f}${i}`); if (el) el.value = ''; });
+    const q = document.getElementById(`quantity${i}`); if (q) q.value = '1';
+    const p = document.getElementById(`price${i}`);    if (p) p.value = '';
+    const a = document.getElementById(`amount${i}`);   if (a) a.textContent = '0.00';
+    const row = document.querySelector(`tr[data-row-index="${i}"]`);
+    if (row && i > 3) row.style.display = 'none';
   }
-  
-  debugLog('💳 Payment method selected:', method);
+
+  currentPaymentMethod = null;
+  document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
+  calculateTotals();
+
+  const d = document.getElementById('invDate');
+  if (d) d.valueAsDate = new Date();
+}
+
+// ─── Reprint / Refund ────────────────────────────────────────
+
+window.handleReprintInvoice = async function(invoiceId) {
+  showToast('Loading invoice…', 'info');
+  try {
+    // Find in recent list or fetch by docId (load recent invoices gives id+number)
+    const invoices = await loadRecentInvoices(365);
+    const inv = invoices.find(i => i.id === invoiceId);
+    if (!inv) { showToast('Invoice not found.', 'error'); return; }
+
+    const full = await getInvoiceByNumber(inv.invoiceNumber);
+    if (!full) { showToast('Invoice data unavailable.', 'error'); return; }
+
+    isReprintMode    = true;
+    reprintInvoiceData = full;
+    populateReprintForm(full);
+    showToast(`Reprint: Invoice ${full.invoiceNumber}`, 'info', 2000);
+  } catch (err) {
+    console.error('❌ Reprint error:', err);
+    showToast('Error loading invoice.', 'error');
+  }
 };
 
-// ============================================
-// PRINT HANDLER (PRESERVED)
-// ============================================
+function populateReprintForm(inv) {
+  if (inv.invoiceNumber) updateEl('invNum', inv.invoiceNumber);
+  const d = document.getElementById('invDate');
+  if (d && inv.date) d.value = inv.date;
+  const custName = document.getElementById('custName');
+  if (custName) custName.value = inv.customer?.name || '';
+  const custPhone = document.getElementById('custPhone');
+  if (custPhone) custPhone.value = inv.customer?.phone || '';
+  const custTRN = document.getElementById('custTRN');
+  if (custTRN) custTRN.value = inv.customer?.trn || '';
 
-window.handlePrint = function() {
-  if (isReprintMode) {
+  // Fill items
+  const body = document.getElementById('itemsBody');
+  if (body && inv.items) {
+    inv.items.forEach((item, idx) => {
+      const i = idx + 1;
+      const row = document.querySelector(`tr[data-row-index="${i}"]`);
+      if (row) { row.style.display = ''; }
+      const m = document.getElementById(`model${i}`);       if (m) m.value = item.model || '';
+      const desc = document.getElementById(`description${i}`); if (desc) desc.value = item.description || '';
+      const q = document.getElementById(`quantity${i}`);    if (q) q.value = item.quantity || 1;
+      const p = document.getElementById(`price${i}`);       if (p) p.value = item.price || 0;
+      const a = document.getElementById(`amount${i}`);      if (a) a.textContent = (item.amount || 0).toFixed(2);
+    });
+  }
+  calculateTotals();
+
+  const btn = document.getElementById('printBtn');
+  if (btn) { btn.disabled = false; btn.textContent = '🖨️ Reprint Invoice'; }
+}
+
+// ─── Deposits ────────────────────────────────────────────────
+
+window.openDepositModal = function() {
+  const modal = document.getElementById('depositModal');
+  if (modal) modal.classList.add('show');
+  ['depositName','depositAmount','depositBank','depositRef'].forEach((id,i) => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; if (i === 0) setTimeout(() => el.focus(), 100); }
+  });
+};
+
+window.closeDepositModal = function() {
+  document.getElementById('depositModal')?.classList.remove('show');
+};
+
+window.submitDeposit = async function() {
+  const name   = document.getElementById('depositName')?.value.trim();
+  const amount = parseFloat(document.getElementById('depositAmount')?.value);
+  const bank   = document.getElementById('depositBank')?.value.trim();
+  const slip   = document.getElementById('depositRef')?.value.trim();
+
+  if (!name)             { showToast('Enter depositor name.', 'error');  document.getElementById('depositName')?.focus();   return; }
+  if (!amount || amount <= 0) { showToast('Enter a valid amount.', 'error'); document.getElementById('depositAmount')?.focus(); return; }
+  if (!bank)             { showToast('Enter bank name.', 'error');        document.getElementById('depositBank')?.focus();   return; }
+  if (!slip)             { showToast('Enter slip number.', 'error');      document.getElementById('depositRef')?.focus();    return; }
+
+  try {
+    const depositId = await getNextDepositId();
+    await saveDeposit({ depositId, amount, bank, slipNumber: slip, depositor: name });
+    showToast(`✅ Deposit AED ${amount.toFixed(2)} saved.`, 'success');
+    closeDepositModal();
+    await loadDashboardData();
+  } catch (err) {
+    console.error('❌ Deposit error:', err);
+    showToast('Failed to save deposit.', 'error');
+  }
+};
+
+// ─── Expenses ────────────────────────────────────────────────
+
+window.openExpenseModal = function() {
+  const modal = document.getElementById('expenseModal');
+  if (modal) modal.classList.add('show');
+  ['expenseCategory','expenseDesc','expenseAmount','expenseReceipt'].forEach((id,i) => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; if (i === 0) setTimeout(() => el.focus(), 100); }
+  });
+};
+
+window.closeExpenseModal = function() {
+  document.getElementById('expenseModal')?.classList.remove('show');
+};
+
+window.submitExpense = async function() {
+  const category = document.getElementById('expenseCategory')?.value;
+  const desc     = document.getElementById('expenseDesc')?.value.trim();
+  const amount   = parseFloat(document.getElementById('expenseAmount')?.value);
+  const receipt  = document.getElementById('expenseReceipt')?.value.trim();
+
+  if (!category) { showToast('Select a category.', 'error');        document.getElementById('expenseCategory')?.focus(); return; }
+  if (!desc)     { showToast('Enter a description.', 'error');      document.getElementById('expenseDesc')?.focus();     return; }
+  if (!amount || amount <= 0) { showToast('Enter a valid amount.', 'error'); document.getElementById('expenseAmount')?.focus(); return; }
+  if (!receipt)  { showToast('Enter a receipt number.', 'error');   document.getElementById('expenseReceipt')?.focus();  return; }
+
+  try {
+    const expenseId = await getNextExpenseId();
+    await saveExpense({ expenseId, category, description: desc, amount, receiptNumber: receipt });
+    showToast(`✅ Expense AED ${amount.toFixed(2)} saved.`, 'success');
+    closeExpenseModal();
+    await loadDashboardData();
+  } catch (err) {
+    console.error('❌ Expense error:', err);
+    showToast('Failed to save expense.', 'error');
+  }
+};
+
+// ─── Daily Report ─────────────────────────────────────────────
+
+window.printDailyReport = async function() {
+  try {
+    showToast('Generating daily report…', 'info');
+    const [invoices, deposits, expenses] = await Promise.all([
+      getTodayInvoices(), getTodayDeposits(), getTodayExpenses(),
+    ]);
+
+    let cash = 0, card = 0, tabby = 0, cheque = 0, refunds = 0;
+    invoices.forEach(inv => {
+      if (inv.status === 'Refunded') { refunds++; return; }
+      cash   += inv.impacts?.cash   || 0;
+      card   += inv.impacts?.card   || 0;
+      tabby  += inv.impacts?.tabby  || 0;
+      cheque += inv.impacts?.cheque || 0;
+    });
+    const totalSales    = cash + card + tabby + cheque;
+    const totalDeposits = deposits.reduce((s, d) => s + (d.amount || 0), 0);
+    const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+    const cashInHand    = cash - totalDeposits - totalExpenses;
+    const reportDate    = formatDate(new Date(), 'DD-MMM-YYYY');
+
+    const container = document.getElementById('dailyReportContainer');
+    container.innerHTML = `
+      <div style="font-family:Arial;font-size:13px;max-width:320px;margin:0 auto;">
+        <div style="text-align:center;font-weight:bold;font-size:16px;">AKM Music Centre</div>
+        <div style="text-align:center;font-size:13px;margin-bottom:6px;">Daily Report — ${reportDate}</div>
+        <hr>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr><td style="padding:3px 0;font-weight:bold;">Total Sales</td>  <td style="text-align:right;font-weight:bold;">AED ${totalSales.toFixed(2)}</td></tr>
+          <tr><td style="padding:3px 0;">— Cash</td>   <td style="text-align:right;">AED ${cash.toFixed(2)}</td></tr>
+          <tr><td style="padding:3px 0;">— Card</td>   <td style="text-align:right;">AED ${card.toFixed(2)}</td></tr>
+          <tr><td style="padding:3px 0;">— Tabby</td>  <td style="text-align:right;">AED ${tabby.toFixed(2)}</td></tr>
+          <tr><td style="padding:3px 0;">— Cheque</td> <td style="text-align:right;">AED ${cheque.toFixed(2)}</td></tr>
+        </table>
+        <hr>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr><td style="padding:3px 0;">Bank Deposits</td><td style="text-align:right;">AED ${totalDeposits.toFixed(2)}</td></tr>
+          <tr><td style="padding:3px 0;">Expenses</td>     <td style="text-align:right;">AED ${totalExpenses.toFixed(2)}</td></tr>
+          <tr><td style="padding:3px 0;font-weight:bold;">Cash in Hand</td><td style="text-align:right;font-weight:bold;">AED ${cashInHand.toFixed(2)}</td></tr>
+          <tr><td style="padding:3px 0;">Refunds</td>      <td style="text-align:right;">${refunds}</td></tr>
+        </table>
+      </div>`;
+
+    document.body.classList.add('printing-daily-report');
     window.print();
-  } else {
-    saveNewInvoice();
+    setTimeout(() => document.body.classList.remove('printing-daily-report'), 600);
+  } catch (err) {
+    console.error('❌ Daily report error:', err);
+    showToast('Failed to generate report.', 'error');
   }
 };
 
-// ============================================
-// AUTO-REFRESH (FASTER WITH FIRESTORE)
-// ============================================
+// ─── Auto-Refresh ─────────────────────────────────────────────
 
 function setupAutoRefresh() {
   setInterval(async () => {
     try {
       await loadDashboardData();
-      // Only load recent invoices if container exists (not on all pages)
-      const recentInvoicesContainer = document.getElementById('recentInvoices');
-      if (recentInvoicesContainer) {
-        await loadRecentInvoices();
-      }
-    } catch (error) {
-      console.error('Auto-refresh error:', error);
-    }
-  }, CONFIG.AUTO_REFRESH_INTERVAL_MS);
+      await loadRecentInvoicesPanel();
+    } catch (err) { console.error('Auto-refresh error:', err); }
+  }, PERF.AUTO_REFRESH_INTERVAL);   // uses correct 10000ms value
 }
 
-// ============================================
-// ============================================
-// AUTH STATE OBSERVER (UNCHANGED)
-// ============================================
-
-onAuthStateChanged(auth, (user) => {
-  if (user && user.email === ALLOWED_EMAIL) {
-    currentUser = user;
-    showMainApp();
-  } else {
-    currentUser = null;
-    showLoginScreen();
-  }
-});
-
-// ============================================
-// WINDOW EXPORTS (FOR REPAIR MODULE)
-// ============================================
-
-// Export Firestore utilities for repair-management-firestore.js
-window.firestoreUtils = {
-  db,
-  formatDate,
-  formatTime,
-  saveInvoice,
-  saveDeposit,
-  saveExpense
-};
-
-// ============================================
-// DEPOSITS (FIRESTORE)
-// ============================================
-
-window.openDepositModal = function() {
-  const modal = document.getElementById('depositModal');
-  if (modal) modal.classList.add('show');
-  
-  const depositName = document.getElementById('depositName');
-  const depositAmount = document.getElementById('depositAmount');
-  const depositBank = document.getElementById('depositBank');
-  const depositRef = document.getElementById('depositRef');
-  
-  if (depositName) {
-    depositName.value = '';
-    depositName.focus();
-  }
-  if (depositAmount) depositAmount.value = '';
-  if (depositBank) depositBank.value = '';
-  if (depositRef) depositRef.value = '';
-};
-
-window.closeDepositModal = function() {
-  document.getElementById('depositModal').classList.remove('show');
-};
-
-window.submitDeposit = async function() {
-  const depositorName = document.getElementById('depositName').value.trim();
-  const amount = parseFloat(document.getElementById('depositAmount').value);
-  const bankName = document.getElementById('depositBank').value.trim();
-  const slipNumber = document.getElementById('depositRef').value.trim();
-  
-  // Validation
-  if (!depositorName) {
-    showToast('Please enter depositor name', 'error');
-    document.getElementById('depositName').focus();
-    return;
-  }
-  if (!amount || amount <= 0) {
-    showToast('Please enter a valid amount', 'error');
-    document.getElementById('depositAmount').focus();
-    return;
-  }
-  if (!bankName) {
-    showToast('Please enter bank name', 'error');
-    document.getElementById('depositBank').focus();
-    return;
-  }
-  if (!slipNumber) {
-    showToast('Please enter slip number', 'error');
-    document.getElementById('depositRef').focus();
-    return;
-  }
-  
-  try {
-    const today = new Date();
-    const depositID = await getNextDepositID();
-    
-    const depositData = {
-      depositId: depositID,
-      date: formatDate(today, 'YYYY-MM-DD'),
-      time: formatTime(today),
-      amount,
-      bank: bankName,
-      slipNumber,
-      depositor: depositorName,
-      cashImpact: -amount,
-      notes: ''
-    };
-    
-    debugLog('💾 Saving deposit:', depositData);
-    
-    await saveDeposit(depositData);
-    
-    showToast('✅ Deposit recorded successfully', 'success');
-    closeDepositModal();
-    await loadDashboardData();
-    
-  } catch (error) {
-    console.error('❌ Error saving deposit:', error);
-    showToast('Failed to save deposit', 'error');
-  }
-};
-
-// ============================================
-// EXPENSES (FIRESTORE)
-// ============================================
-
-window.openExpenseModal = function() {
-  const modal = document.getElementById('expenseModal');
-  if (modal) modal.classList.add('show');
-  
-  const expenseCategory = document.getElementById('expenseCategory');
-  const expenseDesc = document.getElementById('expenseDesc');
-  const expenseAmount = document.getElementById('expenseAmount');
-  const expenseReceipt = document.getElementById('expenseReceipt');
-  
-  if (expenseCategory) {
-    expenseCategory.value = '';
-    expenseCategory.focus();
-  }
-  if (expenseDesc) expenseDesc.value = '';
-  if (expenseAmount) expenseAmount.value = '';
-  if (expenseReceipt) expenseReceipt.value = '';
-};
-
-window.closeExpenseModal = function() {
-  document.getElementById('expenseModal').classList.remove('show');
-};
-
-window.submitExpense = async function() {
-  const category = document.getElementById('expenseCategory').value;
-  const description = document.getElementById('expenseDesc').value.trim();
-  const amount = parseFloat(document.getElementById('expenseAmount').value);
-  const receipt = document.getElementById('expenseReceipt').value.trim();
-  
-  // Validation
-  if (!category) {
-    showToast('Please select a category', 'error');
-    document.getElementById('expenseCategory').focus();
-    return;
-  }
-  if (!description) {
-    showToast('Please enter a description', 'error');
-    document.getElementById('expenseDesc').focus();
-    return;
-  }
-  if (!amount || amount <= 0) {
-    showToast('Please enter a valid amount', 'error');
-    document.getElementById('expenseAmount').focus();
-    return;
-  }
-  if (!receipt) {
-    showToast('Please enter a receipt number', 'error');
-    document.getElementById('expenseReceipt').focus();
-    return;
-  }
-  
-  try {
-    const today = new Date();
-    const expenseID = await getNextExpenseID();
-    
-    const expenseData = {
-      expenseId: expenseID,
-      date: formatDate(today, 'YYYY-MM-DD'),
-      time: formatTime(today),
-      category,
-      description,
-      amount,
-      receiptNumber: receipt,
-      cashImpact: -amount,
-      notes: ''
-    };
-    
-    debugLog('💾 Saving expense:', expenseData);
-    
-    await saveExpense(expenseData);
-    
-    showToast('✅ Expense recorded successfully', 'success');
-    closeExpenseModal();
-    await loadDashboardData();
-    
-  } catch (error) {
-    console.error('❌ Error saving expense:', error);
-    showToast('Failed to save expense', 'error');
-  }
-};
-
-// ============================================
-// DAILY REPORT (FIRESTORE)
-// ============================================
-
-window.printDailyReport = async function() {
-  try {
-    const today = formatDate(new Date(), 'YYYY-MM-DD');
-    
-    // Load today's invoices
-    const invoices = await getTodayInvoices(today);
-    
-    if (!invoices || invoices.length === 0) {
-      showToast('No sales data for today', 'error');
-      return;
-    }
-    
-    let cashSales = 0, cardSales = 0, tabbySales = 0, chequeSales = 0, refunds = 0;
-    
-    invoices.forEach(invoice => {
-      if (invoice.status === 'Refunded') {
-        refunds++;
-      } else {
-        cashSales += invoice.impacts.cash || 0;
-        cardSales += invoice.impacts.card || 0;
-        tabbySales += invoice.impacts.tabby || 0;
-        chequeSales += invoice.impacts.cheque || 0;
-      }
-    });
-    
-    const totalSales = cashSales + cardSales + tabbySales + chequeSales;
-    const cashInHandEl = document.getElementById('cashInHand');
-    const cashInHand = cashInHandEl ? parseFloat(cashInHandEl.textContent) : 0;
-    
-    const reportDate = formatDate(new Date(), 'DD-MMM-YYYY');
-    
-    const reportHTML = `
-      <div style="text-align:center;font-weight:bold;font-size:16px;margin:2mm 0;">AKM MUSIC</div>
-      <div style="text-align:center;font-weight:bold;font-size:14px;margin:2mm 0 4mm 0;">Daily Report - ${reportDate}</div>
-      <div style="border-bottom:2px solid #000;margin:3mm 0;"></div>
-      <div style="margin:2mm 3mm;font-weight:bold;font-size:14px;">Total Sales: <span style="float:right;">${totalSales.toFixed(2)}</span></div>
-      <div style="clear:both;"></div>
-      <div style="margin:2mm 3mm;font-weight:bold;font-size:14px;">Cash: <span style="float:right;">${cashSales.toFixed(2)}</span></div>
-      <div style="clear:both;"></div>
-      <div style="margin:2mm 3mm;font-weight:bold;font-size:14px;">Card: <span style="float:right;">${cardSales.toFixed(2)}</span></div>
-      <div style="clear:both;"></div>
-      <div style="margin:2mm 3mm;font-weight:bold;font-size:14px;">Tabby: <span style="float:right;">${tabbySales.toFixed(2)}</span></div>
-      <div style="clear:both;"></div>
-      <div style="margin:2mm 3mm;font-weight:bold;font-size:14px;">Cheque: <span style="float:right;">${chequeSales.toFixed(2)}</span></div>
-      <div style="clear:both;"></div>
-      <div style="border-bottom:2px solid #000;margin:3mm 0;"></div>
-      <div style="margin:2mm 3mm;font-weight:bold;font-size:14px;">Cash in Hand: <span style="float:right;">${cashInHand.toFixed(2)}</span></div>
-      <div style="clear:both;"></div>
-      <div style="margin:2mm 3mm;font-weight:bold;font-size:14px;">Refunds: <span style="float:right;">${refunds}</span></div>
-      <div style="clear:both;"></div>
-    `;
-    
-    const container = document.getElementById('dailyReportContainer');
-    container.innerHTML = reportHTML;
-    document.body.classList.add('printing-daily-report');
-    window.print();
-    setTimeout(() => document.body.classList.remove('printing-daily-report'), 500);
-    
-  } catch (error) {
-    console.error('❌ Error generating daily report:', error);
-    showToast('Failed to generate report', 'error');
-  }
-};
-
-// ============================================
-// FORM UTILITIES (PRESERVED)
-// ============================================
+// ─── Window Exports ──────────────────────────────────────────
 
 window.clearForm = function() {
-  if (confirm('Are you sure you want to clear the form?')) {
+  if (confirm('Clear the form?')) {
+    isReprintMode = false;
+    reprintInvoiceData = null;
+    loadNextInvoiceNumber();
     resetInvoiceForm();
-    showToast('Form cleared', 'info');
+    showToast('Form cleared.', 'info');
   }
 };
 
@@ -1119,261 +659,113 @@ window.saveAndPrint = function() {
 
 window.selectPayment = function(button, method) {
   currentPaymentMethod = method;
-  
-  document.querySelectorAll('.payment-btn').forEach(btn => {
-    btn.classList.remove('active');
-  });
-  
+  document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
   button.classList.add('active');
-  
-  debugLog('💳 Payment method selected:', method);
+  debugLog('💳 Payment:', method);
 };
 
+// Fixed: show hidden rows instead of just focusing empty ones
 window.addItemRow = function() {
-  // Items are already in the table, just focus on next empty row
-  for (let i = 1; i <= CONFIG.MAX_ITEMS_PER_INVOICE; i++) {
-    const model = document.getElementById(`model${i}`);
-    if (model && !model.value.trim()) {
-      model.focus();
-      return;
-    }
-  }
-  showToast('All item rows are already visible', 'info');
-};
-
-window.loadMoreInvoices = function() {
-  recentInvoicesDays += 7;
-  loadRecentInvoices();
-  showToast(`Loading ${recentInvoicesDays} days of invoices...`, 'info');
+  revealNextItemRow();
 };
 
 window.scrollToTop = function() {
-  const sidebar = document.querySelector('.sidebar');
-  if (sidebar) {
-    sidebar.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
-  }
+  document.querySelector('.sidebar')?.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-// ============================================
-// VALIDATION (PRESERVED)
-// ============================================
+// ─── Keyboard Navigation ──────────────────────────────────────
 
-function validatePhone(phone) {
-  if (!phone) return { valid: true, message: '' };
-  const digitsOnly = phone.replace(/\D/g, '');
-  if (digitsOnly.length >= CONFIG.MIN_PHONE_DIGITS && digitsOnly.length <= CONFIG.MAX_PHONE_DIGITS) {
-    return { valid: true, message: '✓ Valid' };
-  }
-  return { valid: false, message: `✗ Must contain ${CONFIG.MIN_PHONE_DIGITS}-${CONFIG.MAX_PHONE_DIGITS} digits` };
-}
-
-function validateTRN(trn) {
-  if (!trn) return { valid: true, message: '' };
-  const cleaned = trn.replace(/[\s\-]/g, '');
-  return /^[0-9]{15}$/.test(cleaned) ? { valid: true, message: '✓ Valid' } : { valid: false, message: '✗ Must be 15 digits' };
-}
-
-function validateCustomerName(name) {
-  if (!name || name.trim() === '' || name.trim() === 'Walk-in Customer') return { valid: true, message: '' };
-  if (name.trim().length < 2) return { valid: false, message: '✗ Too short' };
-  if (name.trim().length > 100) return { valid: false, message: '✗ Too long' };
-  return { valid: true, message: '✓ Valid' };
-}
-
-function validateInvoiceDate(dateString) {
-  if (!dateString) return { valid: false, message: '✗ Date required' };
-  const selectedDate = new Date(dateString);
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
-  if (selectedDate > today) return { valid: false, message: '✗ Cannot use future date' };
-  
-  const minDate = new Date();
-  minDate.setDate(minDate.getDate() - CONFIG.MIN_INVOICE_DATE_DAYS_AGO);
-  if (selectedDate < minDate) return { valid: false, message: '✗ Date too far in past' };
-  
-  return { valid: true, message: '✓ Valid' };
-}
-
-// ============================================
-// KEYBOARD NAVIGATION (PRESERVED)
-// ============================================
-
-function setupKeyboardNavigation() {
-  debugLog('⌨️ Setting up keyboard navigation');
-  
-  const printBtn = document.getElementById('printBtn');
-  
+function setupKeyboard() {
   document.addEventListener('keydown', (e) => {
-    const activeElement = document.activeElement;
-    
-    // Deposit modal navigation
-    if (activeElement.closest('#depositModal')) {
-      if (e.key === 'Enter') {
+    const active = document.activeElement;
+
+    // Deposit modal Enter navigation
+    if (active.closest('#depositModal') && e.key === 'Enter') {
+      e.preventDefault();
+      const seq = ['depositName','depositAmount','depositBank','depositRef'];
+      const idx = seq.indexOf(active.id);
+      if (idx < seq.length - 1) document.getElementById(seq[idx + 1])?.focus();
+      else window.submitDeposit();
+      return;
+    }
+
+    // Expense modal Enter navigation (skip textarea — Enter should insert newlines there)
+    if (active.closest('#expenseModal') && e.key === 'Enter' && active.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      const seq = ['expenseCategory','expenseDesc','expenseAmount','expenseReceipt'];
+      const idx = seq.indexOf(active.id);
+      if (idx < seq.length - 1) document.getElementById(seq[idx + 1])?.focus();
+      else window.submitExpense();
+      return;
+    }
+
+    // Payment button arrow keys
+    if (active.classList.contains('payment-btn')) {
+      if (e.key === 'Enter')       { e.preventDefault(); active.click(); document.getElementById('printBtn')?.focus(); return; }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         e.preventDefault();
-        const depositInputs = ['depositName', 'depositAmount', 'depositBank', 'depositRef'];
-        const currentId = activeElement.id;
-        const currentIndex = depositInputs.indexOf(currentId);
-        
-        if (currentIndex !== -1 && currentIndex < depositInputs.length - 1) {
-          const nextInput = document.getElementById(depositInputs[currentIndex + 1]);
-          if (nextInput) nextInput.focus();
-        } else if (currentId === 'depositRef') {
-          submitDeposit();
-        }
+        const btns = Array.from(document.querySelectorAll('.payment-btn'));
+        const cur  = btns.indexOf(active);
+        const next = e.key === 'ArrowRight' ? (cur + 1) % btns.length : (cur - 1 + btns.length) % btns.length;
+        btns[next].focus();
         return;
       }
     }
-    
-    // Expense modal navigation
-    if (activeElement.closest('#expenseModal')) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const expenseInputs = ['expenseCategory', 'expenseDesc', 'expenseAmount', 'expenseReceipt'];
-        const currentId = activeElement.id;
-        const currentIndex = expenseInputs.indexOf(currentId);
-        
-        if (currentIndex !== -1 && currentIndex < expenseInputs.length - 1) {
-          const nextInput = document.getElementById(expenseInputs[currentIndex + 1]);
-          if (nextInput) nextInput.focus();
-        } else if (currentId === 'expenseReceipt') {
-          submitExpense();
-        }
-        return;
-      }
+
+    // Print button Enter
+    if (active.id === 'printBtn' && e.key === 'Enter') {
+      e.preventDefault(); window.saveAndPrint(); return;
     }
-    
-    // Payment button navigation
-    if (activeElement.classList.contains('payment-btn')) {
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        e.preventDefault();
-        const paymentButtons = Array.from(document.querySelectorAll('.payment-btn'));
-        const currentIndex = paymentButtons.indexOf(activeElement);
-        
-        if (e.key === 'ArrowRight') {
-          const nextIndex = (currentIndex + 1) % paymentButtons.length;
-          paymentButtons[nextIndex].focus();
-        } else if (e.key === 'ArrowLeft') {
-          const prevIndex = (currentIndex - 1 + paymentButtons.length) % paymentButtons.length;
-          paymentButtons[prevIndex].focus();
-        }
-        return;
-      }
-      
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        activeElement.click();
-        if (printBtn) printBtn.focus();
-        return;
-      }
-    }
-    
-    if (e.key === 'Enter') {
-      if (activeElement.id === 'printBtn') {
-        e.preventDefault();
-        saveAndPrint();
-        return;
-      }
-      
-      // Invoice meta navigation
-      if (activeElement.closest('.invoice-meta-compact')) {
-        e.preventDefault();
-        const metaInputs = ['invDate', 'custName', 'custPhone', 'custTRN'];
-        const currentId = activeElement.id;
-        const currentIndex = metaInputs.indexOf(currentId);
-        
-        if (currentIndex !== -1 && currentIndex < metaInputs.length - 1) {
-          const nextInput = document.getElementById(metaInputs[currentIndex + 1]);
-          if (nextInput) nextInput.focus();
-        } else if (currentId === 'custTRN') {
-          const firstItemInput = document.querySelector('#itemsBody .item-model');
-          if (firstItemInput) firstItemInput.focus();
-        }
-        return;
-      }
-      
-      // Items table navigation
-      if (activeElement.closest('#itemsBody')) {
-        e.preventDefault();
-        const currentRow = activeElement.closest('tr');
-        const allRows = Array.from(document.querySelectorAll('#itemsBody tr'));
-        const currentRowIndex = allRows.indexOf(currentRow);
-        
-        if (activeElement.classList.contains('item-price')) {
-          if (currentRowIndex < allRows.length - 1) {
-            const nextRow = allRows[currentRowIndex + 1];
-            const firstInput = nextRow.querySelector('.item-model');
-            if (firstInput) firstInput.focus();
-          } else {
-            const firstPaymentBtn = document.querySelector('.payment-btn');
-            if (firstPaymentBtn) firstPaymentBtn.focus();
-          }
-        } else {
-          const inputs = Array.from(currentRow.querySelectorAll('input'));
-          const currentIndex = inputs.indexOf(activeElement);
-          if (currentIndex < inputs.length - 1) {
-            inputs[currentIndex + 1].focus();
-          }
-        }
-      }
+
+    // Invoice meta Enter
+    if (active.closest('.invoice-meta') && e.key === 'Enter') {
+      e.preventDefault();
+      const seq = ['invDate','custName','custPhone','custTRN'];
+      const idx = seq.indexOf(active.id);
+      if (idx < seq.length - 1) document.getElementById(seq[idx + 1])?.focus();
+      else document.getElementById('model1')?.focus();
+      return;
     }
   });
 }
 
-// ============================================
-// MODAL CLICK HANDLERS
-// ============================================
+// ─── Modal Click-outside Close ───────────────────────────────
 
 document.addEventListener('click', (e) => {
   if (e.target.classList.contains('modal-overlay')) {
-    closeDepositModal();
-    closeExpenseModal();
+    window.closeDepositModal?.();
+    window.closeExpenseModal?.();
   }
 });
 
-// ============================================
-// BACK TO TOP BUTTON
-// ============================================
+// ─── DOMContentLoaded ────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', function() {
-  const sidebar = document.querySelector('.sidebar');
-  const backToTopBtn = document.getElementById('backToTopBtn');
-  
-  if (sidebar && backToTopBtn) {
-    sidebar.addEventListener('scroll', function() {
-      if (sidebar.scrollTop > 300) {
-        backToTopBtn.classList.add('show');
-      } else {
-        backToTopBtn.classList.remove('show');
-      }
-    });
-  }
-    // Setup keyboard navigation
-  setupKeyboardNavigation();
-  
-  // Set default date to today
-  const invDateInput = document.getElementById('invDate');
-  if (invDateInput) {
-    invDateInput.valueAsDate = new Date();
-  }
-  
-  // Setup login button event listener
-  const loginBtn = document.getElementById('googleSignInBtn');
-  if (loginBtn) {
-    loginBtn.addEventListener('click', signInWithGoogle);
-  }
-  
-  // Setup logout button event listener
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', logout);
+document.addEventListener('DOMContentLoaded', () => {
+  const invDate = document.getElementById('invDate');
+  if (invDate) invDate.valueAsDate = new Date();
+
+  document.getElementById('googleSignInBtn')?.addEventListener('click', signInWithGoogle);
+  document.getElementById('logoutBtn')?.addEventListener('click', logout);
+
+  setupKeyboard();
+});
+
+// ─── Auth State ───────────────────────────────────────────────
+
+onAuthStateChanged(auth, (user) => {
+  if (user && user.email === ALLOWED_EMAIL) {
+    currentUser = user;
+    showMainApp();
+  } else {
+    currentUser = null;
+    showLoginScreen();
   }
 });
 
-// Export functions to window for HTML onclick handlers
 window.signInWithGoogle = signInWithGoogle;
-window.logout = logout;
+window.logout           = logout;
 
-debugLog('✅ app-firestore.js loaded successfully');
+// Expose Firestore utils for repair module
+window.firestoreUtils = { saveDeposit, saveExpense, saveInvoice, formatDate, formatTime };
+
+debugLog('✅ app-firestore.js v3.0 loaded');
