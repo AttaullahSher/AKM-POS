@@ -597,25 +597,25 @@ input, select, textarea {
   color: var(--slate-500); margin-bottom: 10px;
 }
 
-/* Payment Buttons */
+/* Payment Buttons — single row of 4 */
 .payment-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  display: flex; gap: 8px;
 }
 .payment-btn {
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 4px;
-  padding: 12px 8px;
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: row; align-items: center;
+  justify-content: center; gap: 6px;
+  padding: 9px 6px;
   border: 2px solid var(--slate-200);
   border-radius: var(--radius);
   background: white; cursor: pointer;
   transition: all var(--t);
   font-family: 'Montserrat', sans-serif;
-  min-height: 70px;
+  min-height: 46px;
 }
 .payment-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
-.pay-icon { font-size: 22px; line-height: 1; }
-.pay-label { font-size: 12px; font-weight: 800; color: var(--slate-600); letter-spacing: .3px; }
+.pay-icon { font-size: 17px; line-height: 1; flex-shrink: 0; }
+.pay-label { font-size: 11px; font-weight: 800; color: var(--slate-600); letter-spacing: .2px; white-space: nowrap; }
 
 /* Active states */
 .payment-btn.cash.active   { background: var(--emerald-500); border-color: var(--emerald-600); box-shadow: 0 4px 12px rgba(16,185,129,.35); }
@@ -1304,98 +1304,156 @@ input, select, textarea {
 
 /* ===== Print Styles ===== */
 @media print {
+
+  /* ── Thermal 80mm page ── */
+  @page { size: 80mm auto; margin: 3mm 4mm; }
+
   /* Hide everything by default */
-  body > *           { display: none !important; }
-  .main-app          { display: none !important; }
-  .loading-screen    { display: none !important; }
-  .login-screen      { display: none !important; }
+  body > * { display: none !important; }
 
-  /* ---- INVOICE PRINT ---- */
-  body.printing-invoice .invoice-card-print-wrapper,
-  .invoice-card-print-wrapper { display: block !important; }
-
-  .app-header,
+  /* ── INVOICE PRINT (default) ── */
+  .main-app     { display: block !important; }
+  .app-layout   { display: block !important; }
   .sidebar,
+  .app-header,
   .action-row,
   .add-item-btn,
   .modal-overlay,
-  .toast,
-  #toast,
-  .nav-item,
-  #logoutBtn,
+  .toast, #toast,
+  .payment-section,
   .loading-screen,
-  .login-screen     { display: none !important; }
+  .login-screen  { display: none !important; }
 
-  .main-app         { display: flex !important; }
-  .app-layout       { display: flex !important; }
-  .sidebar          { display: none !important; }
-  .main-content     { padding: 0 !important; display: block !important; }
+  .main-content {
+    padding: 0 !important;
+    display: block !important;
+    width: 100% !important;
+  }
 
   .invoice-card {
+    width: 72mm !important;
+    max-width: 72mm !important;
+    min-width: 0 !important;
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
-    max-width: 100% !important;
     animation: none !important;
+    overflow: visible !important;
   }
 
+  /* Company header — black text for thermal */
   .invoice-company {
-    background: #1E1B4B !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    background: none !important;
+    padding: 4px 0 6px !important;
+    border-bottom: 2px solid #000;
+    text-align: center;
+  }
+  .company-ar  { color: #000 !important; font-size: 11px !important; }
+  .company-en  { color: #000 !important; font-size: 12px !important; font-weight: 900 !important; }
+  .company-meta{ color: #000 !important; font-size: 9px !important; margin-top: 2px !important; }
+  .invoice-company::after { display: none !important; }
+
+  /* Title bar */
+  .invoice-title-bar {
+    background: none !important;
+    border-top: none !important;
+    border-bottom: 1px dashed #000 !important;
+    padding: 4px 0 !important;
+  }
+  .invoice-title-bar span {
+    font-size: 11px !important;
+    font-weight: 900 !important;
+    color: #000 !important;
+    letter-spacing: 3px !important;
   }
 
-  .invoice-title-bar { background: #EEF2FF !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Meta fields */
+  .invoice-meta { padding: 5px 0 !important; }
+  .meta-row { gap: 8px !important; margin-bottom: 4px !important; flex-wrap: nowrap !important; }
+  .meta-field label {
+    font-size: 7px !important; color: #555 !important;
+    margin-bottom: 1px !important;
+  }
+  .inv-number-display {
+    background: none !important; border: none !important;
+    font-size: 12px !important; font-weight: 900 !important; color: #000 !important;
+    padding: 0 !important; min-height: 0 !important;
+  }
 
-  .action-row,
-  .add-item-btn      { display: none !important; }
+  /* Items table */
+  .items-section { padding: 0 !important; }
+  .items-table { border-top: 1px solid #000; border-bottom: 1px solid #000; }
+  .items-table thead th {
+    font-size: 8px !important; padding: 3px 2px !important;
+    color: #000 !important; border-bottom: 1px solid #555 !important;
+  }
+  .items-table tbody td { padding: 3px 2px !important; font-size: 10px !important; }
+  .items-table tbody tr { border-bottom: 1px dotted #ccc !important; }
+  .items-table tbody tr:hover { background: none !important; }
+  .amount-cell { font-size: 10px !important; font-weight: 700 !important; }
 
-  .print-only        { display: block !important; }
+  /* Totals */
+  .invoice-bottom {
+    display: block !important;
+    padding: 4px 0 0 !important;
+    border-top: 1px solid #000 !important;
+  }
+  .totals-section { width: 100% !important; }
+  .totals-table tr td { padding: 2px 0 !important; }
+  .totals-table .t-label { font-size: 10px !important; color: #000 !important; }
+  .totals-table .t-value { font-size: 10px !important; color: #000 !important; }
+  .grand-row .t-label  { font-size: 12px !important; font-weight: 900 !important; color: #000 !important; }
+  .grand-row .t-value  { font-size: 14px !important; font-weight: 900 !important; color: #000 !important; }
+  .vat-row .t-label,
+  .vat-row .t-value    { color: #333 !important; }
+  .t-separator td      { border-top: 1px dashed #000 !important; padding-top: 3px !important; }
 
+  /* Print-only sections */
+  .print-only { display: block !important; }
   .print-footer {
-    margin-top: 20px; padding: 12px;
-    border-top: 2px solid #E2E8F0;
-    font-size: 11px; text-align: center; color: #64748B;
-    line-height: 2;
+    border-top: 1px dashed #000;
+    margin-top: 6px; padding-top: 5px;
+    font-size: 9px !important; text-align: center;
+    color: #000 !important; line-height: 1.8;
   }
+  .print-payment-line {
+    font-size: 10px !important; font-weight: 700 !important;
+    text-align: center; margin: 4px 0;
+    border-top: 1px solid #000; border-bottom: 1px solid #000;
+    padding: 2px 0;
+  }
+  .barcode-area { text-align: center; margin-top: 6px; }
 
-  .barcode-area { text-align: center; margin-top: 12px; }
-
-  .items-table tbody tr:hover { background: transparent !important; }
-  .payment-section { display: none !important; }
-
-  /* Replace inputs with spans on print */
+  /* Replaced input spans */
   .print-text-replacement {
     display: inline-block !important;
     width: 100% !important;
-    font-size: 13px; font-weight: 600; color: #000 !important;
+    font-size: 10px !important; font-weight: 600 !important; color: #000 !important;
   }
 
-  /* ---- REPAIR SLIP PRINT ---- */
+  /* ── REPAIR SLIP PRINT ── */
   body.printing-repair-slip .main-app { display: none !important; }
   body.printing-repair-slip .repair-slip-container {
     display: block !important;
-    width: 80mm; margin: 0 auto;
+    width: 72mm; margin: 0 auto;
     font-family: Arial, sans-serif;
     font-size: 11px; color: #000;
   }
   .repair-slip-header { text-align: center; margin-bottom: 6px; }
-  .repair-slip-header h1 { font-size: 16px; font-weight: bold; }
+  .repair-slip-header h1 { font-size: 14px; font-weight: bold; }
   .repair-slip-separator { border-top: 1px dashed #000; margin: 5px 0; }
-  .repair-slip-number { font-size: 14px; font-weight: bold; text-align: center; }
-  .repair-slip-date   { text-align: center; font-size: 11px; }
-  .repair-slip-details { margin: 6px 0; }
-  .slip-row { margin: 3px 0; font-size: 12px; }
-  .repair-slip-terms { font-size: 10px; line-height: 1.6; }
+  .repair-slip-number { font-size: 13px; font-weight: bold; text-align: center; }
+  .repair-slip-date   { text-align: center; font-size: 10px; }
+  .repair-slip-details { margin: 5px 0; }
+  .slip-row { margin: 2px 0; font-size: 11px; }
+  .repair-slip-terms { font-size: 9px; line-height: 1.6; }
 
-  /* ---- DAILY REPORT PRINT ---- */
+  /* ── DAILY REPORT PRINT ── */
   body.printing-daily-report .main-app { display: none !important; }
   body.printing-daily-report .daily-report-container {
     display: block !important;
     font-family: Arial, sans-serif;
   }
-
-  @page { margin: 10mm; size: A4; }
 }
 
 .print-only { display: none; }

@@ -47,31 +47,30 @@ let originalInputStates  = [];
 // ─── Print Helpers ───────────────────────────────────────────
 
 function preparePrintLayout() {
-  originalInputStates = [];
+  if (originalInputStates.length > 0) return;
   const container = document.querySelector('.invoice-card');
   if (!container) return;
 
-  // Hide empty rows
+  // Hide rows with no model AND no price (truly empty)
   for (let i = 1; i <= VALIDATION.MAX_ITEMS_PER_INVOICE; i++) {
     const row   = document.querySelector(`tr[data-row-index="${i}"]`);
     const model = document.getElementById(`model${i}`);
-    const desc  = document.getElementById(`description${i}`);
-    if (row && model && desc && !model.value.trim() && !desc.value.trim()) {
+    const price = document.getElementById(`price${i}`);
+    if (row && model && !model.value.trim() && (!price || !parseFloat(price.value))) {
       row.style.display = 'none';
       row.dataset.hiddenForPrint = '1';
     }
   }
 
-  // Replace inputs with static spans
-  container.querySelectorAll('input, .amount-cell').forEach(el => {
-    const state = { element: el, display: el.style.display, parent: el.parentNode };
-    originalInputStates.push(state);
+  // Replace inputs/selects and amount cells with static spans
+  container.querySelectorAll('input, select, .amount-cell').forEach(el => {
+    originalInputStates.push({ element: el, display: el.style.display });
 
     const span = document.createElement('span');
     span.className = 'print-text-replacement';
     span.textContent = el.classList.contains('amount-cell')
-      ? (el.textContent || ' ')
-      : (el.value || ' ');
+      ? (el.textContent || '')
+      : (el.value || '');
 
     if (el.id?.includes('description')) {
       span.style.whiteSpace = 'pre-wrap';
@@ -358,11 +357,11 @@ async function saveNewInvoice() {
   try {
     await saveInvoice(data);
     showToast('✅ Invoice saved!', 'success');
-    setTimeout(() => window.print(), 300);
+    setTimeout(() => { preparePrintLayout(); window.print(); }, 300);
   } catch (err) {
     console.error('❌ Save error:', err);
     showToast('⚠️ Save error — printing anyway (offline mode).', 'warning');
-    setTimeout(() => window.print(), 300);
+    setTimeout(() => { preparePrintLayout(); window.print(); }, 300);
   } finally {
     setTimeout(async () => {
       await loadDashboardData();
@@ -661,6 +660,7 @@ window.selectPayment = function(button, method) {
   currentPaymentMethod = method;
   document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
   button.classList.add('active');
+  updateEl('printPaymentLine', `PAYMENT: ${method.toUpperCase()}`);
   debugLog('💳 Payment:', method);
 };
 

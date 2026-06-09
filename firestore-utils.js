@@ -222,15 +222,11 @@ export async function getInvoiceByNumber(invoiceNumber) {
 export async function getTodayInvoices() {
   try {
     const today = formatDate(new Date(), 'YYYY-MM-DD');
-    const q = query(
-      collection(db, 'invoices'),
-      where('date', '==', today),
-      orderBy('dateObj', 'desc')
-    );
+    // Simple equality query — no composite index needed
+    const q = query(collection(db, 'invoices'), where('date', '==', today));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (err) {
-    if (err.code === 'failed-precondition') { console.warn('⏳ Index building…'); return []; }
     console.error('❌ getTodayInvoices:', err);
     return [];
   }
@@ -239,15 +235,10 @@ export async function getTodayInvoices() {
 export async function getTodayDeposits() {
   try {
     const today = formatDate(new Date(), 'YYYY-MM-DD');
-    const q = query(
-      collection(db, 'deposits'),
-      where('date', '==', today),
-      orderBy('dateObj', 'desc')
-    );
+    const q = query(collection(db, 'deposits'), where('date', '==', today));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (err) {
-    if (err.code === 'failed-precondition') { console.warn('⏳ Index building…'); return []; }
     console.error('❌ getTodayDeposits:', err);
     return [];
   }
@@ -256,15 +247,10 @@ export async function getTodayDeposits() {
 export async function getTodayExpenses() {
   try {
     const today = formatDate(new Date(), 'YYYY-MM-DD');
-    const q = query(
-      collection(db, 'expenses'),
-      where('date', '==', today),
-      orderBy('dateObj', 'desc')
-    );
+    const q = query(collection(db, 'expenses'), where('date', '==', today));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (err) {
-    if (err.code === 'failed-precondition') { console.warn('⏳ Index building…'); return []; }
     console.error('❌ getTodayExpenses:', err);
     return [];
   }
