@@ -1,7 +1,7 @@
 // dashboard.js - AKM-POS Dashboard Management v3.0
 // Handles dashboard analytics, reports, and invoice management
 
-import { auth, onAuthStateChanged, signOut } from './firebase-config.js';
+import { auth, onAuthStateChanged, signOut } from './firebase-config.js?v=3.2';
 import {
   db,
   getTodayInvoices,
@@ -11,10 +11,10 @@ import {
   markInvoiceAsRefunded,
   formatDate,
   formatTime
-} from './firestore-utils.js';
-import { collection, query, where, orderBy, getDocs, Timestamp } from './firebase-config.js';
-import { APP_CONFIG, debugLog } from './config.js';
-import { showToast } from './utils.js';
+} from './firestore-utils.js?v=3.2';
+import { collection, query, where, orderBy, getDocs, Timestamp } from './firebase-config.js?v=3.2';
+import { APP_CONFIG, debugLog } from './config.js?v=3.2';
+import { showToast } from './utils.js?v=3.2';
 
 const ALLOWED_EMAIL = APP_CONFIG.ALLOWED_EMAIL;
 

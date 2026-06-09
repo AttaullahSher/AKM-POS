@@ -2,7 +2,7 @@
 // Common helper functions used across the application
 // v2.1 - Centralized utilities
 
-import { APP_CONFIG } from './config.js';
+import { APP_CONFIG } from './config.js?v=3.2';
 
 /**
  * Show toast notification

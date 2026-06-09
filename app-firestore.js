@@ -5,7 +5,7 @@
 import {
   auth, provider,
   signInWithPopup, onAuthStateChanged, signOut
-} from './firebase-config.js';
+} from './firebase-config.js?v=3.2';
 
 import {
   getNextInvoiceNumber,
@@ -22,10 +22,10 @@ import {
   getInvoiceByNumber,
   formatDate,
   formatTime,
-} from './firestore-utils.js';
+} from './firestore-utils.js?v=3.2';
 
-import { APP_CONFIG, debugLog } from './config.js';
-import { showToast } from './utils.js';
+import { APP_CONFIG, debugLog } from './config.js?v=3.2';
+import { showToast } from './utils.js?v=3.2';
 
 const ALLOWED_EMAIL  = APP_CONFIG.ALLOWED_EMAIL;
 const VALIDATION     = APP_CONFIG.VALIDATION;
@@ -628,12 +628,18 @@ window.printDailyReport = async function() {
 // ─── Auto-Refresh ─────────────────────────────────────────────
 
 function setupAutoRefresh() {
+  let failures = 0;
   setInterval(async () => {
+    if (failures >= 3) return; // stop hammering if Firestore is unavailable
     try {
       await loadDashboardData();
       await loadRecentInvoicesPanel();
-    } catch (err) { console.error('Auto-refresh error:', err); }
-  }, PERF.AUTO_REFRESH_INTERVAL);   // uses correct 10000ms value
+      failures = 0;
+    } catch (err) {
+      failures++;
+      if (failures === 1) console.error('Auto-refresh error:', err);
+    }
+  }, 30000); // 30 seconds — less aggressive than 10s
 }
 
 // ─── Window Exports ──────────────────────────────────────────

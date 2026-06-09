@@ -10,10 +10,10 @@ import {
   getRecentRepairJobs,
   updateRepairJobStatus,
   formatDate
-} from './firestore-utils.js';
+} from './firestore-utils.js?v=3.2';
 
-import { APP_CONFIG, debugLog } from './config.js';
-import { showToast } from './utils.js';
+import { APP_CONFIG, debugLog } from './config.js?v=3.2';
+import { showToast } from './utils.js?v=3.2';
 
 const DEBUG_MODE = APP_CONFIG.DEBUG_MODE;
 
