@@ -114,6 +114,121 @@ function restorePrintLayout() {
 window.addEventListener('beforeprint', preparePrintLayout);
 window.addEventListener('afterprint',  restorePrintLayout);
 
+// ─── Daily Report (80mm thermal) ───────────────────────────────
+window.printDailyReport = async function() {
+  try {
+    showToast('Generating daily report…', 'info');
+    const today = new Date();
+    const [invoices, deposits, expenses] = await Promise.all([
+      getTodayInvoices(),
+      getTodayDeposits(),
+      getTodayExpenses()
+    ]);
+
+    let totalSales = 0, totalVAT = 0, paidInvoices = 0;
+    let cash = 0, card = 0, tabby = 0, cheque = 0;
+    invoices.forEach(inv => {
+      if (inv.status === 'Paid') {
+        totalSales += inv.payment?.grandTotal || 0;
+        totalVAT   += inv.payment?.vat        || 0;
+        cash       += inv.impacts?.cash       || 0;
+        card       += inv.impacts?.card       || 0;
+        tabby      += inv.impacts?.tabby      || 0;
+        cheque     += inv.impacts?.cheque     || 0;
+        paidInvoices++;
+      }
+    });
+    const totalDeposits = deposits.reduce((s, d) => s + (d.amount || 0), 0);
+    const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+    const cashInHand    = cash - totalDeposits - totalExpenses;
+
+    const money = (n) => 'AED ' + (Number(n) || 0).toFixed(2);
+    const pw = window.open('', '_blank', 'width=420,height=720');
+    pw.document.write(`<!DOCTYPE html><html><head>
+      <meta charset="UTF-8">
+      <title>Daily Report — ${formatDate(today,'DD MMM YYYY')}</title>
+      <style>
+        @page { size: 80mm auto; margin: 3mm 4mm; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Montserrat',Arial,sans-serif; color:#000; background:#fff;
+               width:72mm; margin:0 auto; padding:6px 0; font-size:10px; line-height:1.45; }
+        .head { text-align:center; border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:6px; }
+        .head h1 { font-size:15px; font-weight:900; letter-spacing:1px; }
+        .head .sub { font-size:10px; font-weight:700; }
+        .head .date { font-size:10px; }
+        .sec { margin-bottom:8px; }
+        .sec-t { font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.5px;
+                 border-bottom:1px dashed #000; padding-bottom:2px; margin-bottom:4px; }
+        .row { display:flex; justify-content:space-between; gap:8px; padding:1px 0; }
+        .row b { font-weight:800; }
+        .row.total { border-top:1px solid #000; margin-top:3px; padding-top:3px;
+                     font-weight:900; font-size:11px; }
+        .li { padding:3px 0; border-bottom:1px dotted #999; }
+        .li-top { display:flex; justify-content:space-between; gap:6px; font-weight:700; }
+        .li-sub { font-size:9px; color:#333; }
+        .foot { text-align:center; border-top:1px dashed #000; margin-top:8px; padding-top:5px; font-size:9px; }
+        .no-print { text-align:center; margin-top:14px; }
+        .no-print button { padding:8px 14px; border:none; border-radius:6px; font-size:12px;
+                font-weight:700; cursor:pointer; font-family:inherit; }
+        @media print { .no-print { display:none; } body { width:auto; padding:0; } }
+      </style>
+    </head><body>
+      <div class="head">
+        <h1>AKM MUSIC</h1>
+        <div class="sub">Daily Report</div>
+        <div class="date">${formatDate(today,'DD MMM YYYY')}</div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-t">Sales Summary</div>
+        <div class="row"><span>Total Sales (incl VAT)</span><b>${money(totalSales)}</b></div>
+        <div class="row"><span>VAT (5%)</span><span>${money(totalVAT)}</span></div>
+        <div class="row"><span>Net Sales (excl VAT)</span><span>${money(totalSales-totalVAT)}</span></div>
+        <div class="row"><span>Paid Invoices</span><b>${paidInvoices}</b></div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-t">Payment Breakdown</div>
+        <div class="row"><span>Cash</span><span>${money(cash)}</span></div>
+        <div class="row"><span>Card</span><span>${money(card)}</span></div>
+        <div class="row"><span>Tabby</span><span>${money(tabby)}</span></div>
+        <div class="row"><span>Cheque</span><span>${money(cheque)}</span></div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-t">Cash Flow</div>
+        <div class="row"><span>Cash Sales</span><span>${money(cash)}</span></div>
+        <div class="row"><span>− Bank Deposits</span><span>${money(totalDeposits)}</span></div>
+        <div class="row"><span>− Expenses</span><span>${money(totalExpenses)}</span></div>
+        <div class="row total"><span>Cash in Hand</span><span>${money(cashInHand)}</span></div>
+      </div>
+
+      ${deposits.length ? `<div class="sec"><div class="sec-t">Bank Deposits (${deposits.length})</div>
+        ${deposits.map(d=>`<div class="li"><div class="li-top"><span>${d.depositId||''} · ${d.depositor||''}</span><span>${money(d.amount)}</span></div><div class="li-sub">${d.bank||''}${d.slipNumber?` · Slip ${d.slipNumber}`:''}</div></div>`).join('')}
+        <div class="row total"><span>Total Deposits</span><span>${money(totalDeposits)}</span></div></div>` : ''}
+
+      ${expenses.length ? `<div class="sec"><div class="sec-t">Expenses (${expenses.length})</div>
+        ${expenses.map(e=>`<div class="li"><div class="li-top"><span>${e.expenseId||''} · ${e.category||'General'}</span><span>${money(e.amount)}</span></div><div class="li-sub">${e.description||''}${e.receiptNumber?` · Rcpt ${e.receiptNumber}`:''}</div></div>`).join('')}
+        <div class="row total"><span>Total Expenses</span><span>${money(totalExpenses)}</span></div></div>` : ''}
+
+      <div class="foot">
+        Generated ${formatDate(new Date(),'DD MMM YYYY')} ${formatTime(new Date())}<br>
+        AKM Music Centre LLC
+      </div>
+
+      <div class="no-print">
+        <button onclick="window.print()" style="background:#0ea5e9;color:#fff;">🖨️ Print</button>
+        <button onclick="window.close()" style="background:#e5e7eb;color:#374151;margin-left:8px;">✖ Close</button>
+      </div>
+    </body></html>`);
+    pw.document.close();
+    showToast('Daily report generated', 'success');
+  } catch (err) {
+    console.error('❌ Daily report error:', err);
+    showToast('Failed to generate daily report', 'error');
+  }
+};
+
 // ─── Error Handlers ────────────────────────────────────────────
 
 window.addEventListener('unhandledrejection', (e) => {

@@ -69,18 +69,6 @@
         </div>
       </div>
 
-      <!-- Quick Stats -->
-      <div class="header-stats">
-        <div class="header-stat">
-          <span class="stat-label">Today's Sales</span>
-          <span class="stat-value" id="todaySalesQuick">0.00</span>
-        </div>
-        <div class="header-stat cash">
-          <span class="stat-label">Cash in Hand</span>
-          <span class="stat-value" id="cashInHandQuick">0.00</span>
-        </div>
-      </div>
-
       <!-- Action Buttons (sidebar removed — merged here) -->
       <div class="header-actions">
 
@@ -98,6 +86,10 @@
 
         <button onclick="openHistoryModal()" class="hdr-btn history-btn" title="Invoice History" aria-label="Invoice History">
           <span class="hdr-icon">📋</span><span>History</span>
+        </button>
+
+        <button onclick="printDailyReport()" class="hdr-btn report-btn" title="Daily Report" aria-label="Daily Report">
+          <span class="hdr-icon">📄</span><span>Report</span>
         </button>
 
         <a href="dashboard.html" class="hdr-btn dashboard-btn" title="Dashboard" aria-label="Dashboard">
@@ -128,7 +120,7 @@
           <div class="company-meta">
             <span>Po Box 8227</span>&nbsp;&nbsp;|&nbsp;&nbsp;
             <span>Tel: 02 621 9929</span>&nbsp;&nbsp;|&nbsp;&nbsp;
-            <span>TRN: 100241997400003</span>
+            <span>TRN: 100050547700003</span>
           </div>
         </div>
 
@@ -189,30 +181,8 @@
           </button>
         </div>
 
-        <!-- Payment + Totals -->
+        <!-- Totals -->
         <div class="invoice-bottom">
-          <div class="payment-section">
-            <span class="section-label">Payment Method <span style="color:#f43f5e">*</span></span>
-            <div class="payment-grid">
-              <button class="payment-btn cash"   data-method="Cash"   onclick="selectPayment(this,'Cash')"   aria-label="Cash">
-                <span class="pay-icon"></span>
-                <span class="pay-label">CASH</span>
-              </button>
-              <button class="payment-btn card"   data-method="Card"   onclick="selectPayment(this,'Card')"   aria-label="Card">
-                <span class="pay-icon"></span>
-                <span class="pay-label">CARD</span>
-              </button>
-              <button class="payment-btn tabby"  data-method="Tabby"  onclick="selectPayment(this,'Tabby')"  aria-label="Tabby">
-                <span class="pay-icon"></span>
-                <span class="pay-label">TABBY</span>
-              </button>
-              <button class="payment-btn cheque" data-method="Cheque" onclick="selectPayment(this,'Cheque')" aria-label="Cheque">
-                <span class="pay-icon"></span>
-                <span class="pay-label">CHEQUE</span>
-              </button>
-            </div>
-          </div>
-
           <div class="totals-section">
             <table class="totals-table">
               <tr>
@@ -229,6 +199,29 @@
                 <td class="t-value" id="grandTotal">0.00</td>
               </tr>
             </table>
+          </div>
+        </div>
+
+        <!-- Payment Method (below grand total, above Save) -->
+        <div class="payment-section">
+          <span class="section-label">Payment Method <span style="color:#f43f5e">*</span></span>
+          <div class="payment-grid">
+            <button class="payment-btn cash"   data-method="Cash"   onclick="selectPayment(this,'Cash')"   aria-label="Cash">
+              <span class="pay-icon"></span>
+              <span class="pay-label">CASH</span>
+            </button>
+            <button class="payment-btn card"   data-method="Card"   onclick="selectPayment(this,'Card')"   aria-label="Card">
+              <span class="pay-icon"></span>
+              <span class="pay-label">CARD</span>
+            </button>
+            <button class="payment-btn tabby"  data-method="Tabby"  onclick="selectPayment(this,'Tabby')"  aria-label="Tabby">
+              <span class="pay-icon"></span>
+              <span class="pay-label">TABBY</span>
+            </button>
+            <button class="payment-btn cheque" data-method="Cheque" onclick="selectPayment(this,'Cheque')" aria-label="Cheque">
+              <span class="pay-icon"></span>
+              <span class="pay-label">CHEQUE</span>
+            </button>
           </div>
         </div>
 

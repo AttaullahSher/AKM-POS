@@ -336,6 +336,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .hdr-btn.expense-btn:hover  { background: var(--rose-50);    border-color: var(--rose-300);    color: var(--rose-600); }
 .hdr-btn.repair-btn:hover   { background: var(--amber-50);   border-color: var(--amber-200);   color: var(--amber-700); }
 .hdr-btn.history-btn:hover  { background: var(--purple-50);  border-color: var(--purple-200);  color: var(--purple-600); }
+.hdr-btn.report-btn:hover   { background: var(--blue-50);    border-color: var(--blue-100);    color: var(--blue-700); }
 .hdr-btn.dashboard-btn {
   background: var(--sky-600); border-color: var(--sky-700);
   color: white; box-shadow: 0 3px 8px rgba(2,132,199,.3);
@@ -407,8 +408,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   flex-wrap: wrap; align-items: center;
 }
 .meta-row:last-child { margin-bottom: 0; }
-/* Row 1 (invoice no. + date) sits to the top-right, like a printed invoice */
-.meta-row-top { justify-content: flex-end; }
+/* Row 1: invoice no. on the left, date on the right */
+.meta-row-top { justify-content: space-between; }
 .meta-row-top .meta-field { flex: 0 0 auto; }
 
 /* Inline label + control (label on the left, field on the right) */
@@ -416,10 +417,13 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   flex: 1 1 auto; min-width: 0;
   display: flex; align-items: center; gap: 9px;
 }
+/* Fixed label width so the first cell of each row (Invoice #, Customer, Mobile)
+   lines up vertically */
 .meta-field label {
   font-size: 11px; font-weight: 600;
   color: var(--slate-500); margin-bottom: 0;
   white-space: nowrap; flex-shrink: 0;
+  min-width: 58px;
 }
 .meta-field input {
   flex: 1; width: auto; min-width: 0; padding: 7px 11px;
@@ -513,16 +517,19 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   color: var(--sky-700);
 }
 
-/* Invoice Bottom */
+/* Invoice Bottom — totals only, aligned to the right */
 .invoice-bottom {
-  display: flex; gap: 16px;
-  padding: 16px 24px;
-  align-items: flex-start;
+  display: flex; justify-content: flex-end;
+  padding: 12px 24px 8px;
   border-top: 2px solid var(--slate-100);
-  flex-wrap: wrap;
 }
-.payment-section { flex: 1; min-width: 240px; }
-.totals-section  { flex: 0 0 240px; }
+.totals-section  { flex: 0 0 300px; max-width: 300px; }
+
+/* Payment Method — full-width block beneath the grand total */
+.payment-section {
+  padding: 6px 24px 10px;
+  border-top: 1px solid var(--slate-100);
+}
 
 .section-label {
   display: block; font-size: 11px; font-weight: 600;
@@ -1248,14 +1255,15 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
   .invoice-meta { padding: 5px 0 !important; }
   .meta-row { gap: 10px !important; margin-bottom: 3px !important; flex-wrap: wrap !important; row-gap: 2px !important; }
-  .meta-field {
+  .meta-field[data-hidden-for-print] { display: none !important; }   /* keep empty phone/TRN hidden */
+  .meta-field:not([data-hidden-for-print]) {
     display: flex !important; align-items: baseline !important;
     gap: 4px !important; min-width: 0 !important;
   }
   .meta-row:not(.meta-row-top) .meta-field { flex: 1 1 auto !important; }
   .meta-field label {
     font-size: 8px !important; color: #555 !important;
-    margin-bottom: 0 !important; white-space: nowrap !important;
+    margin-bottom: 0 !important; white-space: nowrap !important; min-width: 0 !important;
   }
   .invoice-meta .print-text-replacement {
     width: auto !important; font-size: 10px !important; font-weight: 700 !important;
@@ -1267,17 +1275,42 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
     padding: 0 !important; min-height: 0 !important;
   }
 
+  /* Items — stacked 2-line thermal layout (no column headers) */
   .items-section { padding: 0 !important; }
-  .items-table { border-top: 1px solid #000; border-bottom: 1px solid #000; }
-  .items-table thead th {
-    font-size: 8px !important; padding: 3px 2px !important;
-    color: #000 !important; border-bottom: 1px solid #555 !important;
-    background: none !important;
+  .items-table {
+    display: block !important; width: 100% !important;
+    border-top: 1px solid #000; border-bottom: 1px solid #000;
   }
-  .items-table tbody td { padding: 3px 2px !important; font-size: 10px !important; }
-  .items-table tbody tr { border-bottom: 1px dotted #ccc !important; }
+  .items-table thead { display: none !important; }
+  .items-table tbody { display: block !important; width: 100% !important; }
+  .items-table tbody tr[data-hidden-for-print] { display: none !important; }   /* keep blank rows out */
+  .items-table tbody tr:not([data-hidden-for-print]) {
+    display: grid !important;
+    grid-template-columns: auto 1fr auto !important;
+    column-gap: 6px !important; row-gap: 0 !important;
+    align-items: baseline !important;
+    padding: 4px 0 !important;
+    border-bottom: 1px dotted #bbb !important;
+  }
   .items-table tbody tr:hover { background: none !important; }
-  .amount-cell { font-size: 10px !important; font-weight: 700 !important; }
+  .items-table tbody td {
+    display: block !important; padding: 0 !important; border: none !important; text-align: left !important;
+  }
+  .items-table tbody td .print-text-replacement { width: auto !important; }
+  /* Line 1: model (small) + description (bold) */
+  .items-table tbody td:nth-child(1) { grid-area: 1 / 1 / 2 / 2; font-size: 8px !important; color: #555 !important; font-weight: 700 !important; white-space: nowrap; }
+  .items-table tbody td:nth-child(2) { grid-area: 1 / 2 / 2 / 4; font-size: 10px !important; font-weight: 700 !important; }
+  /* Line 2: Qty  @ UnitPrice  ........  Amount */
+  .items-table tbody td:nth-child(3) { grid-area: 2 / 1 / 3 / 2; font-size: 8px !important; color: #444 !important; white-space: nowrap; }
+  .items-table tbody td:nth-child(3)::before { content: "Qty "; color: #888; }
+  .items-table tbody td:nth-child(4) { grid-area: 2 / 2 / 3 / 3; font-size: 8px !important; color: #444 !important; }
+  .items-table tbody td:nth-child(4)::before { content: "@ "; color: #888; }
+  /* Amount: preparePrintLayout moves its value into a span that is a direct child of <tr> */
+  .items-table tbody .amount-cell { display: none !important; }
+  .items-table tbody tr > .print-text-replacement {
+    grid-area: 2 / 3 / 3 / 4; align-self: baseline;
+    text-align: right !important; font-size: 11px !important; font-weight: 800 !important;
+  }
 
   .invoice-bottom {
     display: block !important;
