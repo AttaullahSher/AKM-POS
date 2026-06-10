@@ -87,23 +87,8 @@ async function loadDashboardStats() {
     updateEl('cardSales',         card.toFixed(2));
     updateEl('tabbySales',        tabby.toFixed(2));
     updateEl('chequeSales',       cheque.toFixed(2));
-
-    await loadRepairStats();
   } catch (err) {
     console.error('❌ Stats error:', err);
-  }
-}
-
-async function loadRepairStats() {
-  try {
-    const snap = await getDocs(query(
-      collection(db, 'repairs'),
-      where('status', '==', 'InProcess'),
-      orderBy('dateObj', 'desc')
-    ));
-    updateEl('pendingRepairs', snap.size.toString());
-  } catch (err) {
-    updateEl('pendingRepairs', '0');
   }
 }
 
@@ -468,12 +453,94 @@ window.exportTaxReportExcel = function() {
 
 window.printTaxReport = function() {
   if (!currentTaxReport) { showToast('No report to print', 'error'); return; }
-  window.print();
+  const d = currentTaxReport;
+  const money = (n) => 'AED ' + (Number(n) || 0).toFixed(2);
+  const rows = d.invoices.map(inv => `
+    <tr class="${inv.status === 'Refunded' ? 'ref' : ''}">
+      <td>${inv.invoiceNumber}</td><td>${inv.date}</td><td>${inv.customer}</td>
+      <td class="r">${inv.subtotal.toFixed(2)}</td><td class="r">${inv.vat.toFixed(2)}</td>
+      <td class="r"><b>${inv.grandTotal.toFixed(2)}</b></td><td>${inv.payment}</td><td>${inv.status}</td>
+    </tr>`).join('');
+
+  const pw = window.open('', '_blank', 'width=900,height=800');
+  pw.document.write(`<!DOCTYPE html><html><head>
+    <meta charset="UTF-8">
+    <title>VAT Report — ${d.periodName}</title>
+    <style>
+      @page { size: A4; margin: 14mm; }
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { font-family:'Montserrat',Arial,sans-serif; color:#1e293b; font-size:12px; }
+      .head { text-align:center; border-bottom:3px solid #0ea5e9; padding-bottom:14px; margin-bottom:18px; }
+      .head h1 { font-size:22px; color:#0369a1; letter-spacing:1px; }
+      .head .co { font-size:13px; font-weight:600; margin-top:4px; }
+      .head .trn { font-size:11px; color:#64748b; margin-top:2px; }
+      .head .period { font-size:13px; font-weight:700; margin-top:8px; }
+      .head .dates { font-size:11px; color:#64748b; }
+      .summary { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+      .sum { flex:1 1 22%; border:1px solid #e2e8f0; border-left:4px solid #0ea5e9; border-radius:6px; padding:10px 12px; background:#f8fafc; }
+      .sum .l { font-size:10px; text-transform:uppercase; color:#64748b; font-weight:600; }
+      .sum .v { font-size:16px; font-weight:800; color:#0c4a6e; margin-top:3px; }
+      .pay { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; margin-bottom:16px; }
+      .pay b { color:#0369a1; }
+      h2 { font-size:13px; color:#0369a1; margin:12px 0 6px; }
+      table { width:100%; border-collapse:collapse; }
+      th { background:#0ea5e9; color:#fff; font-size:11px; padding:7px 8px; text-align:left; }
+      th.r { text-align:right; }
+      td { padding:6px 8px; border-bottom:1px solid #e5e7eb; font-size:11px; }
+      td.r { text-align:right; }
+      tr.ref td { color:#dc2626; text-decoration:line-through; }
+      .foot { margin-top:20px; border-top:1px solid #e5e7eb; padding-top:10px; font-size:10px; color:#94a3b8; text-align:center; }
+      .no-print { text-align:center; margin-top:18px; }
+      .no-print button { padding:9px 18px; border:none; border-radius:6px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+      @media print { .no-print { display:none; } }
+    </style>
+  </head><body>
+    <div class="head">
+      <h1>VAT / TAX REPORT</h1>
+      <div class="co">${APP_CONFIG.COMPANY_NAME_EN}</div>
+      <div class="trn">TRN: ${APP_CONFIG.COMPANY_TRN}</div>
+      <div class="period">${d.periodName}</div>
+      <div class="dates">${d.startDate} — ${d.endDate}</div>
+    </div>
+    <div class="summary">
+      <div class="sum"><div class="l">Total Sales (incl VAT)</div><div class="v">${money(d.totalSales)}</div></div>
+      <div class="sum"><div class="l">Total VAT (5%)</div><div class="v">${money(d.totalVAT)}</div></div>
+      <div class="sum"><div class="l">Net Sales (excl VAT)</div><div class="v">${money(d.totalSales - d.totalVAT)}</div></div>
+      <div class="sum"><div class="l">Paid Invoices</div><div class="v">${d.paidInvoices}</div></div>
+    </div>
+    <div class="pay">
+      <span>Cash: <b>${money(d.cashSales)}</b></span>
+      <span>Card: <b>${money(d.cardSales)}</b></span>
+      <span>Tabby: <b>${money(d.tabbySales)}</b></span>
+      <span>Cheque: <b>${money(d.chequeSales)}</b></span>
+      ${d.refundedInvoices > 0 ? `<span>Refunded: <b>${d.refundedInvoices}</b></span>` : ''}
+    </div>
+    <h2>Invoice Details (${d.invoices.length})</h2>
+    <table>
+      <thead><tr><th>Invoice #</th><th>Date</th><th>Customer</th><th class="r">Subtotal</th><th class="r">VAT</th><th class="r">Total</th><th>Payment</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="foot">Generated ${formatDate(new Date(),'DD MMM YYYY')} ${formatTime(new Date())} — ${APP_CONFIG.COMPANY_NAME_EN}</div>
+    <div class="no-print">
+      <button onclick="window.print()" style="background:#0ea5e9;color:#fff;">🖨️ Print</button>
+      <button onclick="window.close()" style="background:#e5e7eb;color:#374151;margin-left:8px;">✖ Close</button>
+    </div>
+  </body></html>`);
+  pw.document.close();
 };
 
 // ─── Export All / Backup ─────────────────────────────────────────
 
+// PIN gate for sensitive data actions (export / backup)
+function requirePin(action = 'continue') {
+  const pin = window.prompt(`🔒 Enter PIN to ${action}:`);
+  if (pin === null) return false;                          // cancelled
+  if (pin.trim() !== '2532') { showToast('Incorrect PIN', 'error'); return false; }
+  return true;
+}
+
 window.exportAllData = async function() {
+  if (!requirePin('export all data')) return;
   try {
     showToast('Exporting all data…', 'info');
     const today = new Date();
@@ -583,6 +650,7 @@ window.exportAllData = async function() {
 };
 
 window.createBackup = async function() {
+  if (!requirePin('create a backup')) return;
   try {
     showToast('Creating backup…', 'info');
     const today = new Date();

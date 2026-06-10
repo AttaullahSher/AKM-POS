@@ -886,7 +886,4 @@ onAuthStateChanged(auth, (user) => {
 window.signInWithGoogle = signInWithGoogle;
 window.logout           = logout;
 
-// Expose Firestore utils for repair module
-window.firestoreUtils = { saveDeposit, saveExpense, saveInvoice, formatDate, formatTime };
-
 debugLog('✅ app-firestore.js v4.0 loaded');
