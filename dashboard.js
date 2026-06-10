@@ -1,70 +1,56 @@
-// dashboard.js - AKM-POS Dashboard Management v3.0
-// Handles dashboard analytics, reports, and invoice management
+// dashboard.js — AKM-POS Dashboard v4.0
+// Redesign: AKM MUSIC branding, fixed full-history exports, styled Excel export
 
-import { auth, onAuthStateChanged, signOut } from './firebase-config.js?v=3.2';
+import { auth, onAuthStateChanged, signOut } from './firebase-config.js?v=4.0';
 import {
   db,
   getTodayInvoices,
   getTodayDeposits,
   getTodayExpenses,
+  loadRecentDeposits,
+  loadRecentExpenses,
   getRecentInvoices,
   markInvoiceAsRefunded,
   formatDate,
   formatTime
-} from './firestore-utils.js?v=3.2';
-import { collection, query, where, orderBy, getDocs, Timestamp } from './firebase-config.js?v=3.2';
-import { APP_CONFIG, debugLog } from './config.js?v=3.2';
-import { showToast } from './utils.js?v=3.2';
+} from './firestore-utils.js?v=4.0';
+import { collection, query, where, orderBy, getDocs, Timestamp } from './firebase-config.js?v=4.0';
+import { APP_CONFIG, debugLog } from './config.js?v=4.0';
+import { showToast } from './utils.js?v=4.0';
 
 const ALLOWED_EMAIL = APP_CONFIG.ALLOWED_EMAIL;
 
-let currentUser = null;
-let currentFilter = 'all';
-let allInvoices = [];
-let currentTaxReportData = null;
+let currentUser        = null;
+let currentFilter      = 'all';
+let allInvoices        = [];
+let currentTaxReport   = null;
 
-// UAE Financial Quarters
 const TAX_QUARTERS = {
-  Q1: { name: 'Q1: Aug-Nov', months: [8, 9, 10, 11] },
-  Q2: { name: 'Q2: Dec-Feb', months: [12, 1, 2] },
-  Q3: { name: 'Q3: Mar-May', months: [3, 4, 5] },
-  Q4: { name: 'Q4: Jun-Jul', months: [6, 7] }
+  Q1: { name: 'Q1: Aug–Nov', months: [8, 9, 10, 11] },
+  Q2: { name: 'Q2: Dec–Feb', months: [12, 1, 2] },
+  Q3: { name: 'Q3: Mar–May', months: [3, 4, 5] },
+  Q4: { name: 'Q4: Jun–Jul', months: [6, 7] }
 };
 
-// ============================================
-// INITIALIZATION
-// ============================================
+// ─── Initialization ─────────────────────────────────────────────
 
 async function initDashboard() {
-  console.log('🚀 Initializing dashboard...');
-  
+  debugLog('🚀 Initializing AKM Dashboard v4.0');
   try {
     await loadDashboardStats();
     await loadRecentInvoicesTable();
-    
-    // Auto-refresh every 30 seconds
-    setInterval(async () => {
-      await loadDashboardStats();
-      if (currentFilter === 'today' || currentFilter === 'all') {
-        await loadRecentInvoicesTable();
-      }
-    }, 30000);
-    
-    console.log('✅ Dashboard initialized');
-    showToast('Dashboard loaded successfully', 'success');
-    
-  } catch (error) {
-    console.error('❌ Dashboard initialization error:', error);
+    setInterval(() => loadDashboardStats(), 60000);
+    showToast('Dashboard loaded', 'success');
+  } catch (err) {
+    console.error('❌ Dashboard init error:', err);
     showToast('Error loading dashboard', 'error');
   } finally {
     document.getElementById('loadingScreen').style.display = 'none';
-    document.getElementById('dashboardApp').style.display = 'block';
+    document.getElementById('dashboardApp').style.display  = 'block';
   }
 }
 
-// ============================================
-// DASHBOARD STATS
-// ============================================
+// ─── Stats ──────────────────────────────────────────────────────
 
 async function loadDashboardStats() {
   try {
@@ -73,183 +59,145 @@ async function loadDashboardStats() {
       getTodayDeposits(),
       getTodayExpenses()
     ]);
-    
-    // Calculate stats
-    let totalSales = 0, totalVAT = 0;
+
+    let totalSales = 0, totalVAT = 0, invoiceCount = 0;
     let cash = 0, card = 0, tabby = 0, cheque = 0;
-    let invoiceCount = 0;
-    
+
     invoices.forEach(inv => {
       if (inv.status === 'Paid') {
         totalSales += inv.payment?.grandTotal || 0;
-        totalVAT += inv.payment?.vat || 0;
-        cash += inv.impacts?.cash || 0;
-        card += inv.impacts?.card || 0;
-        tabby += inv.impacts?.tabby || 0;
-        cheque += inv.impacts?.cheque || 0;
+        totalVAT   += inv.payment?.vat        || 0;
+        cash       += inv.impacts?.cash       || 0;
+        card       += inv.impacts?.card       || 0;
+        tabby      += inv.impacts?.tabby      || 0;
+        cheque     += inv.impacts?.cheque     || 0;
         invoiceCount++;
       }
     });
-    
-    const totalDeposits = deposits.reduce((sum, d) => sum + (d.amount || 0), 0);
-    const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-    const cashInHand = cash - totalDeposits - totalExpenses;
-    
-    // Update UI
-    updateElement('todayTotalSales', totalSales.toFixed(2));
-    updateElement('todayInvoiceCount', `${invoiceCount} invoice${invoiceCount !== 1 ? 's' : ''}`);
-    updateElement('cashInHand', cashInHand.toFixed(2));
-    updateElement('todayVAT', totalVAT.toFixed(2));
-    updateElement('cashSales', cash.toFixed(2));
-    updateElement('cardSales', card.toFixed(2));
-    updateElement('tabbySales', tabby.toFixed(2));
-    updateElement('chequeSales', cheque.toFixed(2));
-    
-    // Load repair stats
+
+    const totalDeposits = deposits.reduce((s, d) => s + (d.amount || 0), 0);
+    const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+    const cashInHand    = cash - totalDeposits - totalExpenses;
+
+    updateEl('todayTotalSales',   totalSales.toFixed(2));
+    updateEl('todayInvoiceCount', `${invoiceCount} invoice${invoiceCount !== 1 ? 's' : ''}`);
+    updateEl('cashInHand',        cashInHand.toFixed(2));
+    updateEl('todayVAT',          totalVAT.toFixed(2));
+    updateEl('cashSales',         cash.toFixed(2));
+    updateEl('cardSales',         card.toFixed(2));
+    updateEl('tabbySales',        tabby.toFixed(2));
+    updateEl('chequeSales',       cheque.toFixed(2));
+
     await loadRepairStats();
-    
-  } catch (error) {
-    console.error('❌ Error loading stats:', error);
+  } catch (err) {
+    console.error('❌ Stats error:', err);
   }
 }
 
 async function loadRepairStats() {
   try {
-    const repairsRef = collection(db, 'repairs');
-    const q = query(repairsRef, where('status', '==', 'InProcess'), orderBy('dateObj', 'desc'));
-    const snapshot = await getDocs(q);
-    
-    updateElement('pendingRepairs', snapshot.size.toString());
-  } catch (error) {
-    console.error('Error loading repair stats:', error);
-    updateElement('pendingRepairs', '0');
+    const snap = await getDocs(query(
+      collection(db, 'repairs'),
+      where('status', '==', 'InProcess'),
+      orderBy('dateObj', 'desc')
+    ));
+    updateEl('pendingRepairs', snap.size.toString());
+  } catch (err) {
+    updateEl('pendingRepairs', '0');
   }
 }
 
-// ============================================
-// INVOICES TABLE
-// ============================================
+// ─── Invoices Table ──────────────────────────────────────────────
 
 async function loadRecentInvoicesTable() {
+  const tbody = document.getElementById('invoicesTableBody');
+  tbody.innerHTML = '<tr><td colspan="7" class="table-loading">Loading…</td></tr>';
   try {
-    const tbody = document.getElementById('invoicesTableBody');
-    tbody.innerHTML = '<tr><td colspan="7" class="table-loading">Loading...</td></tr>';
-    
     allInvoices = await getRecentInvoices(100);
-    
-    if (!allInvoices || allInvoices.length === 0) {
+    if (!allInvoices.length) {
       tbody.innerHTML = '<tr><td colspan="7" class="table-empty">No invoices found</td></tr>';
       return;
     }
-    
     filterInvoices(currentFilter);
-    
-  } catch (error) {
-    console.error('❌ Error loading invoices:', error);
-    const tbody = document.getElementById('invoicesTableBody');
+  } catch (err) {
+    console.error('❌ Invoice table error:', err);
     tbody.innerHTML = '<tr><td colspan="7" class="table-error">Error loading invoices</td></tr>';
   }
 }
 
 window.filterInvoices = function(filter) {
   currentFilter = filter;
-  
-  // Update filter buttons
-  document.querySelectorAll('.btn-filter').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.filter === filter);
-  });
-  
+  document.querySelectorAll('.btn-filter').forEach(b => b.classList.toggle('active', b.dataset.filter === filter));
   let filtered = [...allInvoices];
   const now = new Date();
-  
   if (filter === 'today') {
     const today = formatDate(now, 'YYYY-MM-DD');
     filtered = filtered.filter(inv => inv.date === today);
   } else if (filter === 'week') {
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    filtered = filtered.filter(inv => new Date(inv.date) >= weekAgo);
+    const cut = new Date(now - 7 * 86400000);
+    filtered = filtered.filter(inv => new Date(inv.date) >= cut);
   } else if (filter === 'month') {
-    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    filtered = filtered.filter(inv => new Date(inv.date) >= monthAgo);
+    const cut = new Date(now - 30 * 86400000);
+    filtered = filtered.filter(inv => new Date(inv.date) >= cut);
   }
-  
   displayInvoices(filtered);
 };
 
 function displayInvoices(invoices) {
   const tbody = document.getElementById('invoicesTableBody');
-  
-  if (invoices.length === 0) {
+  if (!invoices.length) {
     tbody.innerHTML = '<tr><td colspan="7" class="table-empty">No invoices for this period</td></tr>';
     return;
   }
-    tbody.innerHTML = invoices.map(inv => `
+  tbody.innerHTML = invoices.map(inv => `
     <tr class="${inv.status === 'Refunded' ? 'row-refunded' : ''}">
       <td><strong>${inv.invoiceNumber}</strong></td>
       <td>${formatDate(new Date(inv.date), 'DD MMM YYYY')}</td>
       <td>${inv.customer || 'Walk-in'}</td>
-      <td><strong>AED ${inv.grandTotal.toFixed(2)}</strong></td>
-      <td><span class="payment-badge ${inv.payment.toLowerCase()}">${inv.payment}</span></td>
-      <td><span class="status-badge ${inv.status.toLowerCase()}">${inv.status}</span></td>
+      <td><strong>AED ${(inv.grandTotal || 0).toFixed(2)}</strong></td>
+      <td><span class="payment-badge ${(inv.payment || 'cash').toLowerCase()}">${inv.payment || 'Cash'}</span></td>
+      <td><span class="status-badge ${(inv.status || 'paid').toLowerCase()}">${inv.status || 'Paid'}</span></td>
       <td>
         <div class="table-action-buttons">
-          <button onclick="reprintInvoice('${inv.id}')" class="btn-table-action btn-view" title="View & Reprint">
-            View
-          </button>
+          <button onclick="reprintInvoice('${inv.id}')" class="btn-table-action btn-view">View</button>
           ${inv.status !== 'Refunded' ? `
-            <button onclick="refundInvoice('${inv.id}', '${inv.invoiceNumber}')" class="btn-table-action btn-refund" title="Refund Invoice">
-              Refund
-            </button>
+            <button onclick="refundInvoice('${inv.id}','${inv.invoiceNumber}')" class="btn-table-action btn-refund">Refund</button>
           ` : '<span class="refunded-label">Refunded</span>'}
         </div>
       </td>
-    </tr>
-  `).join('');
+    </tr>`).join('');
 }
 
-window.reprintInvoice = function(invoiceId) {
-  // Open POS with reprint mode
-  window.location.href = `index.html?reprint=${invoiceId}`;
-};
+window.reprintInvoice = function(id) { window.location.href = `index.html?reprint=${id}`; };
 
-window.refundInvoice = async function(invoiceId, invoiceNumber) {
-  if (!confirm(`Are you sure you want to refund invoice ${invoiceNumber}?`)) {
-    return;
-  }
-  
+window.refundInvoice = async function(id, num) {
+  if (!confirm(`Refund invoice ${num}?`)) return;
   try {
-    await markInvoiceAsRefunded(invoiceId);
-    showToast('Invoice refunded successfully', 'success');
+    await markInvoiceAsRefunded(id);
+    showToast('Invoice refunded', 'success');
     await loadDashboardStats();
     await loadRecentInvoicesTable();
-  } catch (error) {
-    console.error('❌ Error refunding invoice:', error);
+  } catch (err) {
+    console.error('❌ Refund error:', err);
     showToast('Failed to refund invoice', 'error');
   }
 };
 
 window.loadMoreInvoices = async function() {
-  showToast('Loading more invoices...', 'info');
-  const moreInvoices = await getRecentInvoices(200);
-  allInvoices = moreInvoices;
+  showToast('Loading more invoices…', 'info');
+  allInvoices = await getRecentInvoices(200);
   filterInvoices(currentFilter);
 };
 
-// ============================================
-// TAX REPORTS
-// ============================================
+// ─── Tax Reports ─────────────────────────────────────────────────
 
 window.openTaxReportModal = function() {
-  const modal = document.getElementById('taxReportModal');
-  modal.classList.add('show');
-  
-  // Set default dates to current month
-  const today = new Date();
+  document.getElementById('taxReportModal').classList.add('show');
+  const today    = new Date();
   const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-  
+  const lastDay  = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   document.getElementById('taxReportFromDate').valueAsDate = firstDay;
-  document.getElementById('taxReportToDate').valueAsDate = lastDay;
+  document.getElementById('taxReportToDate').valueAsDate   = lastDay;
 };
 
 window.closeTaxReportModal = function() {
@@ -257,52 +205,33 @@ window.closeTaxReportModal = function() {
 };
 
 window.generateQuarterlyReport = async function(quarter) {
-  const quarterInfo = TAX_QUARTERS[quarter];
-  if (!quarterInfo) return;
-
-  const currentYear = new Date().getFullYear();
-  const months = quarterInfo.months;
-  
+  const qi = TAX_QUARTERS[quarter];
+  if (!qi) return;
+  const yr = new Date().getFullYear();
   let startDate, endDate;
-  
   if (quarter === 'Q2') {
-    startDate = new Date(currentYear - 1, 11, 1);
-    endDate = new Date(currentYear, 2, 0);
+    startDate = new Date(yr - 1, 11, 1);
+    endDate   = new Date(yr, 2, 0);
   } else {
-    const firstMonth = Math.min(...months);
-    const lastMonth = Math.max(...months);
-    startDate = new Date(currentYear, firstMonth - 1, 1);
-    endDate = new Date(currentYear, lastMonth, 0);
+    startDate = new Date(yr, Math.min(...qi.months) - 1, 1);
+    endDate   = new Date(yr, Math.max(...qi.months), 0);
   }
-
-  await generateTaxReport(startDate, endDate, quarterInfo.name);
+  await generateTaxReport(startDate, endDate, qi.name);
 };
 
 window.generateCustomDateReport = async function() {
-  const fromDate = document.getElementById('taxReportFromDate').valueAsDate;
-  const toDate = document.getElementById('taxReportToDate').valueAsDate;
-  
-  if (!fromDate || !toDate) {
-    showToast('Please select both dates', 'error');
-    return;
-  }
-
-  if (fromDate > toDate) {
-    showToast('From date must be before to date', 'error');
-    return;
-  }
-
-  const periodName = `${formatDate(fromDate, 'DD MMM YYYY')} - ${formatDate(toDate, 'DD MMM YYYY')}`;
-  await generateTaxReport(fromDate, toDate, periodName);
+  const from = document.getElementById('taxReportFromDate').valueAsDate;
+  const to   = document.getElementById('taxReportToDate').valueAsDate;
+  if (!from || !to)  { showToast('Please select both dates', 'error');            return; }
+  if (from > to)     { showToast('From date must be before to date', 'error');    return; }
+  await generateTaxReport(from, to, `${formatDate(from,'DD MMM YYYY')} – ${formatDate(to,'DD MMM YYYY')}`);
 };
 
 async function generateTaxReport(startDate, endDate, periodName) {
   try {
-    showToast('Generating tax report...', 'info');
-    
+    showToast('Generating tax report…', 'info');
     const invoices = await queryInvoicesByDateRange(startDate, endDate);
-    
-    if (!invoices || invoices.length === 0) {
+    if (!invoices.length) {
       showToast('No invoices found for this period', 'warning');
       document.getElementById('taxReportDisplay').style.display = 'none';
       return;
@@ -310,646 +239,495 @@ async function generateTaxReport(startDate, endDate, periodName) {
 
     let totalSales = 0, totalVAT = 0;
     let cashSales = 0, cardSales = 0, tabbySales = 0, chequeSales = 0;
-    let refundedInvoices = 0, paidInvoices = 0;
+    let paidInvoices = 0, refundedInvoices = 0;
 
-    const invoiceDetails = invoices.map(inv => {
-      const subtotal = inv.payment?.subtotal || 0;
-      const vat = inv.payment?.vat || 0;
+    const details = invoices.map(inv => {
+      const subtotal   = inv.payment?.subtotal   || 0;
+      const vat        = inv.payment?.vat        || 0;
       const grandTotal = inv.payment?.grandTotal || 0;
-
       if (inv.status === 'Paid') {
-        totalSales += grandTotal;
-        totalVAT += vat;
+        totalSales   += grandTotal;
+        totalVAT     += vat;
+        cashSales    += inv.impacts?.cash   || 0;
+        cardSales    += inv.impacts?.card   || 0;
+        tabbySales   += inv.impacts?.tabby  || 0;
+        chequeSales  += inv.impacts?.cheque || 0;
         paidInvoices++;
-        cashSales += inv.impacts?.cash || 0;
-        cardSales += inv.impacts?.card || 0;
-        tabbySales += inv.impacts?.tabby || 0;
-        chequeSales += inv.impacts?.cheque || 0;
       } else if (inv.status === 'Refunded') {
         refundedInvoices++;
       }
-
       return {
         invoiceNumber: inv.invoiceNumber,
         date: inv.date,
         customer: inv.customer?.name || 'Walk-in',
-        subtotal,
-        vat,
-        grandTotal,
+        subtotal, vat, grandTotal,
         payment: inv.payment?.method || 'Cash',
         status: inv.status
       };
     });
 
-    currentTaxReportData = {
-      periodName,
-      startDate: formatDate(startDate, 'YYYY-MM-DD'),
-      endDate: formatDate(endDate, 'YYYY-MM-DD'),
-      totalSales,
-      totalVAT,
-      cashSales,
-      cardSales,
-      tabbySales,
-      chequeSales,
-      paidInvoices,
-      refundedInvoices,
-      invoices: invoiceDetails
+    currentTaxReport = {
+      periodName, startDate: formatDate(startDate,'YYYY-MM-DD'), endDate: formatDate(endDate,'YYYY-MM-DD'),
+      totalSales, totalVAT, cashSales, cardSales, tabbySales, chequeSales,
+      paidInvoices, refundedInvoices, invoices: details
     };
 
-    displayTaxReport(currentTaxReportData);
-    showToast('Tax report generated successfully', 'success');
-    
-  } catch (error) {
-    console.error('❌ Error generating tax report:', error);
+    displayTaxReport(currentTaxReport);
+    showToast('Tax report generated', 'success');
+  } catch (err) {
+    console.error('❌ Tax report error:', err);
     showToast('Failed to generate tax report', 'error');
   }
 }
 
 async function queryInvoicesByDateRange(startDate, endDate) {
-  const invoicesRef = collection(db, 'invoices');
-  const startTimestamp = Timestamp.fromDate(startDate);
-  const endTimestamp = Timestamp.fromDate(endDate);
-  
+  // Set endDate to local 23:59:59 so invoices stored at UTC midnight on the last day are included
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999);
   const q = query(
-    invoicesRef,
-    where('dateObj', '>=', startTimestamp),
-    where('dateObj', '<=', endTimestamp),
+    collection(db, 'invoices'),
+    where('dateObj', '>=', Timestamp.fromDate(startDate)),
+    where('dateObj', '<=', Timestamp.fromDate(end)),
     orderBy('dateObj', 'desc')
   );
-  
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  try {
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    console.error('❌ queryInvoicesByDateRange error:', err);
+    if (err.code === 'failed-precondition') {
+      showToast('Database index building. Try again in a minute.', 'warning');
+    }
+    return [];
+  }
 }
 
 function displayTaxReport(data) {
-  const container = document.getElementById('taxReportContent');
-  
-  container.innerHTML = `
+  document.getElementById('taxReportContent').innerHTML = `
     <div class="tax-report">
       <h3>${data.periodName}</h3>
-      <p class="report-period">${data.startDate} to ${data.endDate}</p>
-      
+      <p class="report-period">${data.startDate} — ${data.endDate}</p>
       <div class="report-summary">
-        <div class="summary-item">
-          <div class="summary-label">Total Sales (incl. VAT)</div>
-          <div class="summary-value">AED ${data.totalSales.toFixed(2)}</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-label">Total VAT (5%)</div>
-          <div class="summary-value">AED ${data.totalVAT.toFixed(2)}</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-label">Net Sales (excl. VAT)</div>
-          <div class="summary-value">AED ${(data.totalSales - data.totalVAT).toFixed(2)}</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-label">Total Invoices</div>
-          <div class="summary-value">${data.paidInvoices}</div>
-        </div>
+        <div class="summary-item"><div class="summary-label">Total Sales (incl. VAT)</div><div class="summary-value">AED ${data.totalSales.toFixed(2)}</div></div>
+        <div class="summary-item"><div class="summary-label">Total VAT (5%)</div><div class="summary-value">AED ${data.totalVAT.toFixed(2)}</div></div>
+        <div class="summary-item"><div class="summary-label">Net Sales (excl. VAT)</div><div class="summary-value">AED ${(data.totalSales - data.totalVAT).toFixed(2)}</div></div>
+        <div class="summary-item"><div class="summary-label">Total Invoices</div><div class="summary-value">${data.paidInvoices}</div></div>
       </div>
-
       <div class="payment-breakdown">
         <div class="breakdown-item">💵 Cash: <strong>AED ${data.cashSales.toFixed(2)}</strong></div>
         <div class="breakdown-item">💳 Card: <strong>AED ${data.cardSales.toFixed(2)}</strong></div>
         <div class="breakdown-item">📱 Tabby: <strong>AED ${data.tabbySales.toFixed(2)}</strong></div>
         <div class="breakdown-item">📝 Cheque: <strong>AED ${data.chequeSales.toFixed(2)}</strong></div>
       </div>
-
-      ${data.refundedInvoices > 0 ? `
-        <div class="refund-notice">Refunded Invoices: ${data.refundedInvoices}</div>
-      ` : ''}
-
+      ${data.refundedInvoices > 0 ? `<div class="refund-notice">⚠️ Refunded Invoices: ${data.refundedInvoices}</div>` : ''}
       <h4>Invoice Details</h4>
       <table class="report-table">
-        <thead>
-          <tr>
-            <th>Invoice #</th>
-            <th>Date</th>
-            <th>Customer</th>
-            <th>Subtotal</th>
-            <th>VAT</th>
-            <th>Total</th>
-            <th>Payment</th>
-            <th>Status</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Invoice #</th><th>Date</th><th>Customer</th><th>Subtotal</th><th>VAT</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead>
         <tbody>
           ${data.invoices.map(inv => `
             <tr class="${inv.status === 'Refunded' ? 'refunded-row' : ''}">
-              <td>${inv.invoiceNumber}</td>
-              <td>${inv.date}</td>
-              <td>${inv.customer}</td>
-              <td>AED ${inv.subtotal.toFixed(2)}</td>
-              <td>AED ${inv.vat.toFixed(2)}</td>
+              <td>${inv.invoiceNumber}</td><td>${inv.date}</td><td>${inv.customer}</td>
+              <td>AED ${inv.subtotal.toFixed(2)}</td><td>AED ${inv.vat.toFixed(2)}</td>
               <td><strong>AED ${inv.grandTotal.toFixed(2)}</strong></td>
               <td>${inv.payment}</td>
               <td><span class="status-${inv.status.toLowerCase()}">${inv.status}</span></td>
-            </tr>
-          `).join('')}
+            </tr>`).join('')}
         </tbody>
       </table>
-    </div>
-  `;
-
+    </div>`;
   document.getElementById('taxReportDisplay').style.display = 'block';
 }
 
+// ─── Exports ────────────────────────────────────────────────────
+
 window.exportTaxReportCSV = function() {
-  if (!currentTaxReportData) {
-    showToast('No report data to export', 'error');
-    return;
-  }
-
-  const data = currentTaxReportData;
+  if (!currentTaxReport) { showToast('No report data', 'error'); return; }
+  const d = currentTaxReport;
   let csv = 'AKM Music Centre LLC - VAT/Tax Report\n';
-  csv += `Period:,${data.periodName}\n`;
-  csv += `From:,${data.startDate}\n`;
-  csv += `To:,${data.endDate}\n\n`;
-  csv += `Summary\n`;
-  csv += `Total Sales (incl. VAT),AED ${data.totalSales.toFixed(2)}\n`;
-  csv += `Total VAT (5%),AED ${data.totalVAT.toFixed(2)}\n`;
-  csv += `Net Sales (excl. VAT),AED ${(data.totalSales - data.totalVAT).toFixed(2)}\n`;
-  csv += `Total Invoices,${data.paidInvoices}\n\n`;
-  csv += `Payment Breakdown\n`;
-  csv += `Cash,AED ${data.cashSales.toFixed(2)}\n`;
-  csv += `Card,AED ${data.cardSales.toFixed(2)}\n`;
-  csv += `Tabby,AED ${data.tabbySales.toFixed(2)}\n`;
-  csv += `Cheque,AED ${data.chequeSales.toFixed(2)}\n\n`;
-  csv += `Invoice Details\n`;
-  csv += `Invoice Number,Date,Customer,Subtotal,VAT,Total,Payment Method,Status\n`;
-  
-  data.invoices.forEach(inv => {
-    csv += `${inv.invoiceNumber},${inv.date},${inv.customer},${inv.subtotal.toFixed(2)},${inv.vat.toFixed(2)},${inv.grandTotal.toFixed(2)},${inv.payment},${inv.status}\n`;
+  csv += `Period:,${d.periodName}\nFrom:,${d.startDate}\nTo:,${d.endDate}\n\n`;
+  csv += `Summary\nTotal Sales (incl. VAT),AED ${d.totalSales.toFixed(2)}\n`;
+  csv += `Total VAT (5%),AED ${d.totalVAT.toFixed(2)}\n`;
+  csv += `Net Sales (excl. VAT),AED ${(d.totalSales - d.totalVAT).toFixed(2)}\n`;
+  csv += `Total Invoices,${d.paidInvoices}\n\n`;
+  csv += `Payment Breakdown\nCash,AED ${d.cashSales.toFixed(2)}\nCard,AED ${d.cardSales.toFixed(2)}\nTabby,AED ${d.tabbySales.toFixed(2)}\nCheque,AED ${d.chequeSales.toFixed(2)}\n\n`;
+  csv += `Invoice Details\nInvoice Number,Date,Customer,Subtotal,VAT,Total,Payment Method,Status\n`;
+  d.invoices.forEach(inv => {
+    csv += `${inv.invoiceNumber},${inv.date},"${inv.customer}",${inv.subtotal.toFixed(2)},${inv.vat.toFixed(2)},${inv.grandTotal.toFixed(2)},${inv.payment},${inv.status}\n`;
   });
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `VAT_Report_${data.startDate}_to_${data.endDate}.csv`;
-  link.click();
-  
-  showToast('CSV exported successfully', 'success');
+  downloadBlob(csv, 'text/csv', `VAT_Report_${d.startDate}_to_${d.endDate}.csv`);
+  showToast('CSV exported', 'success');
 };
 
 window.exportTaxReportExcel = function() {
-  if (!currentTaxReportData) {
-    showToast('No report data to export', 'error');
-    return;
-  }
+  if (!currentTaxReport) { showToast('No report data', 'error'); return; }
+  const d = currentTaxReport;
 
-  const data = currentTaxReportData;
-  let html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel">';
-  html += '<head><meta charset="UTF-8"><style>table{border-collapse:collapse;}th,td{border:1px solid #000;padding:5px;}</style></head>';
-  html += '<body>';
-  html += '<h2>AKM Music Centre LLC - VAT/Tax Report</h2>';
-  html += `<p><strong>Period:</strong> ${data.periodName}</p>`;
-  html += `<p><strong>From:</strong> ${data.startDate} | <strong>To:</strong> ${data.endDate}</p><br>`;
-  html += '<h3>Summary</h3><table>';
-  html += `<tr><td>Total Sales (incl. VAT)</td><td>AED ${data.totalSales.toFixed(2)}</td></tr>`;
-  html += `<tr><td>Total VAT (5%)</td><td>AED ${data.totalVAT.toFixed(2)}</td></tr>`;
-  html += `<tr><td>Net Sales (excl. VAT)</td><td>AED ${(data.totalSales - data.totalVAT).toFixed(2)}</td></tr>`;
-  html += `<tr><td>Total Invoices</td><td>${data.paidInvoices}</td></tr>`;
-  html += '</table><br><h3>Invoice Details</h3><table>';
-  html += '<tr><th>Invoice #</th><th>Date</th><th>Customer</th><th>Subtotal</th><th>VAT</th><th>Total</th><th>Payment</th><th>Status</th></tr>';
-  
-  data.invoices.forEach(inv => {
-    html += `<tr><td>${inv.invoiceNumber}</td><td>${inv.date}</td><td>${inv.customer}</td><td>${inv.subtotal.toFixed(2)}</td><td>${inv.vat.toFixed(2)}</td><td>${inv.grandTotal.toFixed(2)}</td><td>${inv.payment}</td><td>${inv.status}</td></tr>`;
-  });
-  
-  html += '</table></body></html>';
+  const cyan    = '#0ea5e9';
+  const cyanDk  = '#0369a1';
+  const cyanLt  = '#e0f2fe';
+  const white   = '#ffffff';
+  const darkTxt = '#0c4a6e';
+  const midTxt  = '#374151';
+  const ltGray  = '#f9fafb';
+  const border  = '#e2e8f0';
 
-  const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `VAT_Report_${data.startDate}_to_${data.endDate}.xls`;
-  link.click();
-  
-  showToast('Excel file exported successfully', 'success');
+  const thStyle = `style="background:${cyan};color:${white};font-weight:700;padding:8px 12px;border:1px solid ${cyanDk};font-size:13px;text-align:left;"`;
+  const tdStyle = (bg = white) => `style="padding:7px 12px;border:1px solid ${border};font-size:12px;background:${bg};color:${midTxt};"`;
+  const tdRight = (bg = white) => `style="padding:7px 12px;border:1px solid ${border};font-size:12px;background:${bg};color:${midTxt};text-align:right;"`;
+  const sumLbl  = `style="padding:8px 12px;border:1px solid ${border};font-weight:600;background:${cyanLt};color:${darkTxt};font-size:13px;"`;
+  const sumVal  = `style="padding:8px 12px;border:1px solid ${border};font-weight:700;background:${white};color:${darkTxt};font-size:13px;text-align:right;"`;
+
+  const rows = d.invoices.map((inv, i) => {
+    const bg = i % 2 === 0 ? white : ltGray;
+    const statusColor = inv.status === 'Refunded' ? '#fef2f2' : bg;
+    return `<tr>
+      <td ${tdStyle(statusColor)}>${inv.invoiceNumber}</td>
+      <td ${tdStyle(statusColor)}>${inv.date}</td>
+      <td ${tdStyle(statusColor)}>${inv.customer}</td>
+      <td ${tdRight(statusColor)}>AED ${inv.subtotal.toFixed(2)}</td>
+      <td ${tdRight(statusColor)}>AED ${inv.vat.toFixed(2)}</td>
+      <td ${tdRight(statusColor)}><b>AED ${inv.grandTotal.toFixed(2)}</b></td>
+      <td ${tdStyle(statusColor)}>${inv.payment}</td>
+      <td ${tdStyle(inv.status === 'Refunded' ? '#fef2f2' : statusColor)}>${inv.status}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `
+<html xmlns:x="urn:schemas-microsoft-com:office:excel">
+<head><meta charset="UTF-8">
+<style>
+  body { font-family: Calibri, Arial, sans-serif; }
+  table { border-collapse: collapse; width: 100%; }
+</style>
+</head>
+<body>
+<table style="width:100%;margin-bottom:24px;">
+  <tr>
+    <td style="padding:16px 0;font-size:22px;font-weight:800;color:${cyan};letter-spacing:1px;">🎵 AKM MUSIC</td>
+    <td style="text-align:right;padding:16px 0;font-size:12px;color:#6b7280;">AKM Music Centre LLC<br>VAT Registration: UAE</td>
+  </tr>
+</table>
+<table style="width:100%;margin-bottom:20px;border-top:3px solid ${cyan};">
+  <tr>
+    <td style="padding:10px 0;font-size:18px;font-weight:700;color:${cyanDk};">VAT / Tax Report</td>
+    <td style="text-align:right;padding:10px 0;color:#374151;font-size:13px;">Period: <b>${d.periodName}</b></td>
+  </tr>
+  <tr>
+    <td style="padding:0;font-size:12px;color:#6b7280;">From: ${d.startDate} &nbsp;&nbsp; To: ${d.endDate}</td>
+    <td style="text-align:right;padding:0;font-size:12px;color:#6b7280;">Exported: ${formatDate(new Date(),'DD MMM YYYY')}</td>
+  </tr>
+</table>
+<h3 style="color:${cyanDk};margin:16px 0 8px;font-size:14px;">Summary</h3>
+<table style="width:340px;margin-bottom:20px;">
+  <tr><td ${sumLbl}>Total Sales (incl. VAT)</td><td ${sumVal}>AED ${d.totalSales.toFixed(2)}</td></tr>
+  <tr><td ${sumLbl}>Total VAT (5%)</td><td ${sumVal}>AED ${d.totalVAT.toFixed(2)}</td></tr>
+  <tr><td ${sumLbl}>Net Sales (excl. VAT)</td><td ${sumVal}>AED ${(d.totalSales - d.totalVAT).toFixed(2)}</td></tr>
+  <tr><td ${sumLbl}>Total Paid Invoices</td><td ${sumVal}>${d.paidInvoices}</td></tr>
+  ${d.refundedInvoices > 0 ? `<tr><td ${sumLbl} style="color:#b91c1c;">Refunded Invoices</td><td ${sumVal} style="color:#b91c1c;">${d.refundedInvoices}</td></tr>` : ''}
+</table>
+<h3 style="color:${cyanDk};margin:16px 0 8px;font-size:14px;">Payment Breakdown</h3>
+<table style="width:340px;margin-bottom:24px;">
+  <tr><td ${sumLbl}>💵 Cash</td><td ${sumVal}>AED ${d.cashSales.toFixed(2)}</td></tr>
+  <tr><td ${sumLbl}>💳 Card</td><td ${sumVal}>AED ${d.cardSales.toFixed(2)}</td></tr>
+  <tr><td ${sumLbl}>📱 Tabby</td><td ${sumVal}>AED ${d.tabbySales.toFixed(2)}</td></tr>
+  <tr><td ${sumLbl}>📝 Cheque</td><td ${sumVal}>AED ${d.chequeSales.toFixed(2)}</td></tr>
+</table>
+<h3 style="color:${cyanDk};margin:16px 0 8px;font-size:14px;">Invoice Details</h3>
+<table>
+  <thead>
+    <tr>
+      <th ${thStyle}>Invoice #</th>
+      <th ${thStyle}>Date</th>
+      <th ${thStyle}>Customer</th>
+      <th ${thStyle} style="text-align:right;">Subtotal</th>
+      <th ${thStyle} style="text-align:right;">VAT</th>
+      <th ${thStyle} style="text-align:right;">Total</th>
+      <th ${thStyle}>Payment</th>
+      <th ${thStyle}>Status</th>
+    </tr>
+  </thead>
+  <tbody>${rows}</tbody>
+  <tfoot>
+    <tr>
+      <td colspan="3" style="padding:8px 12px;font-weight:700;background:${cyanLt};color:${darkTxt};border:1px solid ${border};">Totals</td>
+      <td ${tdRight(cyanLt)} style="font-weight:700;color:${darkTxt};">AED ${(d.totalSales - d.totalVAT).toFixed(2)}</td>
+      <td ${tdRight(cyanLt)} style="font-weight:700;color:${darkTxt};">AED ${d.totalVAT.toFixed(2)}</td>
+      <td ${tdRight(cyanLt)} style="font-weight:700;color:${darkTxt};">AED ${d.totalSales.toFixed(2)}</td>
+      <td colspan="2" style="padding:8px 12px;background:${cyanLt};border:1px solid ${border};"></td>
+    </tr>
+  </tfoot>
+</table>
+<p style="margin-top:24px;font-size:11px;color:#9ca3af;border-top:1px solid ${border};padding-top:12px;">
+  AKM Music Centre LLC — Generated by AKM-POS v4.0 on ${formatDate(new Date(),'DD MMM YYYY')} at ${formatTime(new Date())}
+</p>
+</body></html>`;
+
+  downloadBlob(html, 'application/vnd.ms-excel', `VAT_Report_${d.startDate}_to_${d.endDate}.xls`);
+  showToast('Excel exported', 'success');
 };
 
 window.printTaxReport = function() {
-  if (!currentTaxReportData) {
-    showToast('No report to print', 'error');
-    return;
-  }
+  if (!currentTaxReport) { showToast('No report to print', 'error'); return; }
   window.print();
 };
 
-// ============================================
-// OTHER ACTIONS
-// ============================================
-
-window.printDailyReport = async function() {
-  try {
-    showToast('Generating daily report...', 'info');
-
-    const today = new Date();
-
-    const [invoices, deposits, expenses] = await Promise.all([
-      getTodayInvoices(),
-      getTodayDeposits(),
-      getTodayExpenses()
-    ]);
-    
-    // Calculate totals
-    let totalSales = 0, totalVAT = 0;
-    let cash = 0, card = 0, tabby = 0, cheque = 0;
-    let paidInvoices = 0;
-    
-    invoices.forEach(inv => {
-      if (inv.status === 'Paid') {
-        totalSales += inv.payment?.grandTotal || 0;
-        totalVAT += inv.payment?.vat || 0;
-        cash += inv.impacts?.cash || 0;
-        card += inv.impacts?.card || 0;
-        tabby += inv.impacts?.tabby || 0;
-        cheque += inv.impacts?.cheque || 0;
-        paidInvoices++;
-      }
-    });
-    
-    const totalDeposits = deposits.reduce((sum, d) => sum + (d.amount || 0), 0);
-    const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-    const cashInHand = cash - totalDeposits - totalExpenses;
-    
-    // Create print window
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Daily Report - ${formatDate(today, 'DD MMM YYYY')}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { 
-            font-family: 'Montserrat', Arial, sans-serif; 
-            padding: 40px; 
-            background: white;
-            color: #333;
-          }
-          .report-header { 
-            text-align: center; 
-            border-bottom: 3px solid #A8C5E6; 
-            padding-bottom: 20px; 
-            margin-bottom: 30px; 
-          }
-          .report-header h1 { 
-            font-size: 28px; 
-            color: #4B5563; 
-            margin-bottom: 8px; 
-          }
-          .report-header .date { 
-            font-size: 16px; 
-            color: #6B7280; 
-            font-weight: 600; 
-          }
-          .section { 
-            margin-bottom: 30px; 
-          }
-          .section-title { 
-            font-size: 18px; 
-            font-weight: 700; 
-            color: #374151; 
-            margin-bottom: 15px; 
-            padding-bottom: 8px; 
-            border-bottom: 2px solid #E5E7EB; 
-          }
-          .summary-grid { 
-            display: grid; 
-            grid-template-columns: repeat(2, 1fr); 
-            gap: 15px; 
-            margin-bottom: 20px; 
-          }
-          .summary-item { 
-            padding: 15px; 
-            background: #F9FAFB; 
-            border-radius: 8px; 
-            border-left: 4px solid #A8C5E6; 
-          }
-          .summary-label { 
-            font-size: 12px; 
-            color: #6B7280; 
-            font-weight: 600; 
-            text-transform: uppercase; 
-            margin-bottom: 5px; 
-          }
-          .summary-value { 
-            font-size: 24px; 
-            font-weight: 700; 
-            color: #1F2937; 
-          }
-          .summary-value.highlight { 
-            color: #B8E6B8; 
-            font-size: 28px; 
-          }
-          table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-top: 10px; 
-          }
-          th, td { 
-            padding: 10px; 
-            text-align: left; 
-            border-bottom: 1px solid #E5E7EB; 
-          }
-          th { 
-            background: #F3F4F6; 
-            font-weight: 700; 
-            font-size: 13px; 
-            color: #374151; 
-          }
-          td { 
-            font-size: 12px; 
-            color: #4B5563; 
-          }
-          .total-row { 
-            font-weight: 700; 
-            background: #F9FAFB; 
-            font-size: 14px; 
-          }
-          .report-footer { 
-            margin-top: 40px; 
-            padding-top: 20px; 
-            border-top: 2px solid #E5E7EB; 
-            text-align: center; 
-            font-size: 11px; 
-            color: #9CA3AF; 
-          }
-          @media print {
-            body { padding: 20px; }
-            .no-print { display: none; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="report-header">
-          <h1>AKM Music Centre LLC</h1>
-          <div class="date">Daily Report - ${formatDate(today, 'DD MMM YYYY')}</div>
-        </div>
-        
-        <div class="section">
-          <div class="section-title">📊 Sales Summary</div>
-          <div class="summary-grid">
-            <div class="summary-item">
-              <div class="summary-label">Total Sales (incl. VAT)</div>
-              <div class="summary-value highlight">AED ${totalSales.toFixed(2)}</div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-label">Total VAT (5%)</div>
-              <div class="summary-value">AED ${totalVAT.toFixed(2)}</div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-label">Net Sales (excl. VAT)</div>
-              <div class="summary-value">AED ${(totalSales - totalVAT).toFixed(2)}</div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-label">Total Invoices</div>
-              <div class="summary-value">${paidInvoices}</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="section">
-          <div class="section-title">💳 Payment Breakdown</div>
-          <div class="summary-grid">
-            <div class="summary-item">
-              <div class="summary-label">💵 Cash</div>
-              <div class="summary-value">AED ${cash.toFixed(2)}</div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-label">💳 Card</div>
-              <div class="summary-value">AED ${card.toFixed(2)}</div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-label">📱 Tabby</div>
-              <div class="summary-value">AED ${tabby.toFixed(2)}</div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-label">📝 Cheque</div>
-              <div class="summary-value">AED ${cheque.toFixed(2)}</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="section">
-          <div class="section-title">💰 Cash Flow</div>
-          <table>
-            <tr>
-              <td>Cash Sales</td>
-              <td style="text-align: right; font-weight: 700;">AED ${cash.toFixed(2)}</td>
-            </tr>
-            <tr>
-              <td>Bank Deposits</td>
-              <td style="text-align: right; color: #F5B8B8;">- AED ${totalDeposits.toFixed(2)}</td>
-            </tr>
-            <tr>
-              <td>Expenses</td>
-              <td style="text-align: right; color: #F5B8B8;">- AED ${totalExpenses.toFixed(2)}</td>
-            </tr>
-            <tr class="total-row">
-              <td>Cash in Hand</td>
-              <td style="text-align: right; color: #B8E6B8;">AED ${cashInHand.toFixed(2)}</td>
-            </tr>
-          </table>
-        </div>
-        
-        ${deposits.length > 0 ? `
-        <div class="section">
-          <div class="section-title">🏦 Bank Deposits</div>
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${deposits.map(d => `
-                <tr>
-                  <td>${formatDate(new Date(d.date), 'DD MMM YYYY')}</td>
-                  <td>AED ${d.amount.toFixed(2)}</td>
-                  <td>${d.notes || '-'}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-        ` : ''}
-        
-        ${expenses.length > 0 ? `
-        <div class="section">
-          <div class="section-title">💸 Expenses</div>
-          <table>
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>Description</th>
-                <th>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${expenses.map(e => `
-                <tr>
-                  <td>${e.category || 'General'}</td>
-                  <td>${e.description || '-'}</td>
-                  <td>AED ${e.amount.toFixed(2)}</td>
-                </tr>
-              `).join('')}
-              <tr class="total-row">
-                <td colspan="2">Total Expenses</td>
-                <td>AED ${totalExpenses.toFixed(2)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        ` : ''}
-        
-        <div class="report-footer">
-          <p>Generated on ${formatDate(new Date(), 'DD MMM YYYY')} at ${formatTime(new Date())}</p>
-          <p>AKM Music Centre LLC - Point of Sale System</p>
-        </div>
-        
-        <div class="no-print" style="margin-top: 30px; text-align: center;">
-          <button onclick="window.print()" style="padding: 12px 24px; background: #A8C5E6; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;">
-            🖨️ Print Report
-          </button>
-          <button onclick="window.close()" style="padding: 12px 24px; background: #E5E7EB; color: #374151; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; margin-left: 10px;">
-            ✖️ Close
-          </button>
-        </div>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
-    showToast('Daily report generated successfully', 'success');
-    
-  } catch (error) {
-    console.error('❌ Error generating daily report:', error);
-    showToast('Failed to generate daily report', 'error');
-  }
-};
+// ─── Export All / Backup ─────────────────────────────────────────
 
 window.exportAllData = async function() {
   try {
-    showToast('Exporting all data...', 'info');
-
+    showToast('Exporting all data…', 'info');
     const today = new Date();
-
-    // Export last 365 days of invoices + today's deposits and expenses
     const [invoices, deposits, expenses] = await Promise.all([
       getRecentInvoices(365),
-      getTodayDeposits(),
-      getTodayExpenses()
+      loadRecentDeposits(365),
+      loadRecentExpenses(365)
     ]);
-    
-    // Create comprehensive CSV export
-    let csv = 'AKM Music Centre LLC - Data Export\n';
-    csv += `Export Date:,${formatDate(today, 'DD MMM YYYY HH:mm:ss')}\n\n`;
-    
-    // Invoices
-    csv += 'INVOICES\n';
-    csv += 'Invoice Number,Date,Customer,Subtotal,VAT,Grand Total,Payment Method,Status,Cash Impact,Card Impact,Tabby Impact,Cheque Impact\n';
-    invoices.forEach(inv => {
-      csv += `${inv.invoiceNumber},${inv.date},${inv.customer || 'Walk-in'},${inv.payment?.subtotal || 0},${inv.payment?.vat || 0},${inv.payment?.grandTotal || 0},${inv.payment?.method || 'Cash'},${inv.status},${inv.impacts?.cash || 0},${inv.impacts?.card || 0},${inv.impacts?.tabby || 0},${inv.impacts?.cheque || 0}\n`;
-    });
-    csv += '\n';
-    
-    // Deposits
-    csv += 'BANK DEPOSITS\n';
-    csv += 'Date,Amount,Notes\n';
-    deposits.forEach(d => {
-      csv += `${d.date},${d.amount},"${d.notes || ''}"\n`;
-    });
-    csv += '\n';
-    
-    // Expenses
-    csv += 'EXPENSES\n';
-    csv += 'Date,Category,Description,Amount\n';
-    expenses.forEach(e => {
-      csv += `${e.date},${e.category || 'General'},"${e.description || ''}",${e.amount}\n`;
-    });
-    
-    // Download
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `AKM_Export_${formatDate(today, 'YYYY-MM-DD')}.csv`;
-    link.click();
-    
-    showToast('Data exported successfully', 'success');
-    
-  } catch (error) {
-    console.error('❌ Error exporting data:', error);
+
+    const cyan   = '#0ea5e9';
+    const cyanDk = '#0369a1';
+    const cyanLt = '#e0f2fe';
+    const white  = '#ffffff';
+    const ltGray = '#f9fafb';
+    const border = '#e2e8f0';
+    const mid    = '#374151';
+
+    const thStyle = `style="background:${cyan};color:${white};font-weight:700;padding:8px 12px;border:1px solid ${cyanDk};font-size:12px;"`;
+    const td  = (bg = white) => `style="padding:6px 12px;border:1px solid ${border};font-size:12px;background:${bg};color:${mid};"`;
+    const tdr = (bg = white) => `style="padding:6px 12px;border:1px solid ${border};font-size:12px;background:${bg};color:${mid};text-align:right;"`;
+
+    const invRows = invoices.map((inv, i) => {
+      const bg = i % 2 === 0 ? white : ltGray;
+      return `<tr>
+        <td ${td(bg)}>${inv.invoiceNumber}</td>
+        <td ${td(bg)}>${inv.date}</td>
+        <td ${td(bg)}>${inv.customer || 'Walk-in'}</td>
+        <td ${tdr(bg)}>${(inv.grandTotal || 0).toFixed(2)}</td>
+        <td ${td(bg)}>${inv.payment || 'Cash'}</td>
+        <td ${td(bg)}>${inv.status || 'Paid'}</td>
+      </tr>`;
+    }).join('');
+
+    const depRows = deposits.map((d, i) => {
+      const bg = i % 2 === 0 ? white : ltGray;
+      return `<tr>
+        <td ${td(bg)}>${d.depositId || ''}</td>
+        <td ${td(bg)}>${d.date || ''}</td>
+        <td ${td(bg)}>${d.depositor || ''}</td>
+        <td ${tdr(bg)}>${(d.amount || 0).toFixed(2)}</td>
+        <td ${td(bg)}>${d.bank || ''}</td>
+        <td ${td(bg)}>${d.slipNumber || ''}</td>
+      </tr>`;
+    }).join('');
+
+    const expRows = expenses.map((e, i) => {
+      const bg = i % 2 === 0 ? white : ltGray;
+      return `<tr>
+        <td ${td(bg)}>${e.expenseId || ''}</td>
+        <td ${td(bg)}>${e.date || ''}</td>
+        <td ${td(bg)}>${e.category || 'General'}</td>
+        <td ${td(bg)}>${e.description || ''}</td>
+        <td ${tdr(bg)}>${(e.amount || 0).toFixed(2)}</td>
+        <td ${td(bg)}>${e.receiptNumber || ''}</td>
+      </tr>`;
+    }).join('');
+
+    const html = `
+<html xmlns:x="urn:schemas-microsoft-com:office:excel">
+<head><meta charset="UTF-8"></head>
+<body>
+<table style="width:100%;margin-bottom:20px;">
+  <tr>
+    <td style="font-size:22px;font-weight:800;color:${cyan};padding:12px 0;">🎵 AKM MUSIC — Full Data Export</td>
+    <td style="text-align:right;font-size:12px;color:#6b7280;padding:12px 0;">Exported: ${formatDate(today,'DD MMM YYYY')} ${formatTime(today)}<br>365-day range</td>
+  </tr>
+</table>
+
+<h3 style="color:${cyanDk};margin:20px 0 8px;">Invoices (${invoices.length})</h3>
+<table>
+  <thead><tr>
+    <th ${thStyle}>Invoice #</th><th ${thStyle}>Date</th><th ${thStyle}>Customer</th>
+    <th ${thStyle}>Total (AED)</th><th ${thStyle}>Payment</th><th ${thStyle}>Status</th>
+  </tr></thead>
+  <tbody>${invRows}</tbody>
+</table>
+
+<h3 style="color:${cyanDk};margin:28px 0 8px;">Bank Deposits (${deposits.length})</h3>
+<table>
+  <thead><tr>
+    <th ${thStyle}>ID</th><th ${thStyle}>Date</th><th ${thStyle}>Depositor</th>
+    <th ${thStyle}>Amount (AED)</th><th ${thStyle}>Bank</th><th ${thStyle}>Slip #</th>
+  </tr></thead>
+  <tbody>${depRows || `<tr><td colspan="6" style="padding:10px;color:#6b7280;">No deposits</td></tr>`}</tbody>
+</table>
+
+<h3 style="color:${cyanDk};margin:28px 0 8px;">Expenses (${expenses.length})</h3>
+<table>
+  <thead><tr>
+    <th ${thStyle}>ID</th><th ${thStyle}>Date</th><th ${thStyle}>Category</th>
+    <th ${thStyle}>Description</th><th ${thStyle}>Amount (AED)</th><th ${thStyle}>Receipt #</th>
+  </tr></thead>
+  <tbody>${expRows || `<tr><td colspan="6" style="padding:10px;color:#6b7280;">No expenses</td></tr>`}</tbody>
+</table>
+
+<p style="margin-top:24px;font-size:11px;color:#9ca3af;border-top:1px solid ${border};padding-top:12px;">
+  AKM Music Centre LLC — AKM-POS v4.0
+</p>
+</body></html>`;
+
+    downloadBlob(html, 'application/vnd.ms-excel', `AKM_Export_${formatDate(today,'YYYY-MM-DD')}.xls`);
+    showToast(`Exported: ${invoices.length} invoices, ${deposits.length} deposits, ${expenses.length} expenses`, 'success');
+  } catch (err) {
+    console.error('❌ Export error:', err);
     showToast('Failed to export data', 'error');
   }
 };
 
 window.createBackup = async function() {
   try {
-    showToast('Creating backup...', 'info');
-    
+    showToast('Creating backup…', 'info');
     const today = new Date();
-
-    // Get all data for backup
     const [invoices, deposits, expenses] = await Promise.all([
       getRecentInvoices(365),
-      getTodayDeposits(),
-      getTodayExpenses()
+      loadRecentDeposits(365),
+      loadRecentExpenses(365)
     ]);
-    
-    const backupData = {
-      backupDate: today.toISOString(),
-      backupVersion: '1.0',
-      system: 'AKM-POS',
-      data: {
-        invoices: invoices.map(inv => ({
-          id: inv.id,
-          invoiceNumber: inv.invoiceNumber,
-          date: inv.date,
-          customer: inv.customer,
-          items: inv.items,
-          payment: inv.payment,
-          status: inv.status,
-          impacts: inv.impacts,
-          createdAt: inv.createdAt
-        })),
-        deposits: deposits,
-        expenses: expenses
-      },
+
+    const backup = {
+      backupDate:    today.toISOString(),
+      backupVersion: '4.0',
+      system:        'AKM-POS',
+      data: { invoices, deposits, expenses },
       stats: {
         totalInvoices: invoices.length,
         totalDeposits: deposits.length,
         totalExpenses: expenses.length
       }
     };
-    
-    // Create JSON backup file
-    const jsonBlob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(jsonBlob);
-    link.download = `AKM_Backup_${formatDate(today, 'YYYY-MM-DD_HH-mm')}.json`;
-    link.click();
-    
-    showToast(`Backup created: ${invoices.length} invoices, ${deposits.length} deposits, ${expenses.length} expenses`, 'success');
-    
-  } catch (error) {
-    console.error('❌ Error creating backup:', error);
+
+    downloadBlob(JSON.stringify(backup, null, 2), 'application/json', `AKM_Backup_${formatDate(today,'YYYY-MM-DD_HH-mm')}.json`);
+    showToast(`Backup: ${invoices.length} invoices, ${deposits.length} deposits, ${expenses.length} expenses`, 'success');
+  } catch (err) {
+    console.error('❌ Backup error:', err);
     showToast('Failed to create backup', 'error');
   }
 };
 
-// ============================================
-// UTILITIES
-// ============================================
+// ─── Daily Report ────────────────────────────────────────────────
 
-function updateElement(id, value) {
-  const el = document.getElementById(id);  if (el) el.textContent = value;
+window.printDailyReport = async function() {
+  try {
+    showToast('Generating daily report…', 'info');
+    const today = new Date();
+    const [invoices, deposits, expenses] = await Promise.all([
+      getTodayInvoices(),
+      getTodayDeposits(),
+      getTodayExpenses()
+    ]);
+
+    let totalSales = 0, totalVAT = 0, paidInvoices = 0;
+    let cash = 0, card = 0, tabby = 0, cheque = 0;
+
+    invoices.forEach(inv => {
+      if (inv.status === 'Paid') {
+        totalSales += inv.payment?.grandTotal || 0;
+        totalVAT   += inv.payment?.vat        || 0;
+        cash       += inv.impacts?.cash       || 0;
+        card       += inv.impacts?.card       || 0;
+        tabby      += inv.impacts?.tabby      || 0;
+        cheque     += inv.impacts?.cheque     || 0;
+        paidInvoices++;
+      }
+    });
+
+    const totalDeposits = deposits.reduce((s, d) => s + (d.amount || 0), 0);
+    const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+    const cashInHand    = cash - totalDeposits - totalExpenses;
+
+    const pw = window.open('', '_blank', 'width=800,height=700');
+    pw.document.write(`<!DOCTYPE html><html><head>
+      <title>Daily Report — ${formatDate(today,'DD MMM YYYY')}</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Montserrat',Arial,sans-serif; padding:40px; background:#fff; color:#333; }
+        .header { text-align:center; border-bottom:3px solid #0ea5e9; padding-bottom:20px; margin-bottom:30px; }
+        .header h1 { font-size:26px; color:#0369a1; margin-bottom:6px; }
+        .header .date { font-size:15px; color:#6b7280; font-weight:600; }
+        .section { margin-bottom:28px; }
+        .section-title { font-size:16px; font-weight:700; color:#0369a1; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #e0f2fe; }
+        .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:16px; }
+        .card { padding:14px; background:#f0f9ff; border-radius:8px; border-left:4px solid #0ea5e9; }
+        .card-label { font-size:11px; color:#6b7280; font-weight:600; text-transform:uppercase; margin-bottom:4px; }
+        .card-value { font-size:22px; font-weight:700; color:#0c4a6e; }
+        table { width:100%; border-collapse:collapse; margin-top:8px; }
+        th, td { padding:9px 12px; text-align:left; border-bottom:1px solid #e5e7eb; font-size:13px; }
+        th { background:#f0f9ff; font-weight:700; color:#0369a1; }
+        .total-row { font-weight:700; background:#f0f9ff; }
+        .footer { margin-top:36px; padding-top:16px; border-top:2px solid #e5e7eb; text-align:center; font-size:11px; color:#9ca3af; }
+        @media print { .no-print { display:none; } }
+      </style>
+    </head><body>
+      <div class="header"><h1>🎵 AKM MUSIC — Daily Report</h1><div class="date">${formatDate(today,'DD MMM YYYY')}</div></div>
+      <div class="section"><div class="section-title">Sales Summary</div>
+        <div class="grid">
+          <div class="card"><div class="card-label">Total Sales (incl. VAT)</div><div class="card-value">AED ${totalSales.toFixed(2)}</div></div>
+          <div class="card"><div class="card-label">Total VAT (5%)</div><div class="card-value">AED ${totalVAT.toFixed(2)}</div></div>
+          <div class="card"><div class="card-label">Net Sales (excl. VAT)</div><div class="card-value">AED ${(totalSales-totalVAT).toFixed(2)}</div></div>
+          <div class="card"><div class="card-label">Paid Invoices</div><div class="card-value">${paidInvoices}</div></div>
+        </div>
+      </div>
+      <div class="section"><div class="section-title">Payment Breakdown</div>
+        <div class="grid">
+          <div class="card"><div class="card-label">💵 Cash</div><div class="card-value">AED ${cash.toFixed(2)}</div></div>
+          <div class="card"><div class="card-label">💳 Card</div><div class="card-value">AED ${card.toFixed(2)}</div></div>
+          <div class="card"><div class="card-label">📱 Tabby</div><div class="card-value">AED ${tabby.toFixed(2)}</div></div>
+          <div class="card"><div class="card-label">📝 Cheque</div><div class="card-value">AED ${cheque.toFixed(2)}</div></div>
+        </div>
+      </div>
+      <div class="section"><div class="section-title">Cash Flow</div>
+        <table>
+          <tr><td>Cash Sales</td><td style="text-align:right;font-weight:700;">AED ${cash.toFixed(2)}</td></tr>
+          <tr><td>Bank Deposits</td><td style="text-align:right;color:#dc2626;">− AED ${totalDeposits.toFixed(2)}</td></tr>
+          <tr><td>Expenses</td><td style="text-align:right;color:#dc2626;">− AED ${totalExpenses.toFixed(2)}</td></tr>
+          <tr class="total-row"><td>Cash in Hand</td><td style="text-align:right;color:#065f46;">AED ${cashInHand.toFixed(2)}</td></tr>
+        </table>
+      </div>
+      ${deposits.length ? `<div class="section"><div class="section-title">Bank Deposits</div>
+        <table><thead><tr><th>ID</th><th>Depositor</th><th>Bank</th><th>Slip #</th><th style="text-align:right;">Amount</th></tr></thead>
+        <tbody>${deposits.map(d=>`<tr><td>${d.depositId||''}</td><td>${d.depositor||''}</td><td>${d.bank||''}</td><td>${d.slipNumber||''}</td><td style="text-align:right;">AED ${(d.amount||0).toFixed(2)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+      ${expenses.length ? `<div class="section"><div class="section-title">Expenses</div>
+        <table><thead><tr><th>ID</th><th>Category</th><th>Description</th><th>Receipt #</th><th style="text-align:right;">Amount</th></tr></thead>
+        <tbody>${expenses.map(e=>`<tr><td>${e.expenseId||''}</td><td>${e.category||'General'}</td><td>${e.description||''}</td><td>${e.receiptNumber||''}</td><td style="text-align:right;">AED ${(e.amount||0).toFixed(2)}</td></tr>`).join('')}
+        <tr class="total-row"><td colspan="4">Total</td><td style="text-align:right;">AED ${totalExpenses.toFixed(2)}</td></tr></tbody></table></div>` : ''}
+      <div class="footer">Generated ${formatDate(new Date(),'DD MMM YYYY')} ${formatTime(new Date())} — AKM Music Centre LLC</div>
+      <div class="no-print" style="margin-top:28px;text-align:center;">
+        <button onclick="window.print()" style="padding:11px 22px;background:#0ea5e9;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">🖨️ Print</button>
+        <button onclick="window.close()" style="padding:11px 22px;background:#e5e7eb;color:#374151;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-left:10px;">✖ Close</button>
+      </div>
+    </body></html>`);
+    pw.document.close();
+    showToast('Daily report generated', 'success');
+  } catch (err) {
+    console.error('❌ Daily report error:', err);
+    showToast('Failed to generate daily report', 'error');
+  }
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────
+
+function downloadBlob(content, mimeType, filename) {
+  const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
 }
 
-// ============================================
-// AUTH
-// ============================================
+function updateEl(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+// ─── Auth ──────────────────────────────────────────────────────
 
 onAuthStateChanged(auth, (user) => {
   if (user && user.email === ALLOWED_EMAIL) {
@@ -965,9 +743,6 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   window.location.href = 'index.html';
 });
 
-// Modal click outside to close
 document.addEventListener('click', (e) => {
-  if (e.target.classList.contains('modal-overlay')) {
-    closeTaxReportModal();
-  }
+  if (e.target.classList.contains('modal-overlay')) closeTaxReportModal();
 });

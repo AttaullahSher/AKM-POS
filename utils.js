@@ -2,7 +2,60 @@
 // Common helper functions used across the application
 // v2.1 - Centralized utilities
 
-import { APP_CONFIG } from './config.js?v=3.2';
+import { APP_CONFIG } from './config.js?v=4.0';
+
+const LOG_CAPTURE_LIMIT = 300;
+const CONSOLE_LOGS = [];
+let toastTimeout;
+
+const originalConsole = {
+  log: console.log.bind(console),
+  info: console.info.bind(console),
+  warn: console.warn.bind(console),
+  error: console.error.bind(console),
+  debug: console.debug.bind(console),
+};
+
+function formatConsoleLog(level, args) {
+  const timestamp = new Date().toISOString();
+  const formatted = args.map((value) => {
+    if (typeof value === 'object' && value !== null) {
+      try { return JSON.stringify(value); } catch {
+        return String(value);
+      }
+    }
+    return String(value);
+  }).join(' ');
+  return `[${timestamp}] [${level.toUpperCase()}] ${formatted}`;
+}
+
+function captureConsoleMessage(level, args) {
+  const entry = formatConsoleLog(level, args);
+  CONSOLE_LOGS.push(entry);
+  if (CONSOLE_LOGS.length > LOG_CAPTURE_LIMIT) CONSOLE_LOGS.shift();
+}
+
+['log', 'info', 'warn', 'error', 'debug'].forEach((method) => {
+  console[method] = (...args) => {
+    captureConsoleMessage(method, args);
+    originalConsole[method](...args);
+  };
+});
+
+window.addEventListener('error', (event) => {
+  captureConsoleMessage('error', [
+    'Unhandled error:',
+    event.message,
+    event.filename,
+    `line:${event.lineno}`,
+    `col:${event.colno}`,
+    event.error?.stack || ''
+  ]);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  captureConsoleMessage('error', ['Unhandled promise rejection:', event.reason]);
+});
 
 /**
  * Show toast notification
@@ -13,19 +66,16 @@ import { APP_CONFIG } from './config.js?v=3.2';
 export function showToast(message, type = 'info', duration = 3000) {
   const toast = document.getElementById('toast');
   if (!toast) {
-    console.warn('Toast element not found');
+    originalConsole.warn('Toast element not found');
     return;
   }
 
-  // Clear existing classes and timeouts
+  if (toastTimeout) clearTimeout(toastTimeout);
   toast.className = 'toast';
-  
-  // Set message and type
   toast.textContent = message;
   toast.classList.add('show', type);
-  
-  // Auto-hide after duration
-  setTimeout(() => {
+
+  toastTimeout = setTimeout(() => {
     toast.classList.remove('show');
   }, duration);
 }
@@ -237,6 +287,75 @@ export async function retryWithBackoff(fn, maxRetries = 3, delayMs = 1000) {
   }
 }
 
+export function getConsoleLogs() {
+  return CONSOLE_LOGS.slice();
+}
+
+export function getConsoleLogsText() {
+  return CONSOLE_LOGS.join('\n');
+}
+
+export function clearConsoleLogs() {
+  CONSOLE_LOGS.length = 0;
+}
+
+export function downloadBlob(content, filename = 'logs.txt', mimeType = 'text/plain') {
+  const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+}
+
+export async function copyConsoleLogs() {
+  const text = getConsoleLogsText();
+  if (!navigator.clipboard) {
+    showToast('Clipboard not supported in this browser', 'error');
+    return false;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('Logs copied to clipboard', 'success');
+    return true;
+  } catch (err) {
+    originalConsole.error('Failed to copy logs:', err);
+    showToast('Failed to copy logs', 'error');
+    return false;
+  }
+}
+
+export function downloadConsoleLogs(filename = 'AKM-POS-logs.txt') {
+  downloadBlob(getConsoleLogsText(), filename, 'text/plain');
+}
+
+export function openLogsModal() {
+  const modal = document.getElementById('logsModal');
+  if (!modal) return;
+  const content = modal.querySelector('#logsContent');
+  if (content) content.textContent = getConsoleLogsText() || 'No logs captured yet.';
+  modal.classList.add('show');
+}
+
+export function closeLogsModal() {
+  document.getElementById('logsModal')?.classList.remove('show');
+}
+
+export function clearLogs() {
+  clearConsoleLogs();
+  const content = document.getElementById('logsContent');
+  if (content) content.textContent = 'Logs cleared.';
+  showToast('Logs cleared', 'info');
+}
+
+window.openLogsModal = openLogsModal;
+window.closeLogsModal = closeLogsModal;
+window.copyConsoleLogs = copyConsoleLogs;
+window.downloadConsoleLogs = downloadConsoleLogs;
+window.clearLogs = clearLogs;
+
 // Export all utilities as a namespace
 export default {
   showToast,
@@ -255,5 +374,14 @@ export default {
   removeEventListener,
   isOnline,
   delay,
-  retryWithBackoff
+  retryWithBackoff,
+  getConsoleLogs,
+  getConsoleLogsText,
+  clearConsoleLogs,
+  downloadBlob,
+  copyConsoleLogs,
+  downloadConsoleLogs,
+  openLogsModal,
+  closeLogsModal,
+  clearLogs
 };

@@ -15,9 +15,9 @@ import {
   runTransaction,
   serverTimestamp,
   Timestamp
-} from './firebase-config.js?v=3.2';
+} from './firebase-config.js?v=4.0';
 
-import { APP_CONFIG, debugLog } from './config.js?v=3.2';
+import { APP_CONFIG, debugLog } from './config.js?v=4.0';
 
 export { db };
 
@@ -217,6 +217,44 @@ export async function getInvoiceByNumber(invoiceNumber) {
   }
 }
 
+export async function loadRecentDeposits(days = 90) {
+  try {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const q = query(
+      collection(db, 'deposits'),
+      where('dateObj', '>=', toTimestamp(cutoff)),
+      orderBy('dateObj', 'desc'),
+      limit(500)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    if (err.code === 'failed-precondition') { console.warn('⏳ Index building…'); return []; }
+    console.error('❌ loadRecentDeposits:', err);
+    return [];
+  }
+}
+
+export async function loadRecentExpenses(days = 90) {
+  try {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const q = query(
+      collection(db, 'expenses'),
+      where('dateObj', '>=', toTimestamp(cutoff)),
+      orderBy('dateObj', 'desc'),
+      limit(500)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    if (err.code === 'failed-precondition') { console.warn('⏳ Index building…'); return []; }
+    console.error('❌ loadRecentExpenses:', err);
+    return [];
+  }
+}
+
 // ─── Today Queries ───────────────────────────────────────────
 
 export async function getTodayInvoices() {
@@ -270,6 +308,7 @@ export async function createDeposit(depositData) {
   const deposit = {
     depositId,
     month: monthStr,
+    yearMonth: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`, // required by Firestore rules + queryable
     sequence: seqNum,
     date: formatDate(today, 'YYYY-MM-DD'),
     dateObj: toTimestamp(today),
@@ -404,11 +443,13 @@ export function clearOfflineBackups() {
 }
 
 // ─── Aliases ────────────────────────────────────────────────
-export const saveInvoice          = createInvoice;
-export const saveDeposit          = createDeposit;
-export const saveExpense          = createExpense;
-export const saveRepairJob        = createRepairJob;
-export const getRecentInvoices    = loadRecentInvoices;
-export const getRecentRepairJobs  = loadRepairJobs;
+export const saveInvoice           = createInvoice;
+export const saveDeposit           = createDeposit;
+export const saveExpense           = createExpense;
+export const saveRepairJob         = createRepairJob;
+export const getRecentInvoices     = loadRecentInvoices;
+export const getRecentRepairJobs   = loadRepairJobs;
 export const markInvoiceAsRefunded = refundInvoice;
 export const updateRepairJobStatus = updateRepairStatus;
+export const getRecentDeposits     = loadRecentDeposits;
+export const getRecentExpenses     = loadRecentExpenses;

@@ -2,13 +2,26 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-  <title>AKM-POS | Point of Sale</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <title>AKM MUSIC | Point of Sale</title>
+
+  <!-- PWA / installable app -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0284c7">
+  <meta name="color-scheme" content="light">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="AKM POS">
+  <!-- iOS / Safari add-to-home -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AKM POS">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
   <link rel="icon" type="image/png" href="/Favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=3.2">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=4.0">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
 <body>
@@ -16,8 +29,8 @@
   <!-- Loading Screen -->
   <div id="loadingScreen" class="loading-screen">
     <div class="loading-spinner"></div>
-    <p id="loadingText">Initializing...</p>
-    <small>Powered by Firestore</small>
+    <p id="loadingText">Initializing…</p>
+    <small>AKM Music Centre LLC</small>
   </div>
 
   <!-- Login Screen -->
@@ -25,7 +38,7 @@
     <div class="login-container">
       <div class="login-logo">🎵</div>
       <div class="login-header">
-        <h1>AKM-POS</h1>
+        <h1>AKM MUSIC</h1>
         <p>Point of Sale &amp; Repair Management</p>
       </div>
       <button id="googleSignInBtn" class="google-signin-btn" aria-label="Sign in with Google">
@@ -37,229 +50,211 @@
         </svg>
         Continue with Google
       </button>
-      <p class="login-note">🔒 Access restricted to sales@akm-music.com</p>
+      <p class="login-note">🔒 Restricted to sales@akm-music.com</p>
     </div>
   </div>
 
-  <!-- Main App -->
+  <!-- ===== Main App ===== -->
   <div id="mainApp" class="main-app" style="display:none;">
 
-    <!-- Header -->
+    <!-- Header: Brand | Stats | Action Buttons -->
     <header class="app-header">
+
+      <!-- Brand -->
       <div class="header-brand">
         <div class="brand-icon">🎵</div>
         <div>
-          <div class="brand-name">AKM-POS</div>
-          <div class="brand-sub">Point of Sale &amp; Repairs</div>
+          <div class="brand-name">AKM MUSIC</div>
+          <div class="brand-sub">Point of Sale</div>
         </div>
       </div>
 
+      <!-- Quick Stats -->
       <div class="header-stats">
         <div class="header-stat">
           <span class="stat-label">Today's Sales</span>
           <span class="stat-value" id="todaySalesQuick">0.00</span>
         </div>
-        <div class="header-stat">
+        <div class="header-stat cash">
           <span class="stat-label">Cash in Hand</span>
           <span class="stat-value" id="cashInHandQuick">0.00</span>
         </div>
       </div>
 
-      <div class="header-right">
-        <button id="logoutBtn" class="logout-btn" title="Logout" aria-label="Logout">
+      <!-- Action Buttons (sidebar removed — merged here) -->
+      <div class="header-actions">
+
+        <button onclick="openDepositModal()" class="hdr-btn deposit-btn" title="Bank Deposit" aria-label="Bank Deposit">
+          <span class="hdr-icon">🏦</span><span>Deposit</span>
+        </button>
+
+        <button onclick="openExpenseModal()" class="hdr-btn expense-btn" title="Add Expense" aria-label="Add Expense">
+          <span class="hdr-icon">💸</span><span>Expense</span>
+        </button>
+
+        <button onclick="openRepairModal()" class="hdr-btn repair-btn" title="Repair Jobs" aria-label="Repair Jobs">
+          <span class="hdr-icon">🔧</span><span>Repairs</span>
+        </button>
+
+        <button onclick="openHistoryModal()" class="hdr-btn history-btn" title="Invoice History" aria-label="Invoice History">
+          <span class="hdr-icon">📋</span><span>History</span>
+        </button>
+
+        <button onclick="openLogsModal()" class="hdr-btn" title="View logs" aria-label="View logs">
+          <span class="hdr-icon">🧾</span><span>Logs</span>
+        </button>
+
+        <a href="dashboard.html" class="hdr-btn dashboard-btn" title="Dashboard" aria-label="Dashboard">
+          <span class="hdr-icon">📊</span><span>Dashboard</span>
+        </a>
+
+        <div class="hdr-divider"></div>
+
+        <button id="logoutBtn" class="hdr-btn logout-btn" title="Logout" aria-label="Logout">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M6 14H3.33C2.98 14 2.64 13.86 2.39 13.61C2.14 13.36 2 13.02 2 12.67V3.33C2 2.98 2.14 2.64 2.39 2.39C2.64 2.14 2.98 2 3.33 2H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M10.67 11.33L14 8L10.67 4.67" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M14 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
+
       </div>
     </header>
 
-    <!-- App Layout -->
-    <div class="app-layout">
+    <!-- Full-width Main Content (no sidebar) -->
+    <main class="main-content">
+      <div class="invoice-card">
 
-      <!-- Sidebar -->
-      <aside class="sidebar">
-        <span class="sidebar-section-label">Quick Actions</span>
-
-        <a href="dashboard.html" class="nav-item nav-dashboard">
-          <div class="nav-icon">📊</div>
-          <div>
-            <div class="nav-label">Dashboard</div>
-            <div class="nav-desc">Reports &amp; Analytics</div>
+        <!-- Company Header -->
+        <div class="invoice-company">
+          <div class="company-ar">مركز أجمل خان محمد للموسيقى ذ.م.م</div>
+          <div class="company-en">Ajmal Khan Mohammed Music Centre LLC.</div>
+          <div class="company-meta">
+            <span>Po Box 8227</span>&nbsp;&nbsp;|&nbsp;&nbsp;
+            <span>Tel: 02 621 9929</span>&nbsp;&nbsp;|&nbsp;&nbsp;
+            <span>TRN: 100241997400003</span>
           </div>
-        </a>
-
-        <button onclick="openDepositModal()" class="nav-item nav-deposit">
-          <div class="nav-icon">🏦</div>
-          <div>
-            <div class="nav-label">Bank Deposit</div>
-            <div class="nav-desc">Record deposits</div>
-          </div>
-        </button>
-
-        <button onclick="openExpenseModal()" class="nav-item nav-expense">
-          <div class="nav-icon">💸</div>
-          <div>
-            <div class="nav-label">Expense</div>
-            <div class="nav-desc">Record expenses</div>
-          </div>
-        </button>
-
-        <button onclick="openRepairModal()" class="nav-item nav-repair">
-          <div class="nav-icon">🔧</div>
-          <div>
-            <div class="nav-label">Repairs</div>
-            <div class="nav-desc">Manage jobs</div>
-          </div>
-        </button>
-
-        <div class="sidebar-divider"></div>
-        <div class="sidebar-section-title">Recent Invoices</div>
-        <div id="recentInvoices" class="recent-list">
-          <div class="sidebar-empty">Loading…</div>
         </div>
-      </aside>
 
-      <!-- Main Content -->
-      <main class="main-content">
-        <div class="invoice-card">
+        <!-- Invoice Title -->
+        <div class="invoice-title-bar">
+          <span>TAX INVOICE</span>
+        </div>
 
-          <!-- Company Header -->
-          <div class="invoice-company">
-            <div class="company-ar">مركز أجمل خان محمد للموسيقى ذ.م.م</div>
-            <div class="company-en">Ajmal Khan Mohammed Music Centre LLC.</div>
-            <div class="company-meta">
-              <span>Po Box 8227</span>&nbsp;&nbsp;|&nbsp;&nbsp;
-              <span>Tel: 02 621 9929</span>&nbsp;&nbsp;|&nbsp;&nbsp;
-              <span>TRN: 100241997400003</span>
+        <!-- Invoice Meta -->
+        <div class="invoice-meta">
+          <div class="meta-row">
+            <div class="meta-field" style="flex:0 0 160px;">
+              <label>Invoice No.</label>
+              <div class="inv-number-display" id="invNum">Loading…</div>
+            </div>
+            <div class="meta-field" style="flex:0 0 160px;">
+              <label>Date</label>
+              <input type="date" id="invDate" required aria-label="Invoice date">
+            </div>
+            <div class="meta-field">
+              <label>Customer Name</label>
+              <input type="text" id="custName" placeholder="Walk-in Customer" aria-label="Customer name" autocomplete="off">
+            </div>
+          </div>
+          <div class="meta-row">
+            <div class="meta-field">
+              <label>Mobile Number</label>
+              <input type="tel" id="custPhone" placeholder="e.g. 0501234567" aria-label="Customer phone" autocomplete="off">
+            </div>
+            <div class="meta-field">
+              <label>Customer TRN (Optional)</label>
+              <input type="text" id="custTRN" placeholder="15-digit TRN" aria-label="Customer TRN" autocomplete="off">
+            </div>
+          </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="items-section">
+          <table class="items-table" aria-label="Invoice items">
+            <thead>
+              <tr>
+                <th style="width:16%">Model</th>
+                <th style="width:42%">Description</th>
+                <th style="width:9%">Qty</th>
+                <th style="width:15%">Unit Price</th>
+                <th style="width:14%">Amount</th>
+              </tr>
+            </thead>
+            <tbody id="itemsBody" aria-live="polite"></tbody>
+          </table>
+          <button class="add-item-btn" onclick="addItemRow()" aria-label="Add item row">
+            ＋ Add Item Row
+          </button>
+        </div>
+
+        <!-- Payment + Totals -->
+        <div class="invoice-bottom">
+          <div class="payment-section">
+            <span class="section-label">Payment Method <span style="color:#f43f5e">*</span></span>
+            <div class="payment-grid">
+              <button class="payment-btn cash"   data-method="Cash"   onclick="selectPayment(this,'Cash')"   aria-label="Cash">
+                <span class="pay-icon"></span>
+                <span class="pay-label">CASH</span>
+              </button>
+              <button class="payment-btn card"   data-method="Card"   onclick="selectPayment(this,'Card')"   aria-label="Card">
+                <span class="pay-icon"></span>
+                <span class="pay-label">CARD</span>
+              </button>
+              <button class="payment-btn tabby"  data-method="Tabby"  onclick="selectPayment(this,'Tabby')"  aria-label="Tabby">
+                <span class="pay-icon"></span>
+                <span class="pay-label">TABBY</span>
+              </button>
+              <button class="payment-btn cheque" data-method="Cheque" onclick="selectPayment(this,'Cheque')" aria-label="Cheque">
+                <span class="pay-icon"></span>
+                <span class="pay-label">CHEQUE</span>
+              </button>
             </div>
           </div>
 
-          <!-- Invoice Title -->
-          <div class="invoice-title-bar">
-            <span>TAX INVOICE</span>
-          </div>
-
-          <!-- Invoice Meta -->
-          <div class="invoice-meta">
-            <div class="meta-row">
-              <div class="meta-field" style="flex:0 0 160px;">
-                <label>Invoice No.</label>
-                <div class="inv-number-display" id="invNum">Loading…</div>
-              </div>
-              <div class="meta-field" style="flex:0 0 160px;">
-                <label>Date</label>
-                <input type="date" id="invDate" required aria-label="Invoice date">
-              </div>
-              <div class="meta-field">
-                <label>Customer Name</label>
-                <input type="text" id="custName" placeholder="Walk-in Customer" aria-label="Customer name" autocomplete="off">
-              </div>
-            </div>
-            <div class="meta-row">
-              <div class="meta-field">
-                <label>Mobile Number</label>
-                <input type="tel" id="custPhone" placeholder="e.g. 0501234567" aria-label="Customer phone" autocomplete="off">
-              </div>
-              <div class="meta-field">
-                <label>Customer TRN (Optional)</label>
-                <input type="text" id="custTRN" placeholder="15-digit TRN" aria-label="Customer TRN" autocomplete="off">
-              </div>
-            </div>
-          </div>
-
-          <!-- Items Table -->
-          <div class="items-section">
-            <table class="items-table" aria-label="Invoice items">
-              <thead>
-                <tr>
-                  <th style="width:16%">Model</th>
-                  <th style="width:43%">Description</th>
-                  <th style="width:9%">Qty</th>
-                  <th style="width:14%">Unit Price</th>
-                  <th style="width:14%">Amount</th>
-                </tr>
-              </thead>
-              <tbody id="itemsBody" aria-live="polite"></tbody>
+          <div class="totals-section">
+            <table class="totals-table">
+              <tr>
+                <td class="t-label">Sub Total (AED)</td>
+                <td class="t-value" id="subTotal">0.00</td>
+              </tr>
+              <tr class="vat-row">
+                <td class="t-label">VAT 5% (AED)</td>
+                <td class="t-value" id="vatAmount">0.00</td>
+              </tr>
+              <tr class="t-separator"><td colspan="2"></td></tr>
+              <tr class="grand-row">
+                <td class="t-label">Grand Total (AED)</td>
+                <td class="t-value" id="grandTotal">0.00</td>
+              </tr>
             </table>
-            <button class="add-item-btn" onclick="addItemRow()" aria-label="Add item row">
-              ➕ Add Item Row
-            </button>
           </div>
+        </div>
 
-          <!-- Bottom: Payment + Totals -->
-          <div class="invoice-bottom">
-            <!-- Payment Method -->
-            <div class="payment-section">
-              <span class="section-label">Payment Method <span style="color:#F43F5E">*</span></span>
-              <div class="payment-grid">
-                <button class="payment-btn cash"   data-method="Cash"   onclick="selectPayment(this,'Cash')"   aria-label="Cash">
-                  <span class="pay-icon">💵</span>
-                  <span class="pay-label">CASH</span>
-                </button>
-                <button class="payment-btn card"   data-method="Card"   onclick="selectPayment(this,'Card')"   aria-label="Card">
-                  <span class="pay-icon">💳</span>
-                  <span class="pay-label">CARD</span>
-                </button>
-                <button class="payment-btn tabby"  data-method="Tabby"  onclick="selectPayment(this,'Tabby')"  aria-label="Tabby">
-                  <span class="pay-icon">📱</span>
-                  <span class="pay-label">TABBY</span>
-                </button>
-                <button class="payment-btn cheque" data-method="Cheque" onclick="selectPayment(this,'Cheque')" aria-label="Cheque">
-                  <span class="pay-icon">📝</span>
-                  <span class="pay-label">CHEQUE</span>
-                </button>
-              </div>
-            </div>
+        <!-- Action Buttons -->
+        <div class="action-row">
+          <button class="btn-clear" onclick="clearForm()" aria-label="Clear form">🗑️ Reset</button>
+          <button class="btn-print" id="printBtn" onclick="saveAndPrint()" aria-label="Save and print invoice">
+            🖨️ Save &amp; Print Invoice
+          </button>
+        </div>
 
-            <!-- Totals -->
-            <div class="totals-section">
-              <table class="totals-table">
-                <tr>
-                  <td class="t-label">Sub Total (AED)</td>
-                  <td class="t-value" id="subTotal">0.00</td>
-                </tr>
-                <tr class="vat-row">
-                  <td class="t-label">VAT 5% (AED)</td>
-                  <td class="t-value" id="vatAmount">0.00</td>
-                </tr>
-                <tr class="t-separator"><td colspan="2"></td></tr>
-                <tr class="grand-row">
-                  <td class="t-label">Grand Total (AED)</td>
-                  <td class="t-value" id="grandTotal">0.00</td>
-                </tr>
-              </table>
-            </div>
-          </div>
+        <!-- Print-only sections -->
+        <div class="print-only print-payment-line" id="printPaymentLine">PAYMENT: CASH</div>
+        <div class="print-only print-footer">
+          <div>Goods come with brand warranty for manufacturer defects.</div>
+          <div>Items not collected within 30 days are not our responsibility.</div>
+          <div style="font-weight:700;margin-top:3px;">THANK YOU FOR YOUR BUSINESS!</div>
+          <div>www.akm-music.com | Tel: 02 621 9929</div>
+        </div>
+        <div class="print-only barcode-area">
+          <svg id="barcode"></svg>
+          <div id="barcodeText" style="font-size:10px;text-align:center;"></div>
+        </div>
 
-          <!-- Action Buttons -->
-          <div class="action-row">
-            <button class="btn-clear" onclick="clearForm()" aria-label="Clear form">🗑️ Reset</button>
-            <button class="btn-print" id="printBtn" onclick="saveAndPrint()" aria-label="Save and print invoice">
-              🖨️ Save &amp; Print Invoice
-            </button>
-          </div>
+      </div><!-- /.invoice-card -->
+    </main>
 
-          <!-- Print-only payment method line -->
-          <div class="print-only print-payment-line" id="printPaymentLine">PAYMENT: CASH</div>
-
-          <!-- Print-only footer -->
-          <div class="print-only print-footer">
-            <div>Goods come with brand warranty for manufacturer defects.</div>
-            <div>Items not collected within 30 days are not our responsibility.</div>
-            <div style="font-weight:700;margin-top:3px;">THANK YOU FOR YOUR BUSINESS!</div>
-            <div>www.akm-music.com | Tel: 02 621 9929</div>
-          </div>
-          <div class="print-only barcode-area">
-            <svg id="barcode"></svg>
-            <div id="barcodeText" style="font-size:10px;text-align:center;"></div>
-          </div>
-
-        </div><!-- /.invoice-card -->
-      </main>
-    </div><!-- /.app-layout -->
   </div><!-- /#mainApp -->
 
   <!-- ===== DEPOSIT MODAL ===== -->
@@ -271,19 +266,19 @@
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label>Name of Depositor <span style="color:#F43F5E">*</span></label>
+          <label>Name of Depositor <span style="color:#f43f5e">*</span></label>
           <input type="text" id="depositName" placeholder="Enter depositor name" aria-label="Depositor name" required autocomplete="off">
         </div>
         <div class="form-group">
-          <label>Amount (AED) <span style="color:#F43F5E">*</span></label>
+          <label>Amount (AED) <span style="color:#f43f5e">*</span></label>
           <input type="number" id="depositAmount" step="0.01" min="0" placeholder="0.00" aria-label="Deposit amount" required>
         </div>
         <div class="form-group">
-          <label>Bank Name <span style="color:#F43F5E">*</span></label>
+          <label>Bank Name <span style="color:#f43f5e">*</span></label>
           <input type="text" id="depositBank" placeholder="e.g. UBL / FAB / NBD" aria-label="Bank name" required autocomplete="off">
         </div>
         <div class="form-group">
-          <label>Slip / Reference Number <span style="color:#F43F5E">*</span></label>
+          <label>Slip / Reference Number <span style="color:#f43f5e">*</span></label>
           <input type="text" id="depositRef" placeholder="Enter slip number" aria-label="Slip number" required autocomplete="off">
         </div>
       </div>
@@ -303,7 +298,7 @@
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label>Category <span style="color:#F43F5E">*</span></label>
+          <label>Category <span style="color:#f43f5e">*</span></label>
           <select id="expenseCategory" aria-label="Expense category" required>
             <option value="">— Select Category —</option>
             <option value="Local Purchase">Local Purchase</option>
@@ -317,15 +312,15 @@
           </select>
         </div>
         <div class="form-group">
-          <label>Description <span style="color:#F43F5E">*</span></label>
+          <label>Description <span style="color:#f43f5e">*</span></label>
           <textarea id="expenseDesc" rows="3" placeholder="Enter detailed description" aria-label="Expense description" required></textarea>
         </div>
         <div class="form-group">
-          <label>Amount (AED) <span style="color:#F43F5E">*</span></label>
+          <label>Amount (AED) <span style="color:#f43f5e">*</span></label>
           <input type="number" id="expenseAmount" step="0.01" min="0" placeholder="0.00" aria-label="Expense amount" required>
         </div>
         <div class="form-group">
-          <label>Receipt Number <span style="color:#F43F5E">*</span></label>
+          <label>Receipt Number <span style="color:#f43f5e">*</span></label>
           <input type="text" id="expenseReceipt" placeholder="Enter receipt number" aria-label="Receipt number" required autocomplete="off">
         </div>
       </div>
@@ -350,14 +345,14 @@
             id="repairSearchInput"
             placeholder="🔍 Search by name, job number, or product…"
             oninput="searchRepairJobs()"
-            style="flex:1;padding:10px 14px;border:1.5px solid #E2E8F0;border-radius:10px;font-size:13px;font-family:'Montserrat',sans-serif;color:#1E293B!important;"
+            style="flex:1;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:'Montserrat',sans-serif;color:#1e293b!important;"
             aria-label="Search repair jobs"
           >
           <button onclick="openNewRepairForm()" class="btn btn-success" style="white-space:nowrap;">
             + New Job
           </button>
         </div>
-        <div id="repairJobsList" style="max-height:480px;overflow-y:auto;"></div>
+        <div id="repairJobsList" style="max-height:500px;overflow-y:auto;"></div>
       </div>
     </div>
   </div>
@@ -376,13 +371,13 @@
             <input type="text" id="repairCustomerName" class="repair-form-input" placeholder="Optional" autocomplete="off">
           </div>
           <div class="repair-form-group">
-            <label>Phone Number <span style="color:#F43F5E">*</span></label>
+            <label>Phone Number <span style="color:#f43f5e">*</span></label>
             <input type="tel" id="repairCustomerMobile" class="repair-form-input" required
               placeholder="e.g. 0501234567 or +971501234567" autocomplete="off">
-            <small style="color:#94A3B8;font-size:11px;display:block;margin-top:4px;">Mobile, landline, or international format accepted</small>
+            <small style="color:#94a3b8;font-size:11px;display:block;margin-top:4px;">Mobile, landline, or international format accepted</small>
           </div>
           <div class="repair-form-group">
-            <label>Product / Model <span style="color:#F43F5E">*</span></label>
+            <label>Product / Model <span style="color:#f43f5e">*</span></label>
             <input type="text" id="repairProductModel" class="repair-form-input" required autocomplete="off">
           </div>
           <div class="repair-form-group">
@@ -402,18 +397,62 @@
     </div>
   </div>
 
-  <!-- Toast Notification -->
+  <!-- ===== HISTORY MODAL ===== -->
+  <div id="historyModal" class="modal-overlay">
+    <div class="modal-content modal-xlarge">
+      <div class="modal-header">
+        <h2>📋 Invoice History</h2>
+        <button class="modal-close-btn" onclick="closeHistoryModal()" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body" style="padding:16px;">
+        <div id="historyList">
+          <div class="history-loading">Loading invoices…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
   <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
 
-  <!-- Hidden print containers -->
+  <!-- Logs Modal -->
+  <div id="logsModal" class="modal-overlay">
+    <div class="modal-content modal-xlarge">
+      <div class="modal-header">
+        <h2>🧾 Application Logs</h2>
+        <button class="modal-close-btn" onclick="closeLogsModal()" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="log-actions">
+          <button class="btn btn-primary" onclick="copyConsoleLogs()">Copy to Clipboard</button>
+          <button class="btn btn-secondary" onclick="downloadConsoleLogs()">Download Logs</button>
+          <button class="btn btn-danger" onclick="clearLogs()">Clear Logs</button>
+        </div>
+        <pre id="logsContent" class="logs-content" aria-label="Console logs">Loading logs…</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Print containers -->
   <div id="repairSlipContainer" class="repair-slip-container"></div>
   <div id="dailyReportContainer" class="daily-report-container"></div>
 
   <!-- Scripts -->
-  <script type="module" src="config.js?v=3.2"></script>
-  <script type="module" src="firebase-config.js?v=3.2"></script>
-  <script type="module" src="firestore-utils.js?v=3.2"></script>
-  <script type="module" src="app-firestore.js?v=3.2"></script>
-  <script type="module" src="repair-management-firestore.js?v=3.2"></script>
+  <script type="module" src="config.js?v=4.0"></script>
+  <script type="module" src="firebase-config.js?v=4.0"></script>
+  <script type="module" src="firestore-utils.js?v=4.0"></script>
+  <script type="module" src="app-firestore.js?v=4.0"></script>
+  <script type="module" src="repair-management-firestore.js?v=4.0"></script>
+
+  <!-- PWA service worker registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+          console.warn('Service worker registration failed:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

@@ -2,13 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Dashboard | AKM-POS</title>
+
+  <!-- PWA / installable app -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0284c7">
+  <meta name="color-scheme" content="light">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="AKM POS">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AKM POS">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
   <link rel="icon" type="image/png" href="/Favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=3.2">
+  <link rel="stylesheet" href="styles.css?v=4.0">
 </head>
 <body class="dashboard-page">
 
@@ -24,9 +36,9 @@
     <!-- Header -->
     <header class="dashboard-header">
       <div class="dash-brand">
-        <div class="dash-brand-icon">📊</div>
+        <div class="dash-brand-icon">🎵</div>
         <div>
-          <div class="dash-title">AKM Dashboard</div>
+          <div class="dash-title">AKM MUSIC</div>
           <div class="dash-subtitle">Business Intelligence &amp; Reports</div>
         </div>
       </div>
@@ -43,6 +55,9 @@
         </button>
         <button class="dash-action-btn" onclick="createBackup()" title="Create Backup">
           🗄️ Backup
+        </button>
+        <button class="dash-action-btn" onclick="openLogsModal()" title="View logs">
+          🧾 Logs
         </button>
       </div>
 
@@ -240,11 +255,40 @@
   <!-- Toast -->
   <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
 
+  <!-- Logs Modal -->
+  <div id="logsModal" class="modal-overlay">
+    <div class="modal-content modal-xlarge">
+      <div class="modal-header">
+        <h2>🧾 Application Logs</h2>
+        <button class="modal-close-btn" onclick="closeLogsModal()" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="log-actions">
+          <button class="btn btn-primary" onclick="copyConsoleLogs()">Copy to Clipboard</button>
+          <button class="btn btn-secondary" onclick="downloadConsoleLogs()">Download Logs</button>
+          <button class="btn btn-danger" onclick="clearLogs()">Clear Logs</button>
+        </div>
+        <pre id="logsContent" class="logs-content" aria-label="Console logs">Loading logs…</pre>
+      </div>
+    </div>
+  </div>
+
   <!-- Scripts -->
-  <script type="module" src="config.js?v=3.2"></script>
-  <script type="module" src="utils.js?v=3.2"></script>
-  <script type="module" src="firebase-config.js?v=3.2"></script>
-  <script type="module" src="firestore-utils.js?v=3.2"></script>
-  <script type="module" src="dashboard.js?v=3.2"></script>
+  <script type="module" src="config.js?v=4.0"></script>
+  <script type="module" src="utils.js?v=4.0"></script>
+  <script type="module" src="firebase-config.js?v=4.0"></script>
+  <script type="module" src="firestore-utils.js?v=4.0"></script>
+  <script type="module" src="dashboard.js?v=4.0"></script>
+
+  <!-- PWA service worker registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+          console.warn('Service worker registration failed:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>
