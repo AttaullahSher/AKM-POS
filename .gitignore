@@ -27,6 +27,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Firebase deploy cache
+.firebase/
+
 # Build outputs
 dist/
 build/
