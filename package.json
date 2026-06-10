@@ -1,0 +1,18 @@
+{
+  "name": "akm-pos",
+  "private": true,
+  "version": "4.1.0",
+  "type": "module",
+  "description": "AKM Music Centre LLC — Point of Sale (Vite build)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173"
+  },
+  "dependencies": {
+    "firebase": "^10.7.1"
+  },
+  "devDependencies": {
+    "vite": "^8.0.16"
+  }
+}

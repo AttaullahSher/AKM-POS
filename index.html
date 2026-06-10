@@ -21,7 +21,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=4.0">
+  <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
 <body>
@@ -100,10 +100,6 @@
           <span class="hdr-icon">📋</span><span>History</span>
         </button>
 
-        <button onclick="openLogsModal()" class="hdr-btn" title="View logs" aria-label="View logs">
-          <span class="hdr-icon">🧾</span><span>Logs</span>
-        </button>
-
         <a href="dashboard.html" class="hdr-btn dashboard-btn" title="Dashboard" aria-label="Dashboard">
           <span class="hdr-icon">📊</span><span>Dashboard</span>
         </a>
@@ -143,28 +139,33 @@
 
         <!-- Invoice Meta -->
         <div class="invoice-meta">
-          <div class="meta-row">
-            <div class="meta-field" style="flex:0 0 160px;">
-              <label>Invoice No.</label>
+          <!-- Row 1: invoice number + date (top-right) -->
+          <div class="meta-row meta-row-top">
+            <div class="meta-field">
+              <label>Invoice #</label>
               <div class="inv-number-display" id="invNum">Loading…</div>
             </div>
-            <div class="meta-field" style="flex:0 0 160px;">
+            <div class="meta-field">
               <label>Date</label>
               <input type="date" id="invDate" required aria-label="Invoice date">
             </div>
+          </div>
+          <!-- Row 2: customer name -->
+          <div class="meta-row">
             <div class="meta-field">
-              <label>Customer Name</label>
+              <label>Customer</label>
               <input type="text" id="custName" placeholder="Walk-in Customer" aria-label="Customer name" autocomplete="off">
             </div>
           </div>
+          <!-- Row 3: mobile + TRN -->
           <div class="meta-row">
             <div class="meta-field">
-              <label>Mobile Number</label>
+              <label>Mobile</label>
               <input type="tel" id="custPhone" placeholder="e.g. 0501234567" aria-label="Customer phone" autocomplete="off">
             </div>
             <div class="meta-field">
-              <label>Customer TRN (Optional)</label>
-              <input type="text" id="custTRN" placeholder="15-digit TRN" aria-label="Customer TRN" autocomplete="off">
+              <label>TRN</label>
+              <input type="text" id="custTRN" placeholder="15-digit TRN (optional)" aria-label="Customer TRN" autocomplete="off">
             </div>
           </div>
         </div>
@@ -415,34 +416,16 @@
   <!-- Toast -->
   <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
 
-  <!-- Logs Modal -->
-  <div id="logsModal" class="modal-overlay">
-    <div class="modal-content modal-xlarge">
-      <div class="modal-header">
-        <h2>🧾 Application Logs</h2>
-        <button class="modal-close-btn" onclick="closeLogsModal()" aria-label="Close">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="log-actions">
-          <button class="btn btn-primary" onclick="copyConsoleLogs()">Copy to Clipboard</button>
-          <button class="btn btn-secondary" onclick="downloadConsoleLogs()">Download Logs</button>
-          <button class="btn btn-danger" onclick="clearLogs()">Clear Logs</button>
-        </div>
-        <pre id="logsContent" class="logs-content" aria-label="Console logs">Loading logs…</pre>
-      </div>
-    </div>
-  </div>
-
   <!-- Print containers -->
   <div id="repairSlipContainer" class="repair-slip-container"></div>
   <div id="dailyReportContainer" class="daily-report-container"></div>
 
   <!-- Scripts -->
-  <script type="module" src="config.js?v=4.0"></script>
-  <script type="module" src="firebase-config.js?v=4.0"></script>
-  <script type="module" src="firestore-utils.js?v=4.0"></script>
-  <script type="module" src="app-firestore.js?v=4.0"></script>
-  <script type="module" src="repair-management-firestore.js?v=4.0"></script>
+  <script type="module" src="config.js"></script>
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="firestore-utils.js"></script>
+  <script type="module" src="app-firestore.js"></script>
+  <script type="module" src="repair-management-firestore.js"></script>
 
   <!-- PWA service worker registration -->
   <script>

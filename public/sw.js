@@ -3,15 +3,17 @@
    Bump CACHE_VERSION on every deploy to invalidate old caches.
    ============================================================ */
 
-const CACHE_VERSION = 'akm-pos-v4.1.0';
+const CACHE_VERSION = 'akm-pos-v4.2.0';
 const CACHE_NAME    = `${CACHE_VERSION}-static`;
 
 // Core app shell — precached on install so the app launches offline.
+// Vite hashes the CSS/JS bundles, so those are NOT listed here; they are cached
+// at runtime (stale-while-revalidate) on first online load. Only stable-named
+// files live in this list.
 const APP_SHELL = [
   '/',
   '/index.html',
   '/dashboard.html',
-  '/styles.css?v=4.0',
   '/manifest.webmanifest',
   '/icon-192.png',
   '/icon-512.png',

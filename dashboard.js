@@ -1,7 +1,7 @@
 // dashboard.js — AKM-POS Dashboard v4.0
 // Redesign: AKM MUSIC branding, fixed full-history exports, styled Excel export
 
-import { auth, onAuthStateChanged, signOut } from './firebase-config.js?v=4.0';
+import { auth, onAuthStateChanged, signOut } from './firebase-config.js';
 import {
   db,
   getTodayInvoices,
@@ -13,10 +13,10 @@ import {
   markInvoiceAsRefunded,
   formatDate,
   formatTime
-} from './firestore-utils.js?v=4.0';
-import { collection, query, where, orderBy, getDocs, Timestamp } from './firebase-config.js?v=4.0';
-import { APP_CONFIG, debugLog } from './config.js?v=4.0';
-import { showToast } from './utils.js?v=4.0';
+} from './firestore-utils.js';
+import { collection, query, where, orderBy, getDocs, Timestamp } from './firebase-config.js';
+import { APP_CONFIG, debugLog } from './config.js';
+import { showToast } from './utils.js';
 
 const ALLOWED_EMAIL = APP_CONFIG.ALLOWED_EMAIL;
 
@@ -643,65 +643,83 @@ window.printDailyReport = async function() {
     const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
     const cashInHand    = cash - totalDeposits - totalExpenses;
 
-    const pw = window.open('', '_blank', 'width=800,height=700');
+    const money = (n) => 'AED ' + (Number(n) || 0).toFixed(2);
+    const pw = window.open('', '_blank', 'width=420,height=720');
     pw.document.write(`<!DOCTYPE html><html><head>
+      <meta charset="UTF-8">
       <title>Daily Report — ${formatDate(today,'DD MMM YYYY')}</title>
       <style>
+        @page { size: 80mm auto; margin: 3mm 4mm; }
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'Montserrat',Arial,sans-serif; padding:40px; background:#fff; color:#333; }
-        .header { text-align:center; border-bottom:3px solid #0ea5e9; padding-bottom:20px; margin-bottom:30px; }
-        .header h1 { font-size:26px; color:#0369a1; margin-bottom:6px; }
-        .header .date { font-size:15px; color:#6b7280; font-weight:600; }
-        .section { margin-bottom:28px; }
-        .section-title { font-size:16px; font-weight:700; color:#0369a1; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #e0f2fe; }
-        .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:16px; }
-        .card { padding:14px; background:#f0f9ff; border-radius:8px; border-left:4px solid #0ea5e9; }
-        .card-label { font-size:11px; color:#6b7280; font-weight:600; text-transform:uppercase; margin-bottom:4px; }
-        .card-value { font-size:22px; font-weight:700; color:#0c4a6e; }
-        table { width:100%; border-collapse:collapse; margin-top:8px; }
-        th, td { padding:9px 12px; text-align:left; border-bottom:1px solid #e5e7eb; font-size:13px; }
-        th { background:#f0f9ff; font-weight:700; color:#0369a1; }
-        .total-row { font-weight:700; background:#f0f9ff; }
-        .footer { margin-top:36px; padding-top:16px; border-top:2px solid #e5e7eb; text-align:center; font-size:11px; color:#9ca3af; }
-        @media print { .no-print { display:none; } }
+        body { font-family:'Montserrat',Arial,sans-serif; color:#000; background:#fff;
+               width:72mm; margin:0 auto; padding:6px 0; font-size:10px; line-height:1.45; }
+        .head { text-align:center; border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:6px; }
+        .head h1 { font-size:15px; font-weight:900; letter-spacing:1px; }
+        .head .sub { font-size:10px; font-weight:700; }
+        .head .date { font-size:10px; }
+        .sec { margin-bottom:8px; }
+        .sec-t { font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.5px;
+                 border-bottom:1px dashed #000; padding-bottom:2px; margin-bottom:4px; }
+        .row { display:flex; justify-content:space-between; gap:8px; padding:1px 0; }
+        .row b { font-weight:800; }
+        .row.total { border-top:1px solid #000; margin-top:3px; padding-top:3px;
+                     font-weight:900; font-size:11px; }
+        .li { padding:3px 0; border-bottom:1px dotted #999; }
+        .li-top { display:flex; justify-content:space-between; gap:6px; font-weight:700; }
+        .li-sub { font-size:9px; color:#333; }
+        .foot { text-align:center; border-top:1px dashed #000; margin-top:8px; padding-top:5px; font-size:9px; }
+        .no-print { text-align:center; margin-top:14px; }
+        .no-print button { padding:8px 14px; border:none; border-radius:6px; font-size:12px;
+                font-weight:700; cursor:pointer; font-family:inherit; }
+        @media print { .no-print { display:none; } body { width:auto; padding:0; } }
       </style>
     </head><body>
-      <div class="header"><h1>🎵 AKM MUSIC — Daily Report</h1><div class="date">${formatDate(today,'DD MMM YYYY')}</div></div>
-      <div class="section"><div class="section-title">Sales Summary</div>
-        <div class="grid">
-          <div class="card"><div class="card-label">Total Sales (incl. VAT)</div><div class="card-value">AED ${totalSales.toFixed(2)}</div></div>
-          <div class="card"><div class="card-label">Total VAT (5%)</div><div class="card-value">AED ${totalVAT.toFixed(2)}</div></div>
-          <div class="card"><div class="card-label">Net Sales (excl. VAT)</div><div class="card-value">AED ${(totalSales-totalVAT).toFixed(2)}</div></div>
-          <div class="card"><div class="card-label">Paid Invoices</div><div class="card-value">${paidInvoices}</div></div>
-        </div>
+      <div class="head">
+        <h1>AKM MUSIC</h1>
+        <div class="sub">Daily Report</div>
+        <div class="date">${formatDate(today,'DD MMM YYYY')}</div>
       </div>
-      <div class="section"><div class="section-title">Payment Breakdown</div>
-        <div class="grid">
-          <div class="card"><div class="card-label">💵 Cash</div><div class="card-value">AED ${cash.toFixed(2)}</div></div>
-          <div class="card"><div class="card-label">💳 Card</div><div class="card-value">AED ${card.toFixed(2)}</div></div>
-          <div class="card"><div class="card-label">📱 Tabby</div><div class="card-value">AED ${tabby.toFixed(2)}</div></div>
-          <div class="card"><div class="card-label">📝 Cheque</div><div class="card-value">AED ${cheque.toFixed(2)}</div></div>
-        </div>
+
+      <div class="sec">
+        <div class="sec-t">Sales Summary</div>
+        <div class="row"><span>Total Sales (incl VAT)</span><b>${money(totalSales)}</b></div>
+        <div class="row"><span>VAT (5%)</span><span>${money(totalVAT)}</span></div>
+        <div class="row"><span>Net Sales (excl VAT)</span><span>${money(totalSales-totalVAT)}</span></div>
+        <div class="row"><span>Paid Invoices</span><b>${paidInvoices}</b></div>
       </div>
-      <div class="section"><div class="section-title">Cash Flow</div>
-        <table>
-          <tr><td>Cash Sales</td><td style="text-align:right;font-weight:700;">AED ${cash.toFixed(2)}</td></tr>
-          <tr><td>Bank Deposits</td><td style="text-align:right;color:#dc2626;">− AED ${totalDeposits.toFixed(2)}</td></tr>
-          <tr><td>Expenses</td><td style="text-align:right;color:#dc2626;">− AED ${totalExpenses.toFixed(2)}</td></tr>
-          <tr class="total-row"><td>Cash in Hand</td><td style="text-align:right;color:#065f46;">AED ${cashInHand.toFixed(2)}</td></tr>
-        </table>
+
+      <div class="sec">
+        <div class="sec-t">Payment Breakdown</div>
+        <div class="row"><span>Cash</span><span>${money(cash)}</span></div>
+        <div class="row"><span>Card</span><span>${money(card)}</span></div>
+        <div class="row"><span>Tabby</span><span>${money(tabby)}</span></div>
+        <div class="row"><span>Cheque</span><span>${money(cheque)}</span></div>
       </div>
-      ${deposits.length ? `<div class="section"><div class="section-title">Bank Deposits</div>
-        <table><thead><tr><th>ID</th><th>Depositor</th><th>Bank</th><th>Slip #</th><th style="text-align:right;">Amount</th></tr></thead>
-        <tbody>${deposits.map(d=>`<tr><td>${d.depositId||''}</td><td>${d.depositor||''}</td><td>${d.bank||''}</td><td>${d.slipNumber||''}</td><td style="text-align:right;">AED ${(d.amount||0).toFixed(2)}</td></tr>`).join('')}</tbody></table></div>` : ''}
-      ${expenses.length ? `<div class="section"><div class="section-title">Expenses</div>
-        <table><thead><tr><th>ID</th><th>Category</th><th>Description</th><th>Receipt #</th><th style="text-align:right;">Amount</th></tr></thead>
-        <tbody>${expenses.map(e=>`<tr><td>${e.expenseId||''}</td><td>${e.category||'General'}</td><td>${e.description||''}</td><td>${e.receiptNumber||''}</td><td style="text-align:right;">AED ${(e.amount||0).toFixed(2)}</td></tr>`).join('')}
-        <tr class="total-row"><td colspan="4">Total</td><td style="text-align:right;">AED ${totalExpenses.toFixed(2)}</td></tr></tbody></table></div>` : ''}
-      <div class="footer">Generated ${formatDate(new Date(),'DD MMM YYYY')} ${formatTime(new Date())} — AKM Music Centre LLC</div>
-      <div class="no-print" style="margin-top:28px;text-align:center;">
-        <button onclick="window.print()" style="padding:11px 22px;background:#0ea5e9;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">🖨️ Print</button>
-        <button onclick="window.close()" style="padding:11px 22px;background:#e5e7eb;color:#374151;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-left:10px;">✖ Close</button>
+
+      <div class="sec">
+        <div class="sec-t">Cash Flow</div>
+        <div class="row"><span>Cash Sales</span><span>${money(cash)}</span></div>
+        <div class="row"><span>− Bank Deposits</span><span>${money(totalDeposits)}</span></div>
+        <div class="row"><span>− Expenses</span><span>${money(totalExpenses)}</span></div>
+        <div class="row total"><span>Cash in Hand</span><span>${money(cashInHand)}</span></div>
+      </div>
+
+      ${deposits.length ? `<div class="sec"><div class="sec-t">Bank Deposits (${deposits.length})</div>
+        ${deposits.map(d=>`<div class="li"><div class="li-top"><span>${d.depositId||''} · ${d.depositor||''}</span><span>${money(d.amount)}</span></div><div class="li-sub">${d.bank||''}${d.slipNumber?` · Slip ${d.slipNumber}`:''}</div></div>`).join('')}
+        <div class="row total"><span>Total Deposits</span><span>${money(totalDeposits)}</span></div></div>` : ''}
+
+      ${expenses.length ? `<div class="sec"><div class="sec-t">Expenses (${expenses.length})</div>
+        ${expenses.map(e=>`<div class="li"><div class="li-top"><span>${e.expenseId||''} · ${e.category||'General'}</span><span>${money(e.amount)}</span></div><div class="li-sub">${e.description||''}${e.receiptNumber?` · Rcpt ${e.receiptNumber}`:''}</div></div>`).join('')}
+        <div class="row total"><span>Total Expenses</span><span>${money(totalExpenses)}</span></div></div>` : ''}
+
+      <div class="foot">
+        Generated ${formatDate(new Date(),'DD MMM YYYY')} ${formatTime(new Date())}<br>
+        AKM Music Centre LLC
+      </div>
+
+      <div class="no-print">
+        <button onclick="window.print()" style="background:#0ea5e9;color:#fff;">🖨️ Print</button>
+        <button onclick="window.close()" style="background:#e5e7eb;color:#374151;margin-left:8px;">✖ Close</button>
       </div>
     </body></html>`);
     pw.document.close();

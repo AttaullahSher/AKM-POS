@@ -15,9 +15,9 @@ import {
   runTransaction,
   serverTimestamp,
   Timestamp
-} from './firebase-config.js?v=4.0';
+} from './firebase-config.js';
 
-import { APP_CONFIG, debugLog } from './config.js?v=4.0';
+import { APP_CONFIG, debugLog } from './config.js';
 
 export { db };
 

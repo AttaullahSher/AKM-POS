@@ -1,14 +1,14 @@
 // Firebase Configuration & Initialization — AKM-POS v3.0
 // Single source of truth for all Firebase instances.
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
   onAuthStateChanged,
   signOut
-} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+} from 'firebase/auth';
 import {
   getFirestore,
   initializeFirestore,
@@ -28,7 +28,7 @@ import {
   runTransaction,
   serverTimestamp,
   Timestamp
-} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+} from 'firebase/firestore';
 
 import { FIREBASE_CONFIG, CACHE_CONFIG } from './config.js';
 

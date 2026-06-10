@@ -20,7 +20,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=4.0">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body class="dashboard-page">
 
@@ -55,9 +55,6 @@
         </button>
         <button class="dash-action-btn" onclick="createBackup()" title="Create Backup">
           🗄️ Backup
-        </button>
-        <button class="dash-action-btn" onclick="openLogsModal()" title="View logs">
-          🧾 Logs
         </button>
       </div>
 
@@ -255,30 +252,13 @@
   <!-- Toast -->
   <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
 
-  <!-- Logs Modal -->
-  <div id="logsModal" class="modal-overlay">
-    <div class="modal-content modal-xlarge">
-      <div class="modal-header">
-        <h2>🧾 Application Logs</h2>
-        <button class="modal-close-btn" onclick="closeLogsModal()" aria-label="Close">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="log-actions">
-          <button class="btn btn-primary" onclick="copyConsoleLogs()">Copy to Clipboard</button>
-          <button class="btn btn-secondary" onclick="downloadConsoleLogs()">Download Logs</button>
-          <button class="btn btn-danger" onclick="clearLogs()">Clear Logs</button>
-        </div>
-        <pre id="logsContent" class="logs-content" aria-label="Console logs">Loading logs…</pre>
-      </div>
-    </div>
-  </div>
 
   <!-- Scripts -->
-  <script type="module" src="config.js?v=4.0"></script>
-  <script type="module" src="utils.js?v=4.0"></script>
-  <script type="module" src="firebase-config.js?v=4.0"></script>
-  <script type="module" src="firestore-utils.js?v=4.0"></script>
-  <script type="module" src="dashboard.js?v=4.0"></script>
+  <script type="module" src="config.js"></script>
+  <script type="module" src="utils.js"></script>
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="firestore-utils.js"></script>
+  <script type="module" src="dashboard.js"></script>
 
   <!-- PWA service worker registration -->
   <script>

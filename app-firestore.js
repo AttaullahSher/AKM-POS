@@ -4,7 +4,7 @@
 import {
   auth, provider,
   signInWithPopup, onAuthStateChanged, signOut
-} from './firebase-config.js?v=4.0';
+} from './firebase-config.js';
 
 import {
   getNextInvoiceNumber,
@@ -21,10 +21,10 @@ import {
   getInvoiceByNumber,
   formatDate,
   formatTime,
-} from './firestore-utils.js?v=4.0';
+} from './firestore-utils.js';
 
-import { APP_CONFIG, debugLog } from './config.js?v=4.0';
-import { showToast } from './utils.js?v=4.0';
+import { APP_CONFIG, debugLog } from './config.js';
+import { showToast } from './utils.js';
 
 const ALLOWED_EMAIL = APP_CONFIG.ALLOWED_EMAIL;
 const VALIDATION    = APP_CONFIG.VALIDATION;
