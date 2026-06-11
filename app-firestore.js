@@ -27,6 +27,7 @@ import {
 import { APP_CONFIG, debugLog } from './config.js';
 import { showToast } from './utils.js';
 import { correctMusicalText } from './instrument-terms.js';
+import { initSyncStatus, notePendingWrite } from './sync-status.js';
 
 // Auto-capitalise / spell-correct known instrument & brand words when leaving a
 // Model or Description field (local dictionary — no AI, instant, offline).
@@ -314,6 +315,7 @@ async function initializePOS() {
   if (screen) screen.style.display = 'flex';
 
   try {
+    initSyncStatus();
     initializeItemsTable();
     setLoadingText('Loading invoice number…');
     await loadNextInvoiceNumber();
@@ -504,6 +506,7 @@ async function saveNewInvoice() {
     updateEl('invNum', committed);
 
     await saveInvoice(data);
+    notePendingWrite();
     showToast('✅ Invoice saved!', 'success');
     setTimeout(() => { preparePrintLayout(); window.print(); }, 300);
   } catch (err) {
@@ -673,6 +676,7 @@ window.handleRefund = async function() {
   if (refundBtn) { refundBtn.disabled = true; refundBtn.textContent = '⏳ Refunding…'; }
   try {
     await markInvoiceAsRefunded(reprintInvoiceData.id);
+    notePendingWrite();
     showToast(`Invoice ${refundedNumber} refunded.`, 'success');
     await loadDashboardData();
     resetToNewInvoice();   // empty the form back to a fresh invoice
@@ -762,6 +766,7 @@ window.submitDeposit = async function() {
   try {
     const depositId = await getNextDepositId();
     await saveDeposit({ depositId, amount, bank, slipNumber: slip, depositor: name });
+    notePendingWrite();
     showToast(`✅ Deposit AED ${amount.toFixed(2)} saved.`, 'success');
     closeDepositModal();
     await loadDashboardData();
@@ -798,6 +803,7 @@ window.submitExpense = async function() {
   try {
     const expenseId = await getNextExpenseId();
     await saveExpense({ expenseId, description: desc, amount, receiptNumber: receipt });
+    notePendingWrite();
     showToast(`✅ Expense AED ${amount.toFixed(2)} saved.`, 'success');
     closeExpenseModal();
     await loadDashboardData();

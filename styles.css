@@ -347,6 +347,23 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .hdr-btn.logout-btn:hover { background: var(--rose-50); border-color: var(--rose-300); color: var(--rose-600); }
 
+/* ===== Sync / offline status pill ===== */
+.sync-status {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+  border: 1.5px solid var(--slate-200); background: white;
+  user-select: none; line-height: 1; flex-shrink: 0;
+  transition: all var(--t);
+}
+.sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--slate-400); flex-shrink: 0; }
+.sync-status.synced  { color: var(--emerald-700); border-color: var(--emerald-200); background: var(--emerald-50); }
+.sync-status.synced  .sync-dot { background: var(--emerald-500); }
+.sync-status.syncing { color: var(--amber-700);   border-color: var(--amber-200);   background: var(--amber-50); }
+.sync-status.syncing .sync-dot { background: var(--amber-500); animation: pulse 1s ease-in-out infinite; }
+.sync-status.offline { color: var(--rose-700);    border-color: var(--rose-300);    background: var(--rose-50); }
+.sync-status.offline .sync-dot { background: var(--rose-500); animation: pulse 1.2s ease-in-out infinite; }
+
 /* ===== Main Content (full-width, no sidebar) ===== */
 .main-content {
   flex: 1; padding: 24px 20px;
@@ -1400,6 +1417,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .hdr-btn span:not(.hdr-icon) { display: none; }       /* icon-only buttons */
   .hdr-btn { padding: 8px 10px; }
   .header-stats { display: none; }
+  .sync-status .sync-label { display: none; }           /* dot only */
+  .sync-status { padding: 7px 8px; }
 }
 
 /* ----- Phone / portrait tablet ----- */

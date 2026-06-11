@@ -17,6 +17,7 @@ import {
 import { collection, query, where, orderBy, getDocs, Timestamp } from './firebase-config.js';
 import { APP_CONFIG, debugLog } from './config.js';
 import { showToast } from './utils.js';
+import { initSyncStatus, notePendingWrite } from './sync-status.js';
 
 const ALLOWED_EMAIL = APP_CONFIG.ALLOWED_EMAIL;
 
@@ -37,6 +38,7 @@ const TAX_QUARTERS = {
 async function initDashboard() {
   debugLog('🚀 Initializing AKM Dashboard v4.0');
   try {
+    initSyncStatus();
     await loadDashboardStats();
     await loadRecentInvoicesTable();
     setInterval(() => loadDashboardStats(), 60000);
@@ -159,6 +161,7 @@ window.refundInvoice = async function(id, num) {
   if (!confirm(`Refund invoice ${num}?`)) return;
   try {
     await markInvoiceAsRefunded(id);
+    notePendingWrite();
     showToast('Invoice refunded', 'success');
     await loadDashboardStats();
     await loadRecentInvoicesTable();
