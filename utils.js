@@ -30,6 +30,47 @@ export function showToast(message, type = 'info', duration = 3000) {
 }
 
 /**
+ * Print a self-contained HTML document.
+ * Tries a popup window first (nice preview on desktop). Installed PWAs and
+ * mobile browsers often block popups, so it falls back to a hidden iframe
+ * and triggers the native print dialog directly.
+ * @param {string} html - Complete HTML document to print
+ */
+export function printHtml(html) {
+  let pw = null;
+  try { pw = window.open('', '_blank', 'width=480,height=720'); } catch { /* blocked */ }
+
+  if (pw && pw.document) {
+    pw.document.write(html);
+    pw.document.close();
+    return;
+  }
+
+  // Popup blocked → hidden iframe + auto print
+  document.getElementById('akmPrintFrame')?.remove();
+  const frame = document.createElement('iframe');
+  frame.id = 'akmPrintFrame';
+  frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+  document.body.appendChild(frame);
+
+  const fdoc = frame.contentDocument || frame.contentWindow.document;
+  fdoc.open();
+  fdoc.write(html);
+  fdoc.close();
+
+  setTimeout(() => {
+    try {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+    } catch (err) {
+      console.error('Print failed:', err);
+    }
+    // Keep the frame around long enough for the print dialog to read it.
+    setTimeout(() => frame.remove(), 60000);
+  }, 300);
+}
+
+/**
  * Validate phone number (supports mobile, landline, international)
  * @param {string} phone - Phone number to validate
  * @returns {boolean} True if valid
@@ -239,6 +280,7 @@ export async function retryWithBackoff(fn, maxRetries = 3, delayMs = 1000) {
 // Export all utilities as a namespace
 export default {
   showToast,
+  printHtml,
   validatePhone,
   validateEmail,
   formatCurrency,

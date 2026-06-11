@@ -25,6 +25,7 @@ import {
   where,
   orderBy,
   limit,
+  onSnapshot,
   runTransaction,
   serverTimestamp,
   Timestamp
@@ -74,6 +75,7 @@ export {
   where,
   orderBy,
   limit,
+  onSnapshot,
   runTransaction,
   serverTimestamp,
   Timestamp

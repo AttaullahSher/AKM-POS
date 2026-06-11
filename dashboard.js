@@ -11,18 +11,19 @@ import {
   loadRecentExpenses,
   getRecentInvoices,
   markInvoiceAsRefunded,
+  initSyncIndicator,
   formatDate,
   formatTime
 } from './firestore-utils.js';
 import { collection, query, where, orderBy, getDocs, Timestamp } from './firebase-config.js';
 import { APP_CONFIG, debugLog } from './config.js';
-import { showToast } from './utils.js';
+import { showToast, printHtml } from './utils.js';
 
 const ALLOWED_EMAIL = APP_CONFIG.ALLOWED_EMAIL;
 
 let currentUser        = null;
 let currentFilter      = 'all';
-let allInvoices        = [];
+let allTransactions    = [];
 let currentTaxReport   = null;
 
 const TAX_QUARTERS = {
@@ -37,8 +38,9 @@ const TAX_QUARTERS = {
 async function initDashboard() {
   debugLog('🚀 Initializing AKM Dashboard v4.0');
   try {
+    initSyncIndicator();
     await loadDashboardStats();
-    await loadRecentInvoicesTable();
+    await loadTransactionsTable();
     setInterval(() => loadDashboardStats(), 60000);
     showToast('Dashboard loaded', 'success');
   } catch (err) {
@@ -92,65 +94,133 @@ async function loadDashboardStats() {
   }
 }
 
-// ─── Invoices Table ──────────────────────────────────────────────
+// ─── Transactions Table (invoices + expenses + deposits, by time) ─
 
-async function loadRecentInvoicesTable() {
-  const tbody = document.getElementById('invoicesTableBody');
-  tbody.innerHTML = '<tr><td colspan="7" class="table-loading">Loading…</td></tr>';
+async function loadTransactionsTable(days = 90) {
+  const tbody = document.getElementById('transactionsTableBody');
+  tbody.innerHTML = '<tr><td colspan="8" class="table-loading">Loading…</td></tr>';
   try {
-    allInvoices = await getRecentInvoices(100);
-    if (!allInvoices.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="table-empty">No invoices found</td></tr>';
+    const [invoices, deposits, expenses] = await Promise.all([
+      getRecentInvoices(days),
+      loadRecentDeposits(days),
+      loadRecentExpenses(days)
+    ]);
+
+    allTransactions = [
+      ...invoices.map(inv => ({
+        kind: 'invoice',
+        id: inv.id,
+        ref: inv.invoiceNumber || '',
+        invoiceNumber: inv.invoiceNumber,
+        date: inv.date || '',
+        time: inv.time || '',
+        pending: !!inv.pending,
+        details: inv.customer || 'Walk-in',
+        amount: inv.grandTotal || 0,
+        payment: inv.payment || 'Cash',
+        status: inv.status || 'Paid'
+      })),
+      ...deposits.map(d => ({
+        kind: 'deposit',
+        id: d.id,
+        ref: d.depositId || '',
+        date: d.date || '',
+        time: d.time || '',
+        pending: !!d.pending,
+        details: `${d.depositor || ''}${d.bank ? ' → ' + d.bank : ''}`,
+        amount: d.amount || 0,
+        info: d.slipNumber ? `Slip ${d.slipNumber}` : ''
+      })),
+      ...expenses.map(e => ({
+        kind: 'expense',
+        id: e.id,
+        ref: e.expenseId || '',
+        date: e.date || '',
+        time: e.time || '',
+        pending: !!e.pending,
+        details: e.description || '',
+        amount: e.amount || 0,
+        info: e.receiptNumber ? `Rcpt ${e.receiptNumber}` : ''
+      }))
+    ].sort((a, b) => `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`));
+
+    if (!allTransactions.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="table-empty">No transactions found</td></tr>';
       return;
     }
-    filterInvoices(currentFilter);
+    filterTransactions(currentFilter);
   } catch (err) {
-    console.error('❌ Invoice table error:', err);
-    tbody.innerHTML = '<tr><td colspan="7" class="table-error">Error loading invoices</td></tr>';
+    console.error('❌ Transactions table error:', err);
+    tbody.innerHTML = '<tr><td colspan="8" class="table-error">Error loading transactions</td></tr>';
   }
 }
 
-window.filterInvoices = function(filter) {
+window.filterTransactions = function(filter) {
   currentFilter = filter;
   document.querySelectorAll('.btn-filter').forEach(b => b.classList.toggle('active', b.dataset.filter === filter));
-  let filtered = [...allInvoices];
+  let filtered = [...allTransactions];
   const now = new Date();
   if (filter === 'today') {
     const today = formatDate(now, 'YYYY-MM-DD');
-    filtered = filtered.filter(inv => inv.date === today);
+    filtered = filtered.filter(t => t.date === today);
   } else if (filter === 'week') {
     const cut = new Date(now - 7 * 86400000);
-    filtered = filtered.filter(inv => new Date(inv.date) >= cut);
+    filtered = filtered.filter(t => new Date(t.date) >= cut);
   } else if (filter === 'month') {
     const cut = new Date(now - 30 * 86400000);
-    filtered = filtered.filter(inv => new Date(inv.date) >= cut);
+    filtered = filtered.filter(t => new Date(t.date) >= cut);
   }
-  displayInvoices(filtered);
+  displayTransactions(filtered);
 };
 
-function displayInvoices(invoices) {
-  const tbody = document.getElementById('invoicesTableBody');
-  if (!invoices.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="table-empty">No invoices for this period</td></tr>';
+const TYPE_LABEL = { invoice: 'Invoice', deposit: 'Deposit', expense: 'Expense' };
+
+function displayTransactions(transactions) {
+  const tbody = document.getElementById('transactionsTableBody');
+  if (!transactions.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="table-empty">No transactions for this period</td></tr>';
     return;
   }
-  tbody.innerHTML = invoices.map(inv => `
-    <tr class="${inv.status === 'Refunded' ? 'row-refunded' : ''}">
-      <td><strong>${inv.invoiceNumber}</strong></td>
-      <td>${formatDate(new Date(inv.date), 'DD MMM YYYY')}</td>
-      <td>${inv.customer || 'Walk-in'}</td>
-      <td><strong>AED ${(inv.grandTotal || 0).toFixed(2)}</strong></td>
-      <td><span class="payment-badge ${(inv.payment || 'cash').toLowerCase()}">${inv.payment || 'Cash'}</span></td>
-      <td><span class="status-badge ${(inv.status || 'paid').toLowerCase()}">${inv.status || 'Paid'}</span></td>
-      <td>
-        <div class="table-action-buttons">
-          <button onclick="reprintInvoice('${inv.id}')" class="btn-table-action btn-view">View</button>
-          ${inv.status !== 'Refunded' ? `
-            <button onclick="refundInvoice('${inv.id}','${inv.invoiceNumber}')" class="btn-table-action btn-refund">Refund</button>
-          ` : '<span class="refunded-label">Refunded</span>'}
-        </div>
-      </td>
-    </tr>`).join('');
+  tbody.innerHTML = transactions.map(t => {
+    const pip = `<span class="sync-pip ${t.pending ? 'pending' : 'ok'}"
+                       title="${t.pending ? 'Saved on this device — not yet synced' : 'Synced to cloud'}"></span>`;
+    const dateCell = t.date
+      ? `${formatDate(new Date(t.date), 'DD MMM YYYY')}${t.time ? `<div class="tx-time">${t.time.slice(0, 5)}</div>` : ''}`
+      : '';
+
+    if (t.kind === 'invoice') {
+      return `
+        <tr class="${t.status === 'Refunded' ? 'row-refunded' : ''}">
+          <td>${pip}<strong>${t.ref}</strong></td>
+          <td><span class="type-badge invoice">Invoice</span></td>
+          <td>${dateCell}</td>
+          <td>${t.details}</td>
+          <td><strong class="tx-amount invoice">AED ${t.amount.toFixed(2)}</strong></td>
+          <td><span class="payment-badge ${(t.payment || 'cash').toLowerCase()}">${t.payment}</span></td>
+          <td><span class="status-badge ${(t.status || 'paid').toLowerCase()}">${t.status}</span></td>
+          <td>
+            <div class="table-action-buttons">
+              <button onclick="reprintInvoice('${t.id}')" class="btn-table-action btn-view">View</button>
+              ${t.status !== 'Refunded' ? `
+                <button onclick="refundInvoice('${t.id}','${t.invoiceNumber}')" class="btn-table-action btn-refund">Refund</button>
+              ` : '<span class="refunded-label">Refunded</span>'}
+            </div>
+          </td>
+        </tr>`;
+    }
+    // Deposits & expenses (read-only rows)
+    return `
+      <tr>
+        <td>${pip}<strong>${t.ref}</strong></td>
+        <td><span class="type-badge ${t.kind}">${TYPE_LABEL[t.kind]}</span></td>
+        <td>${dateCell}</td>
+        <td>${t.details}</td>
+        <td><strong class="tx-amount ${t.kind}">${t.kind === 'expense' ? '−' : ''} AED ${t.amount.toFixed(2)}</strong></td>
+        <td>${t.info || '—'}</td>
+        <td><span class="status-badge saved">Saved</span></td>
+        <td>—</td>
+      </tr>`;
+  }).join('');
 }
 
 window.reprintInvoice = function(id) { window.location.href = `index.html?reprint=${id}`; };
@@ -161,17 +231,16 @@ window.refundInvoice = async function(id, num) {
     await markInvoiceAsRefunded(id);
     showToast('Invoice refunded', 'success');
     await loadDashboardStats();
-    await loadRecentInvoicesTable();
+    await loadTransactionsTable();
   } catch (err) {
     console.error('❌ Refund error:', err);
     showToast('Failed to refund invoice', 'error');
   }
 };
 
-window.loadMoreInvoices = async function() {
-  showToast('Loading more invoices…', 'info');
-  allInvoices = await getRecentInvoices(200);
-  filterInvoices(currentFilter);
+window.loadMoreTransactions = async function() {
+  showToast('Loading more transactions…', 'info');
+  await loadTransactionsTable(365);
 };
 
 // ─── Tax Reports ─────────────────────────────────────────────────
@@ -462,8 +531,7 @@ window.printTaxReport = function() {
       <td class="r"><b>${inv.grandTotal.toFixed(2)}</b></td><td>${inv.payment}</td><td>${inv.status}</td>
     </tr>`).join('');
 
-  const pw = window.open('', '_blank', 'width=900,height=800');
-  pw.document.write(`<!DOCTYPE html><html><head>
+  printHtml(`<!DOCTYPE html><html><head>
     <meta charset="UTF-8">
     <title>VAT Report — ${d.periodName}</title>
     <style>
@@ -526,7 +594,6 @@ window.printTaxReport = function() {
       <button onclick="window.close()" style="background:#e5e7eb;color:#374151;margin-left:8px;">✖ Close</button>
     </div>
   </body></html>`);
-  pw.document.close();
 };
 
 // ─── Export All / Backup ─────────────────────────────────────────
@@ -751,5 +818,8 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
 });
 
 document.addEventListener('click', (e) => {
-  if (e.target.classList.contains('modal-overlay')) closeTaxReportModal();
+  if (e.target.classList.contains('modal-overlay')) {
+    closeTaxReportModal();
+    window.closeExportModal?.();
+  }
 });

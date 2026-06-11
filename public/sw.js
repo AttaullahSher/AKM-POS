@@ -3,7 +3,7 @@
    Bump CACHE_VERSION on every deploy to invalidate old caches.
    ============================================================ */
 
-const CACHE_VERSION = 'akm-pos-v4.2.0';
+const CACHE_VERSION = 'akm-pos-v4.3.0';
 const CACHE_NAME    = `${CACHE_VERSION}-static`;
 
 // Core app shell — precached on install so the app launches offline.

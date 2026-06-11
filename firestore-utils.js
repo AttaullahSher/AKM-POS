@@ -7,12 +7,13 @@ import {
   doc,
   getDoc,
   getDocs,
-  addDoc,
+  setDoc,
   updateDoc,
   query,
   where,
   orderBy,
   limit,
+  onSnapshot,
   runTransaction,
   serverTimestamp,
   Timestamp
@@ -59,33 +60,66 @@ export function toTimestamp(date) {
   return Timestamp.fromDate(date instanceof Date ? date : new Date(date));
 }
 
+// ─── Local-first writes (offline support) ────────────────────
+// Firestore's persistent cache applies writes locally immediately and queues
+// them for the server, but the write promise only resolves on server ack —
+// awaiting it directly would hang the UI while offline. Race the promise
+// against a short timeout: online saves confirm normally, offline saves
+// proceed at once with the write safely queued in the local cache.
+function localFirstWrite(writePromise, ms = 1500) {
+  writePromise.catch(err => console.error('⚠️ Queued write failed to sync:', err));
+  return Promise.race([writePromise, new Promise(res => setTimeout(res, ms))]);
+}
+
 // ─── Atomic Counters ─────────────────────────────────────────
 
 export async function getNextInvoiceNumber() {
-  const counterRef = doc(db, 'counters', 'invoices');
-  try {
-    return await runTransaction(db, async (tx) => {
-      const snap = await tx.get(counterRef);
-      const currentYear = new Date().getFullYear();
-      const yy = String(currentYear).slice(-2);
-      const INIT = APP_CONFIG.BUSINESS.STARTING_INVOICE_NUMBER;
+  const counterRef   = doc(db, 'counters', 'invoices');
+  const currentYear  = new Date().getFullYear();
+  const yy           = String(currentYear).slice(-2);
+  const INIT         = APP_CONFIG.BUSINESS.STARTING_INVOICE_NUMBER;
+  const fmt          = (n) => `${yy}-${String(n).padStart(5, '0')}`;
 
-      if (!snap.exists()) {
-        tx.set(counterRef, { year: currentYear, lastSequence: INIT, updatedAt: serverTimestamp() });
-        return `${yy}-${String(INIT).padStart(5, '0')}`;
-      }
-      const data = snap.data();
-      if (data.year !== currentYear) {
-        tx.update(counterRef, { year: currentYear, lastSequence: INIT, updatedAt: serverTimestamp() });
-        return `${yy}-${String(INIT).padStart(5, '0')}`;
-      }
-      const next = data.lastSequence + 1;
-      tx.update(counterRef, { lastSequence: next, updatedAt: serverTimestamp() });
-      return `${yy}-${String(next).padStart(5, '0')}`;
-    });
+  // Online: atomic transaction (transactions require a server connection).
+  if (navigator.onLine) {
+    try {
+      return await runTransaction(db, async (tx) => {
+        const snap = await tx.get(counterRef);
+        if (!snap.exists()) {
+          tx.set(counterRef, { year: currentYear, lastSequence: INIT, updatedAt: serverTimestamp() });
+          return fmt(INIT);
+        }
+        const data = snap.data();
+        if (data.year !== currentYear) {
+          tx.update(counterRef, { year: currentYear, lastSequence: INIT, updatedAt: serverTimestamp() });
+          return fmt(INIT);
+        }
+        const next = data.lastSequence + 1;
+        tx.update(counterRef, { lastSequence: next, updatedAt: serverTimestamp() });
+        return fmt(next);
+      });
+    } catch (err) {
+      console.error('❌ Invoice counter transaction error:', err);
+    }
+  }
+
+  // Offline (or transaction failed): advance the locally-cached counter and
+  // queue the update. The cache reflects queued writes, so consecutive offline
+  // invoices still get sequential numbers; everything reconciles on sync.
+  try {
+    const snap = await getDoc(counterRef);
+    const data = snap.exists() ? snap.data() : null;
+    const next = (data && data.year === currentYear)
+      ? (data.lastSequence || INIT) + 1
+      : INIT;
+    localFirstWrite(
+      setDoc(counterRef, { year: currentYear, lastSequence: next, updatedAt: serverTimestamp() }, { merge: true }),
+      500
+    );
+    debugLog('📴 Offline invoice number from cached counter:', fmt(next));
+    return fmt(next);
   } catch (err) {
-    console.error('❌ Invoice counter error:', err);
-    const yy = String(new Date().getFullYear()).slice(-2);
+    console.error('❌ Offline invoice counter fallback failed:', err);
     return `${yy}-${Date.now().toString().slice(-5)}`;
   }
 }
@@ -117,24 +151,42 @@ export async function peekNextInvoiceNumber() {
 async function getNextMonthlyId(collectionName, prefix) {
   const counterRef = doc(db, 'counters', collectionName);
   const month = String(new Date().getMonth() + 1).padStart(2, '0');
+  const fmt   = (n) => `${prefix}-${month}${String(n).padStart(2, '0')}`;
+
+  if (navigator.onLine) {
+    try {
+      return await runTransaction(db, async (tx) => {
+        const snap = await tx.get(counterRef);
+        if (!snap.exists()) {
+          tx.set(counterRef, { month, lastSequence: 1, updatedAt: serverTimestamp() });
+          return fmt(1);
+        }
+        const data = snap.data();
+        if (data.month !== month) {
+          tx.update(counterRef, { month, lastSequence: 1, updatedAt: serverTimestamp() });
+          return fmt(1);
+        }
+        const next = data.lastSequence + 1;
+        tx.update(counterRef, { lastSequence: next, updatedAt: serverTimestamp() });
+        return fmt(next);
+      });
+    } catch (err) {
+      console.error(`❌ ${collectionName} counter transaction error:`, err);
+    }
+  }
+
+  // Offline fallback: same cached-counter strategy as invoice numbers.
   try {
-    return await runTransaction(db, async (tx) => {
-      const snap = await tx.get(counterRef);
-      if (!snap.exists()) {
-        tx.set(counterRef, { month, lastSequence: 1, updatedAt: serverTimestamp() });
-        return `${prefix}-${month}01`;
-      }
-      const data = snap.data();
-      if (data.month !== month) {
-        tx.update(counterRef, { month, lastSequence: 1, updatedAt: serverTimestamp() });
-        return `${prefix}-${month}01`;
-      }
-      const next = data.lastSequence + 1;
-      tx.update(counterRef, { lastSequence: next, updatedAt: serverTimestamp() });
-      return `${prefix}-${month}${String(next).padStart(2, '0')}`;
-    });
+    const snap = await getDoc(counterRef);
+    const data = snap.exists() ? snap.data() : null;
+    const next = (data && data.month === month) ? (data.lastSequence || 0) + 1 : 1;
+    localFirstWrite(
+      setDoc(counterRef, { month, lastSequence: next, updatedAt: serverTimestamp() }, { merge: true }),
+      500
+    );
+    return fmt(next);
   } catch (err) {
-    console.error(`❌ ${collectionName} counter error:`, err);
+    console.error(`❌ ${collectionName} offline counter fallback failed:`, err);
     return `${prefix}-${month}${Date.now().toString().slice(-2)}`;
   }
 }
@@ -183,7 +235,10 @@ export async function createInvoice(invoiceData) {
     notes: '',
   };
 
-  const docRef = await addDoc(collection(db, 'invoices'), invoice);
+  // Local-first: the doc is in the cache (and queued for the server) instantly,
+  // so saving — and printing — keeps working with no internet connection.
+  const docRef = doc(collection(db, 'invoices'));
+  await localFirstWrite(setDoc(docRef, invoice));
   debugLog('✅ Invoice saved:', invoiceNumber, docRef.id);
   return docRef.id;
 }
@@ -203,10 +258,12 @@ export async function loadRecentInvoices(days = 90) {
       id: d.id,
       invoiceNumber: d.data().invoiceNumber,
       date: d.data().date,
+      time: d.data().time || '',
       customer: d.data().customer?.name || 'Walk-in',
       payment: d.data().payment?.method || 'Cash',
       grandTotal: d.data().payment?.grandTotal || 0,
       status: d.data().status || 'Paid',
+      pending: d.metadata.hasPendingWrites,   // true = not yet synced to server
     }));
   } catch (err) {
     if (err.code === 'failed-precondition') { console.warn('⏳ Index building…'); return []; }
@@ -218,14 +275,14 @@ export async function loadRecentInvoices(days = 90) {
 // Fix: refund by Firestore document ID (not invoice number)
 export async function refundInvoice(docId) {
   const docRef = doc(db, 'invoices', docId);
-  await updateDoc(docRef, {
+  await localFirstWrite(updateDoc(docRef, {
     status: 'Refunded',
     refundedAt: serverTimestamp(),
     'impacts.cash':   0,
     'impacts.card':   0,
     'impacts.tabby':  0,
     'impacts.cheque': 0,
-  });
+  }));
   debugLog('✅ Invoice refunded:', docId);
 }
 
@@ -252,7 +309,7 @@ export async function loadRecentDeposits(days = 90) {
       limit(500)
     );
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return snap.docs.map(d => ({ id: d.id, pending: d.metadata.hasPendingWrites, ...d.data() }));
   } catch (err) {
     if (err.code === 'failed-precondition') { console.warn('⏳ Index building…'); return []; }
     console.error('❌ loadRecentDeposits:', err);
@@ -271,7 +328,7 @@ export async function loadRecentExpenses(days = 90) {
       limit(500)
     );
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return snap.docs.map(d => ({ id: d.id, pending: d.metadata.hasPendingWrites, ...d.data() }));
   } catch (err) {
     if (err.code === 'failed-precondition') { console.warn('⏳ Index building…'); return []; }
     console.error('❌ loadRecentExpenses:', err);
@@ -346,7 +403,8 @@ export async function createDeposit(depositData) {
     notes: '',
   };
 
-  const docRef = await addDoc(collection(db, 'deposits'), deposit);
+  const docRef = doc(collection(db, 'deposits'));
+  await localFirstWrite(setDoc(docRef, deposit));
   debugLog('✅ Deposit saved:', depositId);
   return docRef.id;
 }
@@ -377,7 +435,8 @@ export async function createExpense(expenseData) {
     notes: '',
   };
 
-  const docRef = await addDoc(collection(db, 'expenses'), expense);
+  const docRef = doc(collection(db, 'expenses'));
+  await localFirstWrite(setDoc(docRef, expense));
   debugLog('✅ Expense saved:', expenseId);
   return docRef.id;
 }
@@ -412,7 +471,8 @@ export async function createRepairJob(repairData) {
     notes: '',
   };
 
-  const docRef = await addDoc(collection(db, 'repairs'), repair);
+  const docRef = doc(collection(db, 'repairs'));
+  await localFirstWrite(setDoc(docRef, repair));
   debugLog('✅ Repair job saved:', jobNumber);
   return docRef.id;   // return plain string ID
 }
@@ -443,6 +503,62 @@ export async function updateRepairStatus(docId, newStatus) {
   if (newStatus === 'Collected') update.collectedAt = serverTimestamp();
   await updateDoc(docRef, update);
   debugLog('✅ Repair status updated:', docId, '->', newStatus);
+}
+
+// ─── Live Sync Indicator ─────────────────────────────────────
+// Watches recent invoices (incl. local metadata changes) and drives the
+// #syncStatus chip in the header:
+//   🟢 green  = online, everything synced
+//   🟠 amber  = online, uploading queued invoices ("live syncing")
+//   🔴 red    = offline, with a count of unsynced invoices
+let _pendingInvoiceCount = 0;
+
+export function initSyncIndicator() {
+  const el = document.getElementById('syncStatus');
+  if (!el || el.dataset.initialised) return;
+  el.dataset.initialised = '1';
+  const textEl = el.querySelector('.sync-text');
+
+  const render = () => {
+    const offline = !navigator.onLine;
+    const n = _pendingInvoiceCount;
+    el.classList.remove('synced', 'syncing', 'offline');
+    if (offline) {
+      el.classList.add('offline');
+      const msg = n > 0 ? `Offline · ${n} unsynced` : 'Offline';
+      if (textEl) textEl.textContent = msg;
+      el.title = n > 0
+        ? `${n} invoice${n !== 1 ? 's' : ''} saved on this device — will sync when internet returns`
+        : 'No internet — invoices will be saved on this device and synced later';
+    } else if (n > 0) {
+      el.classList.add('syncing');
+      if (textEl) textEl.textContent = `Syncing ${n}…`;
+      el.title = `Uploading ${n} invoice${n !== 1 ? 's' : ''} to the cloud…`;
+    } else {
+      el.classList.add('synced');
+      if (textEl) textEl.textContent = 'Synced';
+      el.title = 'All invoices synced to the cloud';
+    }
+  };
+
+  try {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 7);
+    const q = query(collection(db, 'invoices'), where('dateObj', '>=', toTimestamp(cutoff)));
+    onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
+      _pendingInvoiceCount = snap.docs.filter(d => d.metadata.hasPendingWrites).length;
+      render();
+    }, (err) => {
+      console.error('❌ Sync indicator listener error:', err);
+      render();
+    });
+  } catch (err) {
+    console.error('❌ Sync indicator init error:', err);
+  }
+
+  window.addEventListener('online', render);
+  window.addEventListener('offline', render);
+  render();
 }
 
 // ─── Offline Backup (localStorage fallback) ──────────────────

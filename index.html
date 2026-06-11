@@ -63,10 +63,15 @@
       <!-- Brand -->
       <div class="header-brand">
         <div class="brand-icon">🎵</div>
-        <div>
+        <div class="brand-text">
           <div class="brand-name">AKM MUSIC</div>
           <div class="brand-sub">Point of Sale</div>
         </div>
+      </div>
+
+      <!-- Live sync status: green = synced, amber = syncing, red = offline -->
+      <div id="syncStatus" class="sync-status" role="status" aria-live="polite">
+        <span class="sync-dot"></span><span class="sync-text">…</span>
       </div>
 
       <!-- Action Buttons (sidebar removed — merged here) -->

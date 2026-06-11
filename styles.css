@@ -838,6 +838,66 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   font-size: 14px; color: var(--slate-400); font-weight: 500;
 }
 
+/* ===== Sync Status (offline / live syncing / synced) ===== */
+.sync-status {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px;
+  border-radius: 20px;
+  background: var(--slate-50);
+  border: 1.5px solid var(--slate-200);
+  font-size: 11px; font-weight: 700; color: var(--slate-500);
+  white-space: nowrap; flex-shrink: 0;
+  cursor: default;
+}
+.sync-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--slate-300); flex-shrink: 0;
+}
+.sync-status.synced {
+  background: var(--emerald-50); border-color: var(--emerald-200); color: var(--emerald-700);
+}
+.sync-status.synced .sync-dot {
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34,197,94,.2);
+}
+.sync-status.syncing {
+  background: var(--amber-50); border-color: var(--amber-200); color: var(--amber-700);
+}
+.sync-status.syncing .sync-dot {
+  background: var(--amber-500);
+  box-shadow: 0 0 0 3px rgba(245,158,11,.2);
+  animation: pulse 1.1s ease-in-out infinite;
+}
+.sync-status.offline {
+  background: var(--rose-50); border-color: var(--rose-300); color: var(--rose-600);
+}
+.sync-status.offline .sync-dot { background: var(--rose-500); }
+
+/* Per-record sync dot (history cards / dashboard rows) */
+.sync-pip {
+  display: inline-block; width: 8px; height: 8px;
+  border-radius: 50%; margin-right: 6px;
+  vertical-align: middle; flex-shrink: 0;
+}
+.sync-pip.ok      { background: #22c55e; }
+.sync-pip.pending { background: var(--amber-500); animation: pulse 1.1s ease-in-out infinite; }
+
+/* ===== Transaction type badges (dashboard) ===== */
+.type-badge {
+  display: inline-flex; padding: 3px 10px;
+  border-radius: 20px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; white-space: nowrap;
+}
+.type-badge.invoice { background: var(--sky-100);    color: var(--sky-700); }
+.type-badge.deposit { background: var(--blue-100);   color: var(--blue-700); }
+.type-badge.expense { background: var(--rose-100);   color: var(--rose-600); }
+.tx-amount.invoice  { color: var(--emerald-700); }
+.tx-amount.deposit  { color: var(--blue-700); }
+.tx-amount.expense  { color: var(--rose-600); }
+.tx-time { font-size: 11px; color: var(--slate-400); font-weight: 600; }
+.status-badge.saved { background: var(--slate-100); color: var(--slate-600); }
+.section-subtitle { font-size: 11px; color: var(--slate-400); font-weight: 500; margin-top: 2px; }
+
 /* ===== Toast Notifications ===== */
 .toast {
   position: fixed; bottom: 24px; left: 50%;
@@ -1409,14 +1469,23 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
     /* respect notch / rounded corners */
     padding-left: max(10px, env(safe-area-inset-left));
     padding-right: max(10px, env(safe-area-inset-right));
-    gap: 8px;
+    gap: 6px;
   }
-  .header-actions { gap: 3px; }
-  .hdr-btn { padding: 9px; min-width: 40px; justify-content: center; }
+  /* Actions scroll horizontally if they ever exceed the screen — nothing is
+     clipped or unreachable on narrow phones */
+  .header-actions {
+    flex: 1; min-width: 0; gap: 4px;
+    justify-content: flex-end;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .header-actions::-webkit-scrollbar { display: none; }
+  .hdr-btn { padding: 10px; min-width: 42px; min-height: 42px; justify-content: center; flex-shrink: 0; }
   .hdr-divider { margin: 0 2px; }
   .brand-sub { display: none; }
   .brand-icon { width: 36px; height: 36px; font-size: 18px; }
   .brand-name { font-size: 15px; }
+  .sync-status { padding: 5px 9px; font-size: 10px; }
 
   .main-content {
     padding: 12px;
@@ -1435,15 +1504,58 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .meta-row-top .meta-field,
   .meta-field { flex: 1 1 100%; min-width: 0; }
 
-  /* Items table: keep all columns but let it scroll if truly cramped */
-  .items-section { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .items-table { min-width: 460px; }
-  .items-table thead th,
-  .items-table tbody td { padding: 6px 5px; }
+  /* Items table: stack each row into a 2-line card — no horizontal scrolling.
+     Line 1: Model | Description · Line 2: Qty | Unit Price | Amount */
+  .items-section { overflow-x: visible; }
+  .items-table { min-width: 0; }
+  .items-table, .items-table tbody { display: block; width: 100%; }
+  .items-table thead { display: none; }
+  /* Rows hidden by JS keep their inline display:none (inline style wins) */
+  .items-table tbody tr {
+    display: grid;
+    grid-template-columns: 96px 1fr 96px;
+    gap: 6px 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--slate-100);
+  }
+  .items-table tbody td { display: block; padding: 0; }
+  .items-table tbody td:nth-child(1) { grid-area: 1 / 1 / 2 / 2; }  /* model */
+  .items-table tbody td:nth-child(2) { grid-area: 1 / 2 / 2 / 4; }  /* description */
+  .items-table tbody td:nth-child(3) { grid-area: 2 / 1 / 3 / 2; }  /* qty */
+  .items-table tbody td:nth-child(4) { grid-area: 2 / 2 / 3 / 3; }  /* unit price */
+  .items-table tbody td:nth-child(5) { grid-area: 2 / 3 / 3 / 4; }  /* amount */
+  .items-table tbody td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .4px;
+    color: var(--slate-400);
+    margin-bottom: 2px;
+  }
+  .items-table tbody td:nth-child(1)[data-label]::before,
+  .items-table tbody td:nth-child(2)[data-label]::before { display: none; } /* placeholders say it */
+  .item-input {
+    border-color: var(--slate-200);
+    background: var(--slate-50);
+    min-height: 42px;
+    padding: 8px 10px;
+  }
+  .items-table .amount-cell {
+    display: flex; flex-direction: column;
+    align-items: flex-end; justify-content: center;
+    min-height: 42px;
+    font-size: 14px;
+    padding: 0 4px;
+  }
+  .items-table .amount-cell::before { align-self: flex-end; }
+  .items-table .amount-cell:empty { border: none; background: transparent; }
+
+  .add-item-btn { width: 100%; justify-content: center; min-height: 44px; }
 
   /* Payment buttons wrap to a 2×2 grid */
   .payment-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .payment-btn { min-height: 50px; }
+  .payment-btn { min-height: 52px; }
+  .pay-label { font-size: 13px; }
 
   /* Totals span full width below payment */
   .invoice-bottom { gap: 14px; }
@@ -1452,8 +1564,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
   /* Action row: bigger touch targets, print button leads */
   .action-row { flex-wrap: wrap; }
-  .btn-print { order: -1; min-height: 50px; }
-  .btn-clear { min-height: 46px; flex: 1; }
+  .btn-print { order: -1; flex: 1 1 100%; min-height: 52px; font-size: 15px; }
+  .btn-clear { min-height: 48px; flex: 1; }
+  .action-row .btn-refund { min-height: 48px; flex: 1; }
 
   /* Modals fill the screen comfortably */
   .modal-overlay { padding: 0; align-items: flex-end; }
@@ -1485,19 +1598,84 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ----- Small phones ----- */
 @media screen and (max-width: 430px) {
-  .brand-name { font-size: 14px; }
+  .brand-text { display: none; }          /* icon-only brand frees room for actions */
   .company-en { font-size: 13px; }
   .company-ar { font-size: 11px; }
   .invoice-title-bar span { letter-spacing: 1.5px; }
-  .hdr-btn { padding: 8px; min-width: 36px; }
+  .hdr-btn { padding: 8px; min-width: 40px; min-height: 40px; }
   .hdr-btn span.hdr-icon { font-size: 16px; }
-  .pay-label { font-size: 11px; }
+  .pay-label { font-size: 12px; }
   .grand-row .t-value { font-size: 17px; }
+  .items-table tbody tr { grid-template-columns: 80px 1fr 84px; }
+}
+
+/* ----- Dashboard on phones / small tablets ----- */
+@media screen and (max-width: 860px) {
+  .dashboard-header {
+    height: auto;
+    min-height: var(--header-h);
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    row-gap: 8px;
+  }
+  .dash-brand-icon { width: 36px; height: 36px; font-size: 18px; }
+  .dash-title { font-size: 15px; }
+  .dash-subtitle { display: none; }
+  .dash-right { margin-left: auto; gap: 6px; }
+  .btn-back-pos, .btn-logout { padding: 9px 12px; font-size: 12px; min-height: 42px; }
+  /* Action buttons drop to a full-width row of equal buttons */
+  .dash-actions {
+    order: 3; width: 100%;
+    flex-wrap: nowrap; gap: 6px;
+  }
+  .dash-action-btn {
+    flex: 1; justify-content: center;
+    padding: 10px 4px; font-size: 12px; min-height: 44px;
+    white-space: nowrap;
+  }
+
+  .dashboard-container {
+    padding: 12px;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    gap: 14px;
+  }
+  .stats-grid { grid-template-columns: 1fr; gap: 10px; }
+  .stat-card { padding: 14px 16px; gap: 12px; }
+  .stat-icon { width: 44px; height: 44px; font-size: 22px; }
+  .stat-value { font-size: 20px; }
+
+  .sales-breakdown-grid { grid-template-columns: 1fr 1fr; }
+  .breakdown-item { padding: 14px 10px; border-bottom: 1px solid var(--slate-100); }
+  .breakdown-value { font-size: 18px; }
+
+  .section-header { padding: 14px 14px 10px; }
+  .section-actions {
+    width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; padding-bottom: 2px;
+  }
+  .section-actions::-webkit-scrollbar { display: none; }
+  .btn-filter { flex-shrink: 0; min-height: 38px; }
+
+  /* Transactions table scrolls sideways; everything stays reachable */
+  .data-table { min-width: 760px; }
+  .btn-table-action { min-height: 36px; padding: 7px 12px; }
+  .btn-pagination { width: 100%; min-height: 46px; }
+
+  /* Tax report / export modals */
+  .quarter-grid { grid-template-columns: 1fr 1fr; }
+  .date-range-inputs { flex-direction: column; align-items: stretch; }
+  .btn-generate { min-height: 46px; }
+  .report-actions { flex-direction: column; }
+  .btn-export { width: 100%; min-height: 46px; }
 }
 
 /* ----- Installed PWA (standalone) niceties ----- */
 @media screen and (display-mode: standalone) {
-  .app-header {
+  .app-header, .dashboard-header {
     height: auto;
     min-height: var(--header-h);
     padding-top: env(safe-area-inset-top);

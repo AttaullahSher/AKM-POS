@@ -37,10 +37,15 @@
     <header class="dashboard-header">
       <div class="dash-brand">
         <div class="dash-brand-icon">🎵</div>
-        <div>
+        <div class="dash-brand-text">
           <div class="dash-title">AKM MUSIC</div>
           <div class="dash-subtitle">Business Intelligence &amp; Reports</div>
         </div>
+      </div>
+
+      <!-- Live sync status: green = synced, amber = syncing, red = offline -->
+      <div id="syncStatus" class="sync-status" role="status" aria-live="polite">
+        <span class="sync-dot"></span><span class="sync-text">…</span>
       </div>
 
       <div class="dash-actions">
@@ -133,15 +138,18 @@
         </div>
       </div>
 
-      <!-- Recent Invoices -->
+      <!-- Transactions: invoices, expenses & deposits in time order -->
       <div class="section-card">
         <div class="section-header">
-          <h2 class="section-title">Invoices</h2>
+          <div>
+            <h2 class="section-title">Transactions</h2>
+            <div class="section-subtitle">Invoices, expenses &amp; bank deposits — newest first</div>
+          </div>
           <div class="section-actions">
-            <button class="btn-filter active" data-filter="all"   onclick="filterInvoices('all')">All</button>
-            <button class="btn-filter"        data-filter="today" onclick="filterInvoices('today')">Today</button>
-            <button class="btn-filter"        data-filter="week"  onclick="filterInvoices('week')">This Week</button>
-            <button class="btn-filter"        data-filter="month" onclick="filterInvoices('month')">This Month</button>
+            <button class="btn-filter active" data-filter="all"   onclick="filterTransactions('all')">All</button>
+            <button class="btn-filter"        data-filter="today" onclick="filterTransactions('today')">Today</button>
+            <button class="btn-filter"        data-filter="week"  onclick="filterTransactions('week')">This Week</button>
+            <button class="btn-filter"        data-filter="month" onclick="filterTransactions('month')">This Month</button>
           </div>
         </div>
 
@@ -149,23 +157,24 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>Invoice #</th>
+                <th>Ref #</th>
+                <th>Type</th>
                 <th>Date</th>
-                <th>Customer</th>
-                <th>Total (AED)</th>
-                <th>Payment</th>
+                <th>Details</th>
+                <th>Amount (AED)</th>
+                <th>Info</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
-            <tbody id="invoicesTableBody">
-              <tr><td colspan="7" class="table-loading">Loading invoices…</td></tr>
+            <tbody id="transactionsTableBody">
+              <tr><td colspan="8" class="table-loading">Loading transactions…</td></tr>
             </tbody>
           </table>
         </div>
 
         <div class="pagination">
-          <button class="btn-pagination" onclick="loadMoreInvoices()">Load More Invoices</button>
+          <button class="btn-pagination" onclick="loadMoreTransactions()">Load More Transactions</button>
         </div>
       </div>
 

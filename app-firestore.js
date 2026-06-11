@@ -20,12 +20,13 @@ import {
   loadRecentInvoices,
   markInvoiceAsRefunded,
   getInvoiceByNumber,
+  initSyncIndicator,
   formatDate,
   formatTime,
 } from './firestore-utils.js';
 
 import { APP_CONFIG, debugLog } from './config.js';
-import { showToast } from './utils.js';
+import { showToast, printHtml } from './utils.js';
 import { correctMusicalText } from './instrument-terms.js';
 
 // Auto-capitalise / spell-correct known instrument & brand words when leaving a
@@ -81,6 +82,18 @@ function preparePrintLayout() {
       row.style.display = 'none';
       row.dataset.hiddenForPrint = '1';
     }
+  }
+
+  // Render the invoice-number barcode for the printed slip
+  try {
+    const invNum = document.getElementById('invNum')?.textContent?.trim();
+    if (invNum && invNum !== 'Loading…' && typeof JsBarcode !== 'undefined') {
+      JsBarcode('#barcode', invNum, { format: 'CODE128', width: 1.4, height: 28, displayValue: false, margin: 0 });
+      const bt = document.getElementById('barcodeText');
+      if (bt) bt.textContent = invNum;
+    }
+  } catch (err) {
+    console.warn('Barcode render failed:', err);
   }
 
   container.querySelectorAll('input, select, .amount-cell').forEach(el => {
@@ -168,8 +181,7 @@ window.printDailyReport = async function() {
     const cashInHand    = cash - totalDeposits - totalExpenses;
 
     const money = (n) => 'AED ' + (Number(n) || 0).toFixed(2);
-    const pw = window.open('', '_blank', 'width=420,height=720');
-    pw.document.write(`<!DOCTYPE html><html><head>
+    const reportHtml = `<!DOCTYPE html><html><head>
       <meta charset="UTF-8">
       <title>Daily Report — ${formatDate(today,'DD MMM YYYY')}</title>
       <style>
@@ -245,8 +257,8 @@ window.printDailyReport = async function() {
         <button onclick="window.print()" style="background:#0ea5e9;color:#fff;">🖨️ Print</button>
         <button onclick="window.close()" style="background:#e5e7eb;color:#374151;margin-left:8px;">✖ Close</button>
       </div>
-    </body></html>`);
-    pw.document.close();
+    </body></html>`;
+    printHtml(reportHtml);
     showToast('Daily report generated', 'success');
   } catch (err) {
     console.error('❌ Daily report error:', err);
@@ -315,6 +327,7 @@ async function initializePOS() {
 
   try {
     initializeItemsTable();
+    initSyncIndicator();
     setLoadingText('Loading invoice number…');
     await loadNextInvoiceNumber();
 
@@ -322,6 +335,14 @@ async function initializePOS() {
     await loadDashboardData();
 
     setupAutoRefresh();
+
+    // Arriving from the dashboard's "View" button: index.html?reprint=<docId>
+    const reprintId = new URLSearchParams(window.location.search).get('reprint');
+    if (reprintId) {
+      window.history.replaceState({}, '', window.location.pathname);
+      await window.handleReprintInvoice(reprintId);
+    }
+
     showToast('✅ POS ready!', 'success');
   } catch (err) {
     console.error('Init error:', err);
@@ -347,11 +368,11 @@ function initializeItemsTable() {
     const row = document.createElement('tr');
     row.setAttribute('data-row-index', i);
     row.innerHTML = `
-      <td><input type="text"   id="model${i}"       class="item-input" placeholder="Model"       autocomplete="off"></td>
-      <td><input type="text"   id="description${i}" class="item-input" placeholder="Description" autocomplete="off"></td>
-      <td><input type="number" id="quantity${i}"     class="item-input" min="1" value="1"         autocomplete="off" style="text-align:right"></td>
-      <td><input type="number" id="price${i}"        class="item-input" min="0" step="0.01" placeholder="0.00" autocomplete="off" style="text-align:right"></td>
-      <td class="amount-cell"  id="amount${i}"></td>`;
+      <td data-label="Model"><input type="text"   id="model${i}"       class="item-input" placeholder="Model"       autocomplete="off"></td>
+      <td data-label="Description"><input type="text"   id="description${i}" class="item-input" placeholder="Description" autocomplete="off"></td>
+      <td data-label="Qty"><input type="number" id="quantity${i}"     class="item-input" min="1" value="1"         autocomplete="off" inputmode="numeric" style="text-align:right"></td>
+      <td data-label="Unit Price"><input type="number" id="price${i}"        class="item-input" min="0" step="0.01" placeholder="0.00" autocomplete="off" inputmode="decimal" style="text-align:right"></td>
+      <td class="amount-cell" data-label="Amount" id="amount${i}"></td>`;
 
     if (i > 3) row.style.display = 'none';
     body.appendChild(row);
@@ -504,7 +525,11 @@ async function saveNewInvoice() {
     updateEl('invNum', committed);
 
     await saveInvoice(data);
-    showToast('✅ Invoice saved!', 'success');
+    if (navigator.onLine) {
+      showToast('✅ Invoice saved!', 'success');
+    } else {
+      showToast('📴 Invoice saved offline — will sync automatically.', 'warning');
+    }
     setTimeout(() => { preparePrintLayout(); window.print(); }, 300);
   } catch (err) {
     console.error('Save error:', err);
@@ -575,7 +600,7 @@ function resetInvoiceForm() {
     ['model','description'].forEach(f => { const el = document.getElementById(`${f}${i}`); if (el) el.value = ''; });
     const q = document.getElementById(`quantity${i}`); if (q) q.value = '1';
     const p = document.getElementById(`price${i}`);    if (p) p.value = '';
-    const a = document.getElementById(`amount${i}`);   if (a) a.textContent = '0.00';
+    const a = document.getElementById(`amount${i}`);   if (a) a.textContent = '';
     const row = document.querySelector(`tr[data-row-index="${i}"]`);
     if (row && i > 3) row.style.display = 'none';
   }
@@ -709,7 +734,11 @@ window.openHistoryModal = async function() {
           <div class="history-card ${inv.status === 'Refunded' ? 'refunded' : ''}"
                onclick="handleReprintInvoice('${inv.id}'); closeHistoryModal();">
             <div class="history-card-top">
-              <span class="history-inv-num">${inv.invoiceNumber}</span>
+              <span class="history-inv-num">
+                <span class="sync-pip ${inv.pending ? 'pending' : 'ok'}"
+                      title="${inv.pending ? 'Saved on this device — not yet synced' : 'Synced to cloud'}"></span>
+                ${inv.invoiceNumber}
+              </span>
               <span class="history-inv-total">AED ${(inv.grandTotal || 0).toFixed(2)}</span>
             </div>
             <div class="history-card-bottom">
