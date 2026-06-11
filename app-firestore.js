@@ -8,6 +8,7 @@ import {
 
 import {
   getNextInvoiceNumber,
+  peekNextInvoiceNumber,
   getNextDepositId,
   getNextExpenseId,
   saveInvoice,
@@ -415,11 +416,11 @@ function revealNextItemRow() {
 
 async function loadNextInvoiceNumber() {
   try {
-    const num = await getNextInvoiceNumber();
+    // Peek only — refreshing the page must NOT consume an invoice number.
+    const num = await peekNextInvoiceNumber();
     updateEl('invNum', num);
-    const btn = document.getElementById('printBtn');
-    if (btn && !isReprintMode) { btn.disabled = false; btn.textContent = '🖨️ Save & Print Invoice'; }
-    debugLog('✅ Invoice number:', num);
+    if (!isReprintMode) setNewInvoiceUI();
+    debugLog('✅ Next invoice (preview):', num);
   } catch (err) {
     console.error('Invoice number error:', err);
     const yy = String(new Date().getFullYear()).slice(-2);
@@ -472,6 +473,12 @@ async function saveNewInvoice() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Saving…'; }
 
   try {
+    // Commit the real sequential number NOW (only on a valid save). Page loads
+    // only peek, so refreshing never burns a number — it's consumed here.
+    const committed = await getNextInvoiceNumber();
+    data.invoiceNumber = committed;
+    updateEl('invNum', committed);
+
     await saveInvoice(data);
     showToast('✅ Invoice saved!', 'success');
     setTimeout(() => { preparePrintLayout(); window.print(); }, 300);
@@ -604,10 +611,53 @@ function populateReprintForm(inv) {
     });
   }
   calculateTotals();
-
-  const btn = document.getElementById('printBtn');
-  if (btn) { btn.disabled = false; btn.textContent = '🖨️ Reprint Invoice'; }
+  setReprintUI(inv);
 }
+
+// Action buttons: "reprint/refund" mode (viewing a saved invoice from History)
+function setReprintUI(inv) {
+  const printBtn  = document.getElementById('printBtn');
+  const refundBtn = document.getElementById('refundBtn');
+  const clearBtn  = document.getElementById('clearBtn');
+  if (printBtn) { printBtn.disabled = false; printBtn.textContent = '🖨️ Reprint'; }
+  if (clearBtn) clearBtn.textContent = '🆕 New';
+  if (refundBtn) {
+    refundBtn.style.display = 'inline-flex';
+    const refunded = inv.status === 'Refunded';
+    refundBtn.disabled    = refunded;
+    refundBtn.textContent = refunded ? '↩️ Refunded' : '↩️ Refund';
+  }
+}
+
+// Action buttons: normal "new invoice" mode
+function setNewInvoiceUI() {
+  const printBtn  = document.getElementById('printBtn');
+  const refundBtn = document.getElementById('refundBtn');
+  const clearBtn  = document.getElementById('clearBtn');
+  if (printBtn) { printBtn.disabled = false; printBtn.textContent = '🖨️ Save & Print Invoice'; }
+  if (clearBtn) clearBtn.textContent = '🗑️ Reset';
+  if (refundBtn) refundBtn.style.display = 'none';
+}
+
+window.handleRefund = async function() {
+  if (!isReprintMode || !reprintInvoiceData) return;
+  if (reprintInvoiceData.status === 'Refunded') { showToast('Invoice already refunded.', 'warning'); return; }
+  if (!confirm(`Refund invoice ${reprintInvoiceData.invoiceNumber}? This reverses its cash/sales impact and cannot be undone.`)) return;
+
+  const refundBtn = document.getElementById('refundBtn');
+  if (refundBtn) { refundBtn.disabled = true; refundBtn.textContent = '⏳ Refunding…'; }
+  try {
+    await markInvoiceAsRefunded(reprintInvoiceData.id);
+    reprintInvoiceData.status = 'Refunded';
+    showToast(`Invoice ${reprintInvoiceData.invoiceNumber} refunded.`, 'success');
+    if (refundBtn) { refundBtn.disabled = true; refundBtn.textContent = '↩️ Refunded'; }
+    await loadDashboardData();
+  } catch (err) {
+    console.error('Refund error:', err);
+    showToast('Failed to refund invoice.', 'error');
+    if (refundBtn) { refundBtn.disabled = false; refundBtn.textContent = '↩️ Refund'; }
+  }
+};
 
 // ─── History Modal ─────────────────────────────────────────────
 

@@ -198,3 +198,7 @@ Each phase is independently shippable and independently reversible.
 
 > Nothing in this plan changes the live POS until built. The current deploy only adds the
 > PWA/offline + responsive work and the deposit-rule fix.
+
+
+
+always do npm run build and firebase deploy).

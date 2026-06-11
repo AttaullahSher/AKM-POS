@@ -223,7 +223,8 @@
 
         <!-- Action Buttons -->
         <div class="action-row">
-          <button class="btn-clear" onclick="clearForm()" aria-label="Clear form">🗑️ Reset</button>
+          <button class="btn-clear" id="clearBtn" onclick="clearForm()" aria-label="Clear form">🗑️ Reset</button>
+          <button class="btn-refund" id="refundBtn" onclick="handleRefund()" aria-label="Refund invoice" style="display:none;">↩️ Refund</button>
           <button class="btn-print" id="printBtn" onclick="saveAndPrint()" aria-label="Save and print invoice">
             🖨️ Save &amp; Print Invoice
           </button>

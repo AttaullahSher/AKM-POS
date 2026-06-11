@@ -593,6 +593,19 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   font-family: 'Montserrat', sans-serif;
 }
 .btn-clear:hover { background: var(--slate-200); color: var(--slate-800); }
+.btn-refund {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 18px;
+  background: var(--amber-50);
+  border: 1.5px solid var(--amber-200);
+  border-radius: var(--radius);
+  font-size: 12px; font-weight: 700;
+  color: var(--amber-700); cursor: pointer;
+  transition: all var(--t);
+  font-family: 'Montserrat', sans-serif;
+}
+.btn-refund:hover:not(:disabled) { background: var(--amber-100); border-color: var(--amber-500); }
+.btn-refund:disabled { opacity: .6; cursor: not-allowed; }
 .btn-print {
   flex: 1; padding: 10px 22px;
   background: linear-gradient(135deg, var(--sky-500), var(--sky-700));

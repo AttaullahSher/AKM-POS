@@ -5,6 +5,7 @@ import {
   db,
   collection,
   doc,
+  getDoc,
   getDocs,
   addDoc,
   updateDoc,
@@ -86,6 +87,29 @@ export async function getNextInvoiceNumber() {
     console.error('❌ Invoice counter error:', err);
     const yy = String(new Date().getFullYear()).slice(-2);
     return `${yy}-${Date.now().toString().slice(-5)}`;
+  }
+}
+
+/**
+ * Peek the NEXT invoice number WITHOUT consuming it (read-only).
+ * Shown as a preview on load so refreshing the page never burns numbers.
+ * The number is only committed via getNextInvoiceNumber() when an invoice saves.
+ */
+export async function peekNextInvoiceNumber() {
+  const counterRef = doc(db, 'counters', 'invoices');
+  const currentYear = new Date().getFullYear();
+  const yy   = String(currentYear).slice(-2);
+  const INIT = APP_CONFIG.BUSINESS.STARTING_INVOICE_NUMBER;
+  try {
+    const snap = await getDoc(counterRef);
+    if (!snap.exists())              return `${yy}-${String(INIT).padStart(5, '0')}`;
+    const data = snap.data();
+    if (data.year !== currentYear)   return `${yy}-${String(INIT).padStart(5, '0')}`;
+    const next = (data.lastSequence || INIT) + 1;
+    return `${yy}-${String(next).padStart(5, '0')}`;
+  } catch (err) {
+    console.error('❌ peekNextInvoiceNumber error:', err);
+    return `${yy}-${String(INIT).padStart(5, '0')}`;
   }
 }
 
