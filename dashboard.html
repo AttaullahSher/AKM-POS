@@ -47,7 +47,7 @@
         <button class="dash-action-btn" onclick="openTaxReportModal()" title="Tax/VAT Reports">
           📊 Tax Reports
         </button>
-        <button class="dash-action-btn" onclick="exportAllData()" title="Export Data">
+        <button class="dash-action-btn" onclick="openExportModal()" title="Export Data">
           💾 Export
         </button>
         <button class="dash-action-btn" onclick="createBackup()" title="Create Backup">
@@ -234,6 +234,27 @@
           </div>
         </div>
 
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== EXPORT MODAL ===== -->
+  <div id="exportModal" class="modal-overlay">
+    <div class="modal-content" style="max-width:420px;">
+      <div class="modal-header">
+        <h3>💾 Export Data</h3>
+        <button class="modal-close-btn" onclick="closeExportModal()" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Select Month</label>
+          <input type="month" id="exportMonth">
+        </div>
+        <div style="display:flex;gap:10px;margin-top:4px;">
+          <button class="btn btn-primary"   onclick="doExport('month')" style="flex:1;">Export This Month</button>
+          <button class="btn btn-secondary" onclick="doExport('all')"   style="flex:1;">Export All Time</button>
+        </div>
+        <p style="font-size:11px;color:#94a3b8;margin-top:12px;">🔒 Requires PIN.</p>
       </div>
     </div>
   </div>

@@ -26,6 +26,18 @@ import {
 
 import { APP_CONFIG, debugLog } from './config.js';
 import { showToast } from './utils.js';
+import { correctMusicalText } from './instrument-terms.js';
+
+// Auto-capitalise / spell-correct known instrument & brand words when leaving a
+// Model or Description field (local dictionary — no AI, instant, offline).
+document.addEventListener('focusout', (e) => {
+  const el = e.target;
+  if (el && el.classList?.contains('item-input') &&
+      (el.id?.startsWith('model') || el.id?.startsWith('description'))) {
+    const fixed = correctMusicalText(el.value);
+    if (fixed !== el.value) el.value = fixed;
+  }
+});
 
 const ALLOWED_EMAIL = APP_CONFIG.ALLOWED_EMAIL;
 const VALIDATION    = APP_CONFIG.VALIDATION;
@@ -113,7 +125,19 @@ function restorePrintLayout() {
 }
 
 window.addEventListener('beforeprint', preparePrintLayout);
-window.addEventListener('afterprint',  restorePrintLayout);
+window.addEventListener('afterprint', () => {
+  restorePrintLayout();
+  // After reprinting a saved invoice, clear back to a fresh new invoice.
+  if (isReprintMode) resetToNewInvoice();
+});
+
+// Empty the form and return to a fresh invoice (current date + next number preview)
+function resetToNewInvoice() {
+  isReprintMode      = false;
+  reprintInvoiceData = null;
+  resetInvoiceForm();
+  loadNextInvoiceNumber();
+}
 
 // ─── Daily Report (80mm thermal) ───────────────────────────────
 window.printDailyReport = async function() {
@@ -209,7 +233,7 @@ window.printDailyReport = async function() {
         <div class="row total"><span>Total Deposits</span><span>${money(totalDeposits)}</span></div></div>` : ''}
 
       ${expenses.length ? `<div class="sec"><div class="sec-t">Expenses (${expenses.length})</div>
-        ${expenses.map(e=>`<div class="li"><div class="li-top"><span>${e.expenseId||''} · ${e.category||'General'}</span><span>${money(e.amount)}</span></div><div class="li-sub">${e.description||''}${e.receiptNumber?` · Rcpt ${e.receiptNumber}`:''}</div></div>`).join('')}
+        ${expenses.map(e=>`<div class="li"><div class="li-top"><span>${e.expenseId||''}</span><span>${money(e.amount)}</span></div><div class="li-sub">${e.description||''}${e.receiptNumber?` · Rcpt ${e.receiptNumber}`:''}</div></div>`).join('')}
         <div class="row total"><span>Total Expenses</span><span>${money(totalExpenses)}</span></div></div>` : ''}
 
       <div class="foot">
@@ -644,14 +668,14 @@ window.handleRefund = async function() {
   if (reprintInvoiceData.status === 'Refunded') { showToast('Invoice already refunded.', 'warning'); return; }
   if (!confirm(`Refund invoice ${reprintInvoiceData.invoiceNumber}? This reverses its cash/sales impact and cannot be undone.`)) return;
 
+  const refundedNumber = reprintInvoiceData.invoiceNumber;
   const refundBtn = document.getElementById('refundBtn');
   if (refundBtn) { refundBtn.disabled = true; refundBtn.textContent = '⏳ Refunding…'; }
   try {
     await markInvoiceAsRefunded(reprintInvoiceData.id);
-    reprintInvoiceData.status = 'Refunded';
-    showToast(`Invoice ${reprintInvoiceData.invoiceNumber} refunded.`, 'success');
-    if (refundBtn) { refundBtn.disabled = true; refundBtn.textContent = '↩️ Refunded'; }
+    showToast(`Invoice ${refundedNumber} refunded.`, 'success');
     await loadDashboardData();
+    resetToNewInvoice();   // empty the form back to a fresh invoice
   } catch (err) {
     console.error('Refund error:', err);
     showToast('Failed to refund invoice.', 'error');
@@ -675,6 +699,10 @@ window.openHistoryModal = async function() {
       container.innerHTML = '<div class="history-empty">No invoices in the last 90 days.</div>';
       return;
     }
+    // Serial order: newest invoice number first (invoices on the same day share a
+    // midnight dateObj, so the DB can't order them — sort by number here).
+    const seq = (n) => parseInt((n || '').split('-')[1], 10) || 0;
+    invoices.sort((a, b) => seq(b.invoiceNumber) - seq(a.invoiceNumber));
     container.innerHTML = `
       <div class="history-grid">
         ${invoices.slice(0, 120).map(inv => `
@@ -748,7 +776,7 @@ window.submitDeposit = async function() {
 window.openExpenseModal = function() {
   const modal = document.getElementById('expenseModal');
   if (modal) modal.classList.add('show');
-  ['expenseCategory','expenseDesc','expenseAmount','expenseReceipt'].forEach((id, i) => {
+  ['expenseDesc','expenseAmount','expenseReceipt'].forEach((id, i) => {
     const el = document.getElementById(id);
     if (el) { el.value = ''; if (i === 0) setTimeout(() => el.focus(), 100); }
   });
@@ -759,19 +787,17 @@ window.closeExpenseModal = function() {
 };
 
 window.submitExpense = async function() {
-  const category = document.getElementById('expenseCategory')?.value;
   const desc     = document.getElementById('expenseDesc')?.value.trim();
   const amount   = parseFloat(document.getElementById('expenseAmount')?.value);
   const receipt  = document.getElementById('expenseReceipt')?.value.trim();
 
-  if (!category) { showToast('Select a category.', 'error');       document.getElementById('expenseCategory')?.focus(); return; }
   if (!desc)     { showToast('Enter a description.', 'error');     document.getElementById('expenseDesc')?.focus();     return; }
   if (!amount || amount <= 0) { showToast('Enter a valid amount.', 'error'); document.getElementById('expenseAmount')?.focus(); return; }
   if (!receipt)  { showToast('Enter a receipt number.', 'error');  document.getElementById('expenseReceipt')?.focus();  return; }
 
   try {
     const expenseId = await getNextExpenseId();
-    await saveExpense({ expenseId, category, description: desc, amount, receiptNumber: receipt });
+    await saveExpense({ expenseId, description: desc, amount, receiptNumber: receipt });
     showToast(`✅ Expense AED ${amount.toFixed(2)} saved.`, 'success');
     closeExpenseModal();
     await loadDashboardData();
@@ -848,7 +874,7 @@ function setupKeyboard() {
     // Expense modal Enter chain (skip textarea — newlines allowed there)
     if (active.closest('#expenseModal') && e.key === 'Enter' && active.tagName !== 'TEXTAREA') {
       e.preventDefault();
-      const seq = ['expenseCategory','expenseDesc','expenseAmount','expenseReceipt'];
+      const seq = ['expenseDesc','expenseAmount','expenseReceipt'];
       const idx = seq.indexOf(active.id);
       if (idx >= 0 && idx < seq.length - 1) document.getElementById(seq[idx + 1])?.focus();
       else if (idx === seq.length - 1) window.submitExpense();

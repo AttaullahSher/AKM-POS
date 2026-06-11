@@ -539,25 +539,72 @@ function requirePin(action = 'continue') {
   return true;
 }
 
-window.exportAllData = async function() {
-  if (!requirePin('export all data')) return;
+window.openExportModal = function() {
+  const modal = document.getElementById('exportModal');
+  if (!modal) return;
+  const m = document.getElementById('exportMonth');
+  if (m && !m.value) {
+    const now = new Date();
+    m.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+  modal.classList.add('show');
+};
+
+window.closeExportModal = function() {
+  document.getElementById('exportModal')?.classList.remove('show');
+};
+
+window.doExport = async function(mode) {
+  if (!requirePin('export data')) return;
+  let startDate, endDate, label;
+  if (mode === 'month') {
+    const val = document.getElementById('exportMonth')?.value;   // "YYYY-MM"
+    if (!val) { showToast('Pick a month first.', 'error'); return; }
+    const [y, m] = val.split('-').map(Number);
+    startDate = new Date(y, m - 1, 1);
+    endDate   = new Date(y, m, 0);             // last day of that month
+    label     = val;
+  } else {
+    startDate = new Date(2000, 0, 1);
+    endDate   = new Date();
+    label     = 'All-Time';
+  }
+  closeExportModal();
+  await exportData(startDate, endDate, label);
+};
+
+async function queryByDateRange(collName, startDate, endDate) {
+  const end = new Date(endDate); end.setHours(23, 59, 59, 999);
+  const q = query(
+    collection(db, collName),
+    where('dateObj', '>=', Timestamp.fromDate(startDate)),
+    where('dateObj', '<=', Timestamp.fromDate(end)),
+    orderBy('dateObj', 'desc')
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function exportData(startDate, endDate, label) {
   try {
-    showToast('Exporting all data…', 'info');
+    showToast(`Exporting (${label})…`, 'info');
     const today = new Date();
-    const [invoices, deposits, expenses] = await Promise.all([
-      getRecentInvoices(365),
-      loadRecentDeposits(365),
-      loadRecentExpenses(365)
+    const [invRaw, deposits, expenses] = await Promise.all([
+      queryByDateRange('invoices', startDate, endDate),
+      queryByDateRange('deposits', startDate, endDate),
+      queryByDateRange('expenses', startDate, endDate)
     ]);
+    const invoices = invRaw.map(inv => ({
+      invoiceNumber: inv.invoiceNumber,
+      date:          inv.date,
+      customer:      inv.customer?.name || 'Walk-in',
+      grandTotal:    inv.payment?.grandTotal || 0,
+      payment:       inv.payment?.method || 'Cash',
+      status:        inv.status || 'Paid'
+    }));
 
-    const cyan   = '#0ea5e9';
-    const cyanDk = '#0369a1';
-    const cyanLt = '#e0f2fe';
-    const white  = '#ffffff';
-    const ltGray = '#f9fafb';
-    const border = '#e2e8f0';
-    const mid    = '#374151';
-
+    const cyan = '#0ea5e9', cyanDk = '#0369a1', white = '#ffffff',
+          ltGray = '#f9fafb', border = '#e2e8f0', mid = '#374151';
     const thStyle = `style="background:${cyan};color:${white};font-weight:700;padding:8px 12px;border:1px solid ${cyanDk};font-size:12px;"`;
     const td  = (bg = white) => `style="padding:6px 12px;border:1px solid ${border};font-size:12px;background:${bg};color:${mid};"`;
     const tdr = (bg = white) => `style="padding:6px 12px;border:1px solid ${border};font-size:12px;background:${bg};color:${mid};text-align:right;"`;
@@ -565,35 +612,26 @@ window.exportAllData = async function() {
     const invRows = invoices.map((inv, i) => {
       const bg = i % 2 === 0 ? white : ltGray;
       return `<tr>
-        <td ${td(bg)}>${inv.invoiceNumber}</td>
-        <td ${td(bg)}>${inv.date}</td>
-        <td ${td(bg)}>${inv.customer || 'Walk-in'}</td>
-        <td ${tdr(bg)}>${(inv.grandTotal || 0).toFixed(2)}</td>
-        <td ${td(bg)}>${inv.payment || 'Cash'}</td>
-        <td ${td(bg)}>${inv.status || 'Paid'}</td>
+        <td ${td(bg)}>${inv.invoiceNumber}</td><td ${td(bg)}>${inv.date}</td>
+        <td ${td(bg)}>${inv.customer}</td><td ${tdr(bg)}>${inv.grandTotal.toFixed(2)}</td>
+        <td ${td(bg)}>${inv.payment}</td><td ${td(bg)}>${inv.status}</td>
       </tr>`;
     }).join('');
 
     const depRows = deposits.map((d, i) => {
       const bg = i % 2 === 0 ? white : ltGray;
       return `<tr>
-        <td ${td(bg)}>${d.depositId || ''}</td>
-        <td ${td(bg)}>${d.date || ''}</td>
-        <td ${td(bg)}>${d.depositor || ''}</td>
-        <td ${tdr(bg)}>${(d.amount || 0).toFixed(2)}</td>
-        <td ${td(bg)}>${d.bank || ''}</td>
-        <td ${td(bg)}>${d.slipNumber || ''}</td>
+        <td ${td(bg)}>${d.depositId || ''}</td><td ${td(bg)}>${d.date || ''}</td>
+        <td ${td(bg)}>${d.depositor || ''}</td><td ${tdr(bg)}>${(d.amount || 0).toFixed(2)}</td>
+        <td ${td(bg)}>${d.bank || ''}</td><td ${td(bg)}>${d.slipNumber || ''}</td>
       </tr>`;
     }).join('');
 
     const expRows = expenses.map((e, i) => {
       const bg = i % 2 === 0 ? white : ltGray;
       return `<tr>
-        <td ${td(bg)}>${e.expenseId || ''}</td>
-        <td ${td(bg)}>${e.date || ''}</td>
-        <td ${td(bg)}>${e.category || 'General'}</td>
-        <td ${td(bg)}>${e.description || ''}</td>
-        <td ${tdr(bg)}>${(e.amount || 0).toFixed(2)}</td>
+        <td ${td(bg)}>${e.expenseId || ''}</td><td ${td(bg)}>${e.date || ''}</td>
+        <td ${td(bg)}>${e.description || ''}</td><td ${tdr(bg)}>${(e.amount || 0).toFixed(2)}</td>
         <td ${td(bg)}>${e.receiptNumber || ''}</td>
       </tr>`;
     }).join('');
@@ -604,8 +642,8 @@ window.exportAllData = async function() {
 <body>
 <table style="width:100%;margin-bottom:20px;">
   <tr>
-    <td style="font-size:22px;font-weight:800;color:${cyan};padding:12px 0;">🎵 AKM MUSIC — Full Data Export</td>
-    <td style="text-align:right;font-size:12px;color:#6b7280;padding:12px 0;">Exported: ${formatDate(today,'DD MMM YYYY')} ${formatTime(today)}<br>365-day range</td>
+    <td style="font-size:22px;font-weight:800;color:${cyan};padding:12px 0;">AKM MUSIC — Data Export</td>
+    <td style="text-align:right;font-size:12px;color:#6b7280;padding:12px 0;">Period: <b>${label}</b><br>Exported: ${formatDate(today,'DD MMM YYYY')} ${formatTime(today)}</td>
   </tr>
 </table>
 
@@ -615,7 +653,7 @@ window.exportAllData = async function() {
     <th ${thStyle}>Invoice #</th><th ${thStyle}>Date</th><th ${thStyle}>Customer</th>
     <th ${thStyle}>Total (AED)</th><th ${thStyle}>Payment</th><th ${thStyle}>Status</th>
   </tr></thead>
-  <tbody>${invRows}</tbody>
+  <tbody>${invRows || `<tr><td colspan="6" style="padding:10px;color:#6b7280;">No invoices</td></tr>`}</tbody>
 </table>
 
 <h3 style="color:${cyanDk};margin:28px 0 8px;">Bank Deposits (${deposits.length})</h3>
@@ -630,24 +668,25 @@ window.exportAllData = async function() {
 <h3 style="color:${cyanDk};margin:28px 0 8px;">Expenses (${expenses.length})</h3>
 <table>
   <thead><tr>
-    <th ${thStyle}>ID</th><th ${thStyle}>Date</th><th ${thStyle}>Category</th>
+    <th ${thStyle}>ID</th><th ${thStyle}>Date</th>
     <th ${thStyle}>Description</th><th ${thStyle}>Amount (AED)</th><th ${thStyle}>Receipt #</th>
   </tr></thead>
-  <tbody>${expRows || `<tr><td colspan="6" style="padding:10px;color:#6b7280;">No expenses</td></tr>`}</tbody>
+  <tbody>${expRows || `<tr><td colspan="5" style="padding:10px;color:#6b7280;">No expenses</td></tr>`}</tbody>
 </table>
 
 <p style="margin-top:24px;font-size:11px;color:#9ca3af;border-top:1px solid ${border};padding-top:12px;">
-  AKM Music Centre LLC — AKM-POS v4.0
+  AKM Music Centre LLC — AKM-POS
 </p>
 </body></html>`;
 
-    downloadBlob(html, 'application/vnd.ms-excel', `AKM_Export_${formatDate(today,'YYYY-MM-DD')}.xls`);
-    showToast(`Exported: ${invoices.length} invoices, ${deposits.length} deposits, ${expenses.length} expenses`, 'success');
+    downloadBlob(html, 'application/vnd.ms-excel', `AKM_Export_${label}.xls`);
+    showToast(`Exported (${label}): ${invoices.length} invoices, ${deposits.length} deposits, ${expenses.length} expenses`, 'success');
   } catch (err) {
     console.error('❌ Export error:', err);
-    showToast('Failed to export data', 'error');
+    if (err.code === 'failed-precondition') showToast('Index building, try again shortly.', 'warning');
+    else showToast('Failed to export data', 'error');
   }
-};
+}
 
 window.createBackup = async function() {
   if (!requirePin('create a backup')) return;

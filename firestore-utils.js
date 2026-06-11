@@ -354,7 +354,7 @@ export async function createDeposit(depositData) {
 // ─── Expenses ────────────────────────────────────────────────
 
 export async function createExpense(expenseData) {
-  const { expenseId, category, description, amount, receiptNumber } = expenseData;
+  const { expenseId, category = '', description, amount, receiptNumber } = expenseData;
   // expenseId format: E-MM## e.g. E-0601
   const parts    = expenseId.split('-');
   const monthStr = parts[1] ? parts[1].substring(0, 2) : '00';
