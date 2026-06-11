@@ -41,7 +41,10 @@ const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     cacheSizeBytes: CACHE_CONFIG.SIZE_BYTES,
     tabManager: CACHE_CONFIG.MULTI_TAB ? persistentMultipleTabManager() : undefined
-  })
+  }),
+  // Shop networks / proxies / antivirus often break Firestore's streaming
+  // WebChannel ('Listen' 400 errors). Auto-detect and fall back to long-polling.
+  experimentalAutoDetectLongPolling: true,
 });
 
 // Google provider locked to akm-music.com domain hint

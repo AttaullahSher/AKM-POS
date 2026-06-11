@@ -1216,7 +1216,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ===== Print Styles ===== */
 @media print {
-  @page { size: 80mm auto; margin: 3mm 4mm; }
+  @page { size: 80mm auto; margin: 2mm 3mm; }
 
   body > * { display: none !important; }
 
@@ -1237,7 +1237,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
     width: 100% !important;
   }
   .invoice-card {
-    width: 72mm !important; max-width: 72mm !important;
+    width: 64mm !important; max-width: 64mm !important;
+    margin: 0 auto !important;
     min-width: 0 !important;
     box-shadow: none !important; border: none !important;
     border-radius: 0 !important; animation: none !important;
