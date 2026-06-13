@@ -685,3 +685,12 @@ export async function bulkSetDocs(collName, entries) {
     await batch.commit();
   }
 }
+
+export async function resetAllCollections() {
+  await Promise.all([
+    bulkDeleteCollection('invoices'),
+    bulkDeleteCollection('deposits'),
+    bulkDeleteCollection('expenses'),
+    bulkDeleteCollection('_counters'),
+  ]);
+}

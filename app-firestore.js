@@ -55,6 +55,8 @@ let currentPaymentMethod = null;
 let isReprintMode        = false;
 let reprintInvoiceData   = null;
 let originalInputStates  = [];
+let _depositSaving       = false;
+let _expenseSaving       = false;
 
 // ─── Print Helpers ─────────────────────────────────────────────
 
@@ -753,6 +755,7 @@ window.closeDepositModal = function() {
 };
 
 window.submitDeposit = async function() {
+  if (_depositSaving) return;
   const name   = document.getElementById('depositName')?.value.trim();
   const amount = parseFloat(document.getElementById('depositAmount')?.value);
   const bank   = document.getElementById('depositBank')?.value.trim();
@@ -763,6 +766,9 @@ window.submitDeposit = async function() {
   if (!bank)             { showToast('Enter bank name.', 'error');        document.getElementById('depositBank')?.focus();   return; }
   if (!slip)             { showToast('Enter slip number.', 'error');      document.getElementById('depositRef')?.focus();    return; }
 
+  _depositSaving = true;
+  const btn = document.querySelector('#depositModal .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   try {
     const depositId = await getNextDepositId();
     await saveDeposit({ depositId, amount, bank, slipNumber: slip, depositor: name });
@@ -772,6 +778,9 @@ window.submitDeposit = async function() {
   } catch (err) {
     console.error('Deposit error:', err);
     showToast('Failed to save deposit.', 'error');
+  } finally {
+    _depositSaving = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Save Deposit'; }
   }
 };
 
@@ -791,6 +800,7 @@ window.closeExpenseModal = function() {
 };
 
 window.submitExpense = async function() {
+  if (_expenseSaving) return;
   const desc     = document.getElementById('expenseDesc')?.value.trim();
   const amount   = parseFloat(document.getElementById('expenseAmount')?.value);
   const receipt  = document.getElementById('expenseReceipt')?.value.trim();
@@ -799,6 +809,9 @@ window.submitExpense = async function() {
   if (!amount || amount <= 0) { showToast('Enter a valid amount.', 'error'); document.getElementById('expenseAmount')?.focus(); return; }
   if (!receipt)  { showToast('Enter a receipt number.', 'error');  document.getElementById('expenseReceipt')?.focus();  return; }
 
+  _expenseSaving = true;
+  const btn = document.querySelector('#expenseModal .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   try {
     const expenseId = await getNextExpenseId();
     await saveExpense({ expenseId, description: desc, amount, receiptNumber: receipt });
@@ -808,6 +821,9 @@ window.submitExpense = async function() {
   } catch (err) {
     console.error('Expense error:', err);
     showToast('Failed to save expense.', 'error');
+  } finally {
+    _expenseSaving = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Save Expense'; }
   }
 };
 

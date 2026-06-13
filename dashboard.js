@@ -15,6 +15,7 @@ import {
   getAllDocsForExport,
   bulkDeleteCollection,
   bulkSetDocs,
+  resetAllCollections,
 } from './firestore-utils.js';
 import { collection, query, where, orderBy, getDocs, Timestamp, serverTimestamp } from './firebase-config.js';
 import { APP_CONFIG, debugLog } from './config.js';
@@ -715,6 +716,50 @@ window.closeExportModal = function() {
   document.getElementById('exportModal')?.classList.remove('show');
 };
 
+// ─── Database Modal ──────────────────────────────────────────
+
+window.openDbModal = function() {
+  document.getElementById('dbModal')?.classList.add('show');
+};
+
+window.closeDbModal = function() {
+  document.getElementById('dbModal')?.classList.remove('show');
+};
+
+// ─── Reset All Data ──────────────────────────────────────────
+// Deletes invoices, deposits, expenses and _counters.
+// Requires PIN + confirmation phrase to prevent accidents.
+
+window.resetAllData = async function() {
+  const pin = window.prompt('🔒 Enter PIN to reset all data:');
+  if (pin === null) return;
+  if (pin.trim() !== '2532') { showToast('Incorrect PIN', 'error'); return; }
+
+  const confirm1 = window.prompt(
+    '⚠️ This will permanently delete ALL invoices, deposits, expenses and counters.\n\nType  RESET  (all caps) to confirm:'
+  );
+  if (confirm1 === null) return;
+  if (confirm1.trim() !== 'RESET') { showToast('Reset cancelled — type RESET exactly.', 'info'); return; }
+
+  if (!confirm('Last chance — delete everything and start from zero?')) return;
+
+  const btn = document.querySelector('#dbModal .db-btn-danger');
+  if (btn) { btn.disabled = true; btn.textContent = 'Resetting…'; }
+  try {
+    showToast('Resetting database…', 'info');
+    await resetAllCollections();
+    invalidateCashFlowCache();
+    await Promise.all([loadDashboardStats(), loadActivityFeed()]);
+    closeDbModal();
+    showToast('All data has been reset.', 'success');
+  } catch (err) {
+    console.error('❌ Reset error:', err);
+    showToast('Reset failed — check console', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Reset'; }
+  }
+};
+
 window.doExport = async function(mode) {
   if (!requirePin('export data')) return;
   let startDate, endDate, label;
@@ -748,86 +793,196 @@ async function queryByDateRange(collName, startDate, endDate) {
 
 async function exportData(startDate, endDate, label) {
   try {
-    showToast(`Exporting (${label})…`, 'info');
+    showToast(`Generating report (${label})…`, 'info');
     const today = new Date();
     const [invRaw, depRaw, expRaw] = await Promise.all([
       queryByDateRange('invoices', startDate, endDate),
       queryByDateRange('deposits', startDate, endDate),
       queryByDateRange('expenses', startDate, endDate)
     ]);
-    const invoices = invRaw.filter(inv => !inv.deleted).map(inv => ({
-      invoiceNumber: inv.invoiceNumber,
-      date:          inv.date,
-      customer:      inv.customer?.name || 'Walk-in',
-      grandTotal:    inv.payment?.grandTotal || 0,
-      payment:       inv.payment?.method || 'Cash',
-      status:        inv.status || 'Paid'
-    }));
-    const deposits = depRaw.filter(d => !d.deleted);
-    const expenses = expRaw.filter(e => !e.deleted);
 
-    const cyan = '#0ea5e9', cyanDk = '#0369a1', white = '#ffffff',
-          ltGray = '#f9fafb', border = '#e2e8f0', mid = '#374151';
-    const thStyle = `style="background:${cyan};color:${white};font-weight:700;padding:8px 12px;border:1px solid ${cyanDk};font-size:12px;"`;
-    const td  = (bg = white) => `style="padding:6px 12px;border:1px solid ${border};font-size:12px;background:${bg};color:${mid};"`;
-    const tdr = (bg = white) => `style="padding:6px 12px;border:1px solid ${border};font-size:12px;background:${bg};color:${mid};text-align:right;"`;
+    const invoices = invRaw.filter(inv => !inv.deleted);
+    const deposits = depRaw.filter(d  => !d.deleted);
+    const expenses = expRaw.filter(e  => !e.deleted);
 
+    // ── Compute summary figures ─────────────────────────────
+    let totalSales = 0, totalVAT = 0, netSales = 0;
+    let cashSales = 0, cardSales = 0, tabbySales = 0, chequeSales = 0;
+    let refundCount = 0;
+    invoices.forEach(inv => {
+      if (inv.status === 'Paid') {
+        totalSales  += inv.payment?.grandTotal || 0;
+        totalVAT    += inv.payment?.vat        || 0;
+        cashSales   += inv.impacts?.cash       || 0;
+        cardSales   += inv.impacts?.card       || 0;
+        tabbySales  += inv.impacts?.tabby      || 0;
+        chequeSales += inv.impacts?.cheque     || 0;
+      } else if (inv.status === 'Refunded') {
+        refundCount++;
+      }
+    });
+    netSales = totalSales - totalVAT;
+    const totalDeposits = deposits.reduce((s, d) => s + (d.amount || 0), 0);
+    const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+    const cashInHand = cashSales - totalDeposits - totalExpenses;
+    const paidCount  = invoices.filter(i => i.status === 'Paid').length;
+
+    // ── Style helpers ───────────────────────────────────────
+    const cyan = '#0ea5e9', cyanDk = '#0369a1', cyanLt = '#e0f2fe';
+    const white = '#ffffff', ltGray = '#f9fafb', border = '#e2e8f0', mid = '#374151', dk = '#0c4a6e';
+    const th  = `style="background:${cyan};color:${white};font-weight:700;padding:7px 12px;border:1px solid ${cyanDk};font-size:12px;"`;
+    const thr = `style="background:${cyan};color:${white};font-weight:700;padding:7px 12px;border:1px solid ${cyanDk};font-size:12px;text-align:right;"`;
+    const td  = (bg=white) => `style="padding:6px 11px;border:1px solid ${border};font-size:11.5px;background:${bg};color:${mid};"`;
+    const tdr = (bg=white) => `style="padding:6px 11px;border:1px solid ${border};font-size:11.5px;background:${bg};color:${mid};text-align:right;"`;
+    const sumLbl = `style="padding:8px 12px;border:1px solid ${border};font-weight:600;background:${cyanLt};color:${dk};font-size:12px;"`;
+    const sumVal = `style="padding:8px 12px;border:1px solid ${border};font-weight:700;background:${white};color:${dk};font-size:12px;text-align:right;"`;
+
+    // ── Table rows ──────────────────────────────────────────
     const invRows = invoices.map((inv, i) => {
-      const bg = i % 2 === 0 ? white : ltGray;
+      const bg = inv.status === 'Refunded' ? '#fef2f2' : (i % 2 === 0 ? white : ltGray);
       return `<tr>
-        <td ${td(bg)}>${inv.invoiceNumber}</td><td ${td(bg)}>${inv.date}</td>
-        <td ${td(bg)}>${inv.customer}</td><td ${tdr(bg)}>${inv.grandTotal.toFixed(2)}</td>
-        <td ${td(bg)}>${inv.payment}</td><td ${td(bg)}>${inv.status}</td>
+        <td ${td(bg)}>${inv.invoiceNumber || ''}</td>
+        <td ${td(bg)}>${inv.date || ''}</td>
+        <td ${td(bg)}>${inv.customer?.name || 'Walk-in'}</td>
+        <td ${tdr(bg)}>${(inv.payment?.subtotal || 0).toFixed(2)}</td>
+        <td ${tdr(bg)}>${(inv.payment?.vat      || 0).toFixed(2)}</td>
+        <td ${tdr(bg)}><b>${(inv.payment?.grandTotal || 0).toFixed(2)}</b></td>
+        <td ${td(bg)}>${inv.payment?.method || 'Cash'}</td>
+        <td ${td(bg)}>${inv.status || 'Paid'}</td>
       </tr>`;
     }).join('');
 
     const depRows = deposits.map((dep, i) => {
       const bg = i % 2 === 0 ? white : ltGray;
       return `<tr>
-        <td ${td(bg)}>${dep.depositId || ''}</td><td ${td(bg)}>${dep.date || ''}</td>
-        <td ${td(bg)}>${dep.depositor || ''}</td><td ${tdr(bg)}>${(dep.amount || 0).toFixed(2)}</td>
-        <td ${td(bg)}>${dep.bank || ''}</td><td ${td(bg)}>${dep.slipNumber || ''}</td>
+        <td ${td(bg)}>${dep.depositId || ''}</td>
+        <td ${td(bg)}>${dep.date || ''}</td>
+        <td ${td(bg)}>${dep.depositor || ''}</td>
+        <td ${td(bg)}>${dep.bank || ''}</td>
+        <td ${tdr(bg)}><b>${(dep.amount || 0).toFixed(2)}</b></td>
+        <td ${td(bg)}>${dep.slipNumber || ''}</td>
       </tr>`;
     }).join('');
 
     const expRows = expenses.map((exp, i) => {
       const bg = i % 2 === 0 ? white : ltGray;
       return `<tr>
-        <td ${td(bg)}>${exp.expenseId || ''}</td><td ${td(bg)}>${exp.date || ''}</td>
-        <td ${td(bg)}>${exp.description || ''}</td><td ${tdr(bg)}>${(exp.amount || 0).toFixed(2)}</td>
+        <td ${td(bg)}>${exp.expenseId || ''}</td>
+        <td ${td(bg)}>${exp.date || ''}</td>
+        <td ${td(bg)}>${exp.description || ''}</td>
+        <td ${tdr(bg)}><b>${(exp.amount || 0).toFixed(2)}</b></td>
         <td ${td(bg)}>${exp.receiptNumber || ''}</td>
       </tr>`;
     }).join('');
 
     const html = `
 <html xmlns:x="urn:schemas-microsoft-com:office:excel">
-<head><meta charset="UTF-8"></head><body>
-<table style="width:100%;margin-bottom:20px;">
+<head><meta charset="UTF-8">
+<style>body{font-family:Calibri,Arial,sans-serif;}table{border-collapse:collapse;}</style>
+</head><body>
+
+<!-- ── Header ─────────────────────────────────────────── -->
+<table style="width:100%;margin-bottom:8px;border-bottom:3px solid ${cyan};">
   <tr>
-    <td style="font-size:22px;font-weight:800;color:${cyan};padding:12px 0;">AKM MUSIC — Data Export</td>
-    <td style="text-align:right;font-size:12px;color:#6b7280;padding:12px 0;">Period: <b>${label}</b><br>Exported: ${formatDate(today,'DD MMM YYYY')} ${formatTime(today)}</td>
+    <td style="padding:14px 0 8px;font-size:22px;font-weight:800;color:${cyan};">AKM MUSIC</td>
+    <td style="text-align:right;padding:14px 0 8px;font-size:11px;color:#6b7280;">
+      Ajmal Khan Mohammed Music Centre LLC<br>
+      TRN: ${APP_CONFIG.COMPANY_TRN}
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:0 0 10px;font-size:15px;font-weight:700;color:${cyanDk};">Monthly Business Report</td>
+    <td style="text-align:right;padding:0 0 10px;font-size:11px;color:#374151;">
+      Period: <b>${label}</b><br>
+      Exported: ${formatDate(today,'DD MMM YYYY')} ${formatTime(today)}
+    </td>
   </tr>
 </table>
-<h3 style="color:${cyanDk};margin:20px 0 8px;">Invoices (${invoices.length})</h3>
-<table>
-  <thead><tr><th ${thStyle}>Invoice #</th><th ${thStyle}>Date</th><th ${thStyle}>Customer</th><th ${thStyle}>Total (AED)</th><th ${thStyle}>Payment</th><th ${thStyle}>Status</th></tr></thead>
-  <tbody>${invRows || `<tr><td colspan="6" style="padding:10px;color:#6b7280;">No invoices</td></tr>`}</tbody>
+
+<!-- ── Summary ────────────────────────────────────────── -->
+<h3 style="color:${cyanDk};margin:16px 0 8px;font-size:13px;">Business Summary</h3>
+<table style="width:360px;margin-bottom:8px;">
+  <tr><td ${sumLbl}>Total Sales (incl. VAT)</td><td ${sumVal}>AED ${totalSales.toFixed(2)}</td></tr>
+  <tr><td ${sumLbl}>Total VAT Collected (5%)</td><td ${sumVal}>AED ${totalVAT.toFixed(2)}</td></tr>
+  <tr><td ${sumLbl}>Net Sales (excl. VAT)</td><td ${sumVal}>AED ${netSales.toFixed(2)}</td></tr>
+  <tr><td ${sumLbl}>Paid Invoices</td><td ${sumVal}>${paidCount}</td></tr>
+  ${refundCount > 0 ? `<tr><td ${sumLbl} style="color:#b91c1c;">Refunded Invoices</td><td ${sumVal} style="color:#b91c1c;">${refundCount}</td></tr>` : ''}
 </table>
-<h3 style="color:${cyanDk};margin:28px 0 8px;">Bank Deposits (${deposits.length})</h3>
-<table>
-  <thead><tr><th ${thStyle}>ID</th><th ${thStyle}>Date</th><th ${thStyle}>Depositor</th><th ${thStyle}>Amount (AED)</th><th ${thStyle}>Bank</th><th ${thStyle}>Slip #</th></tr></thead>
-  <tbody>${depRows || `<tr><td colspan="6" style="padding:10px;color:#6b7280;">No deposits</td></tr>`}</tbody>
+
+<!-- ── Payment breakdown ──────────────────────────────── -->
+<h3 style="color:${cyanDk};margin:16px 0 8px;font-size:13px;">Sales by Payment Method</h3>
+<table style="width:360px;margin-bottom:8px;">
+  <tr><td ${sumLbl}>💵 Cash</td><td ${sumVal}>AED ${cashSales.toFixed(2)}</td></tr>
+  <tr><td ${sumLbl}>💳 Card</td><td ${sumVal}>AED ${cardSales.toFixed(2)}</td></tr>
+  <tr><td ${sumLbl}>📱 Tabby</td><td ${sumVal}>AED ${tabbySales.toFixed(2)}</td></tr>
+  <tr><td ${sumLbl}>📝 Cheque</td><td ${sumVal}>AED ${chequeSales.toFixed(2)}</td></tr>
 </table>
-<h3 style="color:${cyanDk};margin:28px 0 8px;">Expenses (${expenses.length})</h3>
-<table>
-  <thead><tr><th ${thStyle}>ID</th><th ${thStyle}>Date</th><th ${thStyle}>Description</th><th ${thStyle}>Amount (AED)</th><th ${thStyle}>Receipt #</th></tr></thead>
-  <tbody>${expRows || `<tr><td colspan="5" style="padding:10px;color:#6b7280;">No expenses</td></tr>`}</tbody>
+
+<!-- ── Cash flow ──────────────────────────────────────── -->
+<h3 style="color:${cyanDk};margin:16px 0 8px;font-size:13px;">Cash Flow (Period)</h3>
+<table style="width:360px;margin-bottom:20px;">
+  <tr><td ${sumLbl}>Cash Sales</td><td ${sumVal}>AED ${cashSales.toFixed(2)}</td></tr>
+  <tr><td ${sumLbl}>Bank Deposits</td><td style="padding:8px 12px;border:1px solid ${border};font-weight:700;background:${white};color:#b91c1c;font-size:12px;text-align:right;">− AED ${totalDeposits.toFixed(2)}</td></tr>
+  <tr><td ${sumLbl}>Expenses</td><td style="padding:8px 12px;border:1px solid ${border};font-weight:700;background:${white};color:#b91c1c;font-size:12px;text-align:right;">− AED ${totalExpenses.toFixed(2)}</td></tr>
+  <tr>
+    <td style="padding:9px 12px;border:1px solid ${border};font-weight:800;background:${cyanDk};color:${white};font-size:13px;">Cash in Hand (period)</td>
+    <td style="padding:9px 12px;border:1px solid ${border};font-weight:800;background:${cyanDk};color:${white};font-size:13px;text-align:right;">AED ${cashInHand.toFixed(2)}</td>
+  </tr>
 </table>
-<p style="margin-top:24px;font-size:11px;color:#9ca3af;border-top:1px solid ${border};padding-top:12px;">AKM Music Centre LLC — AKM-POS v5.0</p>
+
+<!-- ── Invoices ───────────────────────────────────────── -->
+<h3 style="color:${cyanDk};margin:24px 0 8px;font-size:13px;">Invoices (${invoices.length})</h3>
+<table>
+  <thead><tr>
+    <th ${th}>Invoice #</th><th ${th}>Date</th><th ${th}>Customer</th>
+    <th ${thr}>Subtotal</th><th ${thr}>VAT</th><th ${thr}>Total (AED)</th>
+    <th ${th}>Payment</th><th ${th}>Status</th>
+  </tr></thead>
+  <tbody>${invRows || `<tr><td colspan="8" style="padding:10px;color:#6b7280;border:1px solid ${border};">No invoices for this period</td></tr>`}</tbody>
+  <tfoot><tr>
+    <td colspan="5" style="padding:7px 11px;font-weight:700;background:${cyanLt};color:${dk};border:1px solid ${border};">Totals</td>
+    <td style="padding:7px 11px;font-weight:800;background:${cyanLt};color:${dk};border:1px solid ${border};text-align:right;">AED ${totalSales.toFixed(2)}</td>
+    <td colspan="2" style="background:${cyanLt};border:1px solid ${border};"></td>
+  </tr></tfoot>
+</table>
+
+<!-- ── Deposits ───────────────────────────────────────── -->
+<h3 style="color:${cyanDk};margin:28px 0 8px;font-size:13px;">Bank Deposits (${deposits.length})</h3>
+<table>
+  <thead><tr>
+    <th ${th}>Deposit ID</th><th ${th}>Date</th><th ${th}>Depositor</th>
+    <th ${th}>Bank</th><th ${thr}>Amount (AED)</th><th ${th}>Slip #</th>
+  </tr></thead>
+  <tbody>${depRows || `<tr><td colspan="6" style="padding:10px;color:#6b7280;border:1px solid ${border};">No deposits for this period</td></tr>`}</tbody>
+  <tfoot><tr>
+    <td colspan="4" style="padding:7px 11px;font-weight:700;background:${cyanLt};color:${dk};border:1px solid ${border};">Total Deposited</td>
+    <td style="padding:7px 11px;font-weight:800;background:${cyanLt};color:${dk};border:1px solid ${border};text-align:right;">AED ${totalDeposits.toFixed(2)}</td>
+    <td style="background:${cyanLt};border:1px solid ${border};"></td>
+  </tr></tfoot>
+</table>
+
+<!-- ── Expenses ───────────────────────────────────────── -->
+<h3 style="color:${cyanDk};margin:28px 0 8px;font-size:13px;">Expenses (${expenses.length})</h3>
+<table>
+  <thead><tr>
+    <th ${th}>Expense ID</th><th ${th}>Date</th><th ${th}>Description</th>
+    <th ${thr}>Amount (AED)</th><th ${th}>Receipt #</th>
+  </tr></thead>
+  <tbody>${expRows || `<tr><td colspan="5" style="padding:10px;color:#6b7280;border:1px solid ${border};">No expenses for this period</td></tr>`}</tbody>
+  <tfoot><tr>
+    <td colspan="3" style="padding:7px 11px;font-weight:700;background:${cyanLt};color:${dk};border:1px solid ${border};">Total Expenses</td>
+    <td style="padding:7px 11px;font-weight:800;background:${cyanLt};color:${dk};border:1px solid ${border};text-align:right;">AED ${totalExpenses.toFixed(2)}</td>
+    <td style="background:${cyanLt};border:1px solid ${border};"></td>
+  </tr></tfoot>
+</table>
+
+<p style="margin-top:28px;font-size:10px;color:#9ca3af;border-top:1px solid ${border};padding-top:10px;">
+  AKM Music Centre LLC — Generated by AKM-POS on ${formatDate(today,'DD MMM YYYY')} at ${formatTime(today)}
+</p>
 </body></html>`;
 
-    downloadBlob(html, 'application/vnd.ms-excel', `AKM_Export_${label}.xls`);
-    showToast(`Exported: ${invoices.length} invoices, ${deposits.length} deposits, ${expenses.length} expenses`, 'success');
+    downloadBlob(html, 'application/vnd.ms-excel', `AKM_Report_${label}.xls`);
+    showToast(`Report: ${paidCount} invoices · ${deposits.length} deposits · ${expenses.length} expenses`, 'success');
   } catch (err) {
     console.error('❌ Export error:', err);
     if (err.code === 'failed-precondition') showToast('Index building, try again shortly.', 'warning');
@@ -1130,5 +1285,8 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
 });
 
 document.addEventListener('click', (e) => {
-  if (e.target.classList.contains('modal-overlay')) closeTaxReportModal();
+  if (!e.target.classList.contains('modal-overlay')) return;
+  closeTaxReportModal();
+  window.closeExportModal();
+  window.closeDbModal();
 });

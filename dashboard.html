@@ -47,20 +47,16 @@
         <button class="dash-action-btn" onclick="openTaxReportModal()" title="Tax/VAT Reports">
           📊 Tax Reports
         </button>
-        <button class="dash-action-btn" onclick="openExportModal()" title="Export Data">
+        <button class="dash-action-btn" onclick="openExportModal()" title="Export monthly report">
           💾 Export
         </button>
-        <button class="dash-action-btn" onclick="createBackup()" title="Create Backup">
+        <button class="dash-action-btn" onclick="createBackup()" title="Create JSON backup">
           🗄️ Backup
         </button>
-        <button class="dash-action-btn" onclick="exportDatabase()" title="Export full database to Excel">
-          📤 DB Export
-        </button>
-        <button class="dash-action-btn dash-action-danger" onclick="importDatabase()" title="Import database from Excel (replaces all data — PIN required)">
-          📥 DB Import
+        <button class="dash-action-btn" onclick="openDbModal()" title="Database management">
+          🗃️ Database
         </button>
       </div>
-      <input type="file" id="dbImportFile" accept=".xlsx,.xls" style="display:none" onchange="importFileSelected(this)">
 
       <div class="dash-right">
         <div id="offlineIndicator" class="offline-indicator" style="display:none;">
@@ -281,6 +277,50 @@
           <button class="btn btn-secondary" onclick="doExport('all')"   style="flex:1;">Export All Time</button>
         </div>
         <p style="font-size:11px;color:#94a3b8;margin-top:12px;">🔒 Requires PIN.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DATABASE MODAL ===== -->
+  <div id="dbModal" class="modal-overlay">
+    <div class="modal-content" style="max-width:480px;">
+      <div class="modal-header">
+        <h3>🗃️ Database Management</h3>
+        <button class="modal-close" onclick="closeDbModal()" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+
+        <!-- Export -->
+        <div class="db-action-card">
+          <div class="db-card-icon">📤</div>
+          <div class="db-card-body">
+            <div class="db-card-title">Export Database</div>
+            <div class="db-card-desc">Download all records as a 3-sheet Excel file. Use to review or clean up duplicates.</div>
+          </div>
+          <button class="db-card-btn db-btn-primary" onclick="exportDatabase()">Export</button>
+        </div>
+
+        <!-- Import -->
+        <div class="db-action-card db-card-warn">
+          <div class="db-card-icon">📥</div>
+          <div class="db-card-body">
+            <div class="db-card-title">Import Database</div>
+            <div class="db-card-desc">Replace ALL records with rows from an exported .xlsx file. PIN required. Cannot be undone.</div>
+          </div>
+          <button class="db-card-btn db-btn-warn" onclick="importDatabase()">Import</button>
+        </div>
+
+        <!-- Reset -->
+        <div class="db-action-card db-card-danger">
+          <div class="db-card-icon">🗑️</div>
+          <div class="db-card-body">
+            <div class="db-card-title">Reset All Data</div>
+            <div class="db-card-desc">Permanently delete ALL invoices, deposits, expenses and counters. For testing only.</div>
+          </div>
+          <button class="db-card-btn db-btn-danger" onclick="resetAllData()">Reset</button>
+        </div>
+
+        <input type="file" id="dbImportFile" accept=".xlsx,.xls" style="display:none" onchange="importFileSelected(this)">
       </div>
     </div>
   </div>
