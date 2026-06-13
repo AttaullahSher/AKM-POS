@@ -19,7 +19,7 @@ import {
   getTodayExpenses,
   loadRecentInvoices,
   markInvoiceAsRefunded,
-  getInvoiceByNumber,
+  getInvoiceById,
   formatDate,
   formatTime,
 } from './firestore-utils.js';
@@ -153,7 +153,7 @@ window.printDailyReport = async function() {
     let totalSales = 0, totalVAT = 0, paidInvoices = 0;
     let cash = 0, card = 0, tabby = 0, cheque = 0;
     invoices.forEach(inv => {
-      if (inv.status === 'Paid') {
+      if (inv.status === 'Paid' && !inv.deleted) {
         totalSales += inv.payment?.grandTotal || 0;
         totalVAT   += inv.payment?.vat        || 0;
         cash       += inv.impacts?.cash       || 0;
@@ -163,8 +163,8 @@ window.printDailyReport = async function() {
         paidInvoices++;
       }
     });
-    const totalDeposits = deposits.reduce((s, d) => s + (d.amount || 0), 0);
-    const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+    const totalDeposits = deposits.filter(d => !d.deleted).reduce((s, d) => s + (d.amount || 0), 0);
+    const totalExpenses = expenses.filter(e => !e.deleted).reduce((s, e) => s + (e.amount || 0), 0);
     const cashInHand    = cash - totalDeposits - totalExpenses;
 
     const money = (n) => 'AED ' + (Number(n) || 0).toFixed(2);
@@ -322,6 +322,15 @@ async function initializePOS() {
     await loadDashboardData();
 
     setupAutoRefresh();
+
+    // Handle ?reprint=<docId> deep-link from dashboard "View" button
+    const params = new URLSearchParams(window.location.search);
+    const reprintId = params.get('reprint');
+    if (reprintId) {
+      history.replaceState(null, '', window.location.pathname);
+      await window.handleReprintInvoice(reprintId);
+    }
+
     showToast('✅ POS ready!', 'success');
   } catch (err) {
     console.error('Init error:', err);
@@ -465,7 +474,7 @@ async function loadDashboardData() {
 
     let cash = 0, card = 0, tabby = 0, cheque = 0;
     invoices.forEach(inv => {
-      if (inv.status === 'Paid') {
+      if (inv.status === 'Paid' && !inv.deleted) {
         cash   += inv.impacts?.cash   || 0;
         card   += inv.impacts?.card   || 0;
         tabby  += inv.impacts?.tabby  || 0;
@@ -474,8 +483,8 @@ async function loadDashboardData() {
     });
 
     const totalSales    = cash + card + tabby + cheque;
-    const totalDeposits = deposits.reduce((s, d) => s + (d.amount || 0), 0);
-    const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+    const totalDeposits = deposits.filter(d => !d.deleted).reduce((s, d) => s + (d.amount || 0), 0);
+    const totalExpenses = expenses.filter(e => !e.deleted).reduce((s, e) => s + (e.amount || 0), 0);
     const cashInHand    = cash - totalDeposits - totalExpenses;
 
     updateEl('todaySalesQuick', totalSales.toFixed(2));
@@ -593,13 +602,8 @@ function resetInvoiceForm() {
 window.handleReprintInvoice = async function(invoiceId) {
   showToast('Loading invoice…', 'info');
   try {
-    const invoices = await loadRecentInvoices(365);
-    const inv = invoices.find(i => i.id === invoiceId);
-    if (!inv) { showToast('Invoice not found.', 'error'); return; }
-
-    const full = await getInvoiceByNumber(inv.invoiceNumber);
-    if (!full) { showToast('Invoice data unavailable.', 'error'); return; }
-
+    const full = await getInvoiceById(invoiceId);
+    if (!full) { showToast('Invoice not found.', 'error'); return; }
     isReprintMode      = true;
     reprintInvoiceData = full;
     populateReprintForm(full);

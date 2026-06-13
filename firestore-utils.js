@@ -231,6 +231,11 @@ export async function refundInvoice(docId) {
   debugLog('✅ Invoice refunded:', docId);
 }
 
+export async function getInvoiceById(docId) {
+  const snap = await getDoc(doc(db, 'invoices', docId));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
 export async function getInvoiceByNumber(invoiceNumber) {
   try {
     const q    = query(collection(db, 'invoices'), where('invoiceNumber', '==', invoiceNumber), limit(1));

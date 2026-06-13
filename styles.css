@@ -373,18 +373,19 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   padding: 14px 24px 12px;
   text-align: center;
 }
+.company-brand {
+  font-size: 22px; font-weight: 900; color: var(--sky-800);
+  letter-spacing: 3px; line-height: 1.2;
+}
 .company-ar {
-  font-size: 13px; font-weight: 700; color: #374151;
-  direction: rtl; margin-bottom: 4px;
+  font-size: 18px; font-weight: 700; color: #374151;
+  direction: rtl; margin: 2px 0 4px;
   font-family: Arial, sans-serif;
 }
-.company-en {
-  font-size: 15px; font-weight: 800; color: var(--sky-800);
-  letter-spacing: -0.2px;
-}
+.company-en { display: none; } /* replaced by .company-meta lines */
 .company-meta {
   font-size: 10px; color: #64748b;
-  margin-top: 4px; font-weight: 500;
+  margin-top: 2px; font-weight: 500; line-height: 1.5;
 }
 
 /* Invoice Title Badge */
@@ -1254,9 +1255,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
     border-bottom: 2px solid #000;
     text-align: center;
   }
-  .company-ar  { color: #000 !important; font-size: 11px !important; }
-  .company-en  { color: #000 !important; font-size: 12px !important; font-weight: 900 !important; }
-  .company-meta{ color: #000 !important; font-size: 9px !important; margin-top: 2px !important; }
+  .company-brand { font-size: 14px !important; font-weight: 900 !important; color: #000 !important; letter-spacing: 3px !important; line-height: 1.3 !important; }
+  .company-ar    { font-size: 13px !important; font-weight: 700 !important; color: #000 !important; margin: 1px 0 2px !important; }
+  .company-meta  { font-size: 9px !important; color: #000 !important; margin-top: 1px !important; line-height: 1.5 !important; font-weight: 500 !important; }
 
   .invoice-title-bar {
     background: none !important;
@@ -1278,7 +1279,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   }
   .meta-row:not(.meta-row-top) .meta-field { flex: 1 1 auto !important; }
   .meta-field label {
-    font-size: 8px !important; color: #555 !important;
+    font-size: 9px !important; color: #000 !important;
+    font-weight: 600 !important;
     margin-bottom: 0 !important; white-space: nowrap !important; min-width: 0 !important;
   }
   .invoice-meta .print-text-replacement {
@@ -1317,10 +1319,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .items-table tbody td:nth-child(1) { grid-area: 1 / 1 / 2 / 2; font-size: 8px !important; color: #555 !important; font-weight: 700 !important; white-space: nowrap; }
   .items-table tbody td:nth-child(2) { grid-area: 1 / 2 / 2 / 4; font-size: 10px !important; font-weight: 700 !important; }
   /* Line 2: Qty  @ UnitPrice  ........  Amount */
-  .items-table tbody td:nth-child(3) { grid-area: 2 / 1 / 3 / 2; font-size: 8px !important; color: #444 !important; white-space: nowrap; }
-  .items-table tbody td:nth-child(3)::before { content: "Qty "; color: #888; }
-  .items-table tbody td:nth-child(4) { grid-area: 2 / 2 / 3 / 3; font-size: 8px !important; color: #444 !important; }
-  .items-table tbody td:nth-child(4)::before { content: "@ "; color: #888; }
+  .items-table tbody td:nth-child(3) { grid-area: 2 / 1 / 3 / 2; font-size: 8px !important; color: #222 !important; white-space: nowrap; font-weight: 700 !important; }
+  .items-table tbody td:nth-child(3)::before { content: "Qty "; color: #333; font-weight: 400; }
+  .items-table tbody td:nth-child(4) { grid-area: 2 / 2 / 3 / 3; font-size: 8px !important; color: #222 !important; font-weight: 700 !important; }
+  .items-table tbody td:nth-child(4)::before { content: "@ "; color: #333; font-weight: 400; }
   /* Amount: preparePrintLayout moves its value into a span that is a direct child of <tr> */
   .items-table tbody .amount-cell { display: none !important; }
   .items-table tbody tr > .print-text-replacement {
@@ -1339,7 +1341,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .totals-table .t-value { font-size: 10px !important; color: #000 !important; }
   .grand-row .t-label  { font-size: 12px !important; font-weight: 900 !important; color: #000 !important; }
   .grand-row .t-value  { font-size: 14px !important; font-weight: 900 !important; color: #000 !important; }
-  .vat-row .t-label, .vat-row .t-value { color: #333 !important; }
+  .vat-row .t-label, .vat-row .t-value { color: #000 !important; font-size: 10px !important; }
   .t-separator td { border-top: 1px dashed #000 !important; padding-top: 3px !important; }
 
   .print-only { display: block !important; }
@@ -1488,8 +1490,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 /* ----- Small phones ----- */
 @media screen and (max-width: 430px) {
   .brand-name { font-size: 14px; }
-  .company-en { font-size: 13px; }
-  .company-ar { font-size: 11px; }
+  .company-brand { font-size: 18px; }
+  .company-ar { font-size: 14px; }
   .invoice-title-bar span { letter-spacing: 1.5px; }
   .hdr-btn { padding: 8px; min-width: 36px; }
   .hdr-btn span.hdr-icon { font-size: 16px; }

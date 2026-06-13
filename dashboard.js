@@ -750,12 +750,12 @@ async function exportData(startDate, endDate, label) {
   try {
     showToast(`Exporting (${label})…`, 'info');
     const today = new Date();
-    const [invRaw, deposits, expenses] = await Promise.all([
+    const [invRaw, depRaw, expRaw] = await Promise.all([
       queryByDateRange('invoices', startDate, endDate),
       queryByDateRange('deposits', startDate, endDate),
       queryByDateRange('expenses', startDate, endDate)
     ]);
-    const invoices = invRaw.map(inv => ({
+    const invoices = invRaw.filter(inv => !inv.deleted).map(inv => ({
       invoiceNumber: inv.invoiceNumber,
       date:          inv.date,
       customer:      inv.customer?.name || 'Walk-in',
@@ -763,6 +763,8 @@ async function exportData(startDate, endDate, label) {
       payment:       inv.payment?.method || 'Cash',
       status:        inv.status || 'Paid'
     }));
+    const deposits = depRaw.filter(d => !d.deleted);
+    const expenses = expRaw.filter(e => !e.deleted);
 
     const cyan = '#0ea5e9', cyanDk = '#0369a1', white = '#ffffff',
           ltGray = '#f9fafb', border = '#e2e8f0', mid = '#374151';
