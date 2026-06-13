@@ -9,6 +9,7 @@ import {
   getDocs,
   addDoc,
   updateDoc,
+  writeBatch,
   query,
   where,
   orderBy,
@@ -636,5 +637,46 @@ export async function getRecentActivity(days = 90) {
       console.error('❌ getRecentActivity:', err);
     }
     return [];
+  }
+}
+
+// ─── DB Export/Import Helpers ─────────────────────────────────
+// Used by the dashboard DB-Export and DB-Import features.
+
+export async function getAllDocsForExport() {
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 5);
+  const [invSnap, depSnap, expSnap] = await Promise.all([
+    getDocs(query(collection(db, 'invoices'), where('dateObj', '>=', toTimestamp(cutoff)), orderBy('dateObj', 'asc'))),
+    getDocs(query(collection(db, 'deposits'), where('dateObj', '>=', toTimestamp(cutoff)), orderBy('dateObj', 'asc'))),
+    getDocs(query(collection(db, 'expenses'), where('dateObj', '>=', toTimestamp(cutoff)), orderBy('dateObj', 'asc'))),
+  ]);
+  return {
+    invoices: invSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+    deposits: depSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+    expenses: expSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+  };
+}
+
+export async function bulkDeleteCollection(collName) {
+  const snap = await getDocs(collection(db, collName));
+  if (snap.empty) return;
+  const CHUNK = 499;
+  for (let i = 0; i < snap.docs.length; i += CHUNK) {
+    const batch = writeBatch(db);
+    snap.docs.slice(i, i + CHUNK).forEach(d => batch.delete(d.ref));
+    await batch.commit();
+  }
+}
+
+export async function bulkSetDocs(collName, entries) {
+  if (!entries.length) return;
+  const CHUNK = 499;
+  for (let i = 0; i < entries.length; i += CHUNK) {
+    const batch = writeBatch(db);
+    entries.slice(i, i + CHUNK).forEach(({ id, data }) => {
+      batch.set(doc(db, collName, id), data);
+    });
+    await batch.commit();
   }
 }

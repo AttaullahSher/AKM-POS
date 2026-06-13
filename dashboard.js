@@ -12,8 +12,11 @@ import {
   formatTime,
   getAllTimeCashFlow,
   getRecentActivity,
+  getAllDocsForExport,
+  bulkDeleteCollection,
+  bulkSetDocs,
 } from './firestore-utils.js';
-import { collection, query, where, orderBy, getDocs, Timestamp } from './firebase-config.js';
+import { collection, query, where, orderBy, getDocs, Timestamp, serverTimestamp } from './firebase-config.js';
 import { APP_CONFIG, debugLog } from './config.js';
 import { showToast } from './utils.js';
 
@@ -181,17 +184,15 @@ function applyActivityFilters() {
 
 window.setTypeFilter = function(type) {
   activeTypeFilter = type;
-  document.querySelectorAll('[data-type-filter]').forEach(b =>
-    b.classList.toggle('active', b.dataset.typeFilter === type)
-  );
+  const sel = document.getElementById('typeFilter');
+  if (sel && sel.value !== type) sel.value = type;
   applyActivityFilters();
 };
 
 window.setDateFilter = function(date) {
   activeDateFilter = date;
-  document.querySelectorAll('[data-date-filter]').forEach(b =>
-    b.classList.toggle('active', b.dataset.dateFilter === date)
-  );
+  const sel = document.getElementById('periodFilter');
+  if (sel && sel.value !== date) sel.value = date;
   applyActivityFilters();
 };
 
@@ -831,6 +832,234 @@ async function exportData(startDate, endDate, label) {
     else showToast('Failed to export data', 'error');
   }
 }
+
+// ─── DB Export (SheetJS XLSX) ────────────────────────────────
+// Exports ALL data (5-year lookback) to a 3-sheet Excel file.
+// Use this to get a clean copy for bulk editing or duplicate cleanup.
+
+window.exportDatabase = async function() {
+  if (!requirePin('export full database')) return;
+  showToast('Fetching all records…', 'info');
+  try {
+    const { invoices, deposits, expenses } = await getAllDocsForExport();
+    const XLSX = window.XLSX;
+    if (!XLSX) { showToast('XLSX library not loaded — refresh and try again', 'error'); return; }
+
+    const wb = XLSX.utils.book_new();
+
+    // ── Invoices sheet ──
+    const invRows = [
+      ['DocID','Invoice #','Date','Time','Customer','Payment Method',
+       'Subtotal','VAT','Grand Total','Cash','Card','Tabby','Cheque','Status','Deleted'],
+      ...invoices.map(inv => [
+        inv.id,
+        inv.invoiceNumber || '',
+        inv.date || '',
+        (inv.time || '').slice(0, 5),
+        inv.customer?.name || 'Walk-in',
+        inv.payment?.method || 'Cash',
+        +(inv.payment?.subtotal  || 0).toFixed(2),
+        +(inv.payment?.vat       || 0).toFixed(2),
+        +(inv.payment?.grandTotal|| 0).toFixed(2),
+        +(inv.impacts?.cash   || 0).toFixed(2),
+        +(inv.impacts?.card   || 0).toFixed(2),
+        +(inv.impacts?.tabby  || 0).toFixed(2),
+        +(inv.impacts?.cheque || 0).toFixed(2),
+        inv.status || 'Paid',
+        inv.deleted ? 'YES' : '',
+      ]),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(invRows), 'Invoices');
+
+    // ── Deposits sheet ──
+    const depRows = [
+      ['DocID','Deposit ID','Date','Time','Depositor','Bank','Amount','Slip #','Deleted'],
+      ...deposits.map(dep => [
+        dep.id,
+        dep.depositId || '',
+        dep.date || '',
+        (dep.time || '').slice(0, 5),
+        dep.depositor || '',
+        dep.bank || '',
+        +(dep.amount || 0).toFixed(2),
+        dep.slipNumber || '',
+        dep.deleted ? 'YES' : '',
+      ]),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(depRows), 'Deposits');
+
+    // ── Expenses sheet ──
+    const expRows = [
+      ['DocID','Expense ID','Date','Time','Description','Amount','Receipt #','Deleted'],
+      ...expenses.map(exp => [
+        exp.id,
+        exp.expenseId || '',
+        exp.date || '',
+        (exp.time || '').slice(0, 5),
+        exp.description || '',
+        +(exp.amount || 0).toFixed(2),
+        exp.receiptNumber || '',
+        exp.deleted ? 'YES' : '',
+      ]),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(expRows), 'Expenses');
+
+    const today = new Date();
+    XLSX.writeFile(wb, `AKM_Database_${formatDate(today, 'YYYY-MM-DD_HH-mm')}.xlsx`);
+    showToast(`Exported: ${invoices.length} inv · ${deposits.length} dep · ${expenses.length} exp`, 'success');
+  } catch (err) {
+    console.error('❌ DB export error:', err);
+    showToast('Export failed — check console', 'error');
+  }
+};
+
+// ─── DB Import (SheetJS XLSX) ────────────────────────────────
+// PIN-protected. Reads the 3-sheet Excel produced by DB Export,
+// deletes all existing records, then writes back the rows that remain.
+// Use this after removing duplicate rows in Excel.
+
+window.importDatabase = function() {
+  document.getElementById('dbImportFile')?.click();
+};
+
+function _parseImportDate(dateStr, timeStr) {
+  if (!dateStr) return null;
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  const [h = 0, mi = 0, s = 0] = String(timeStr || '00:00').split(':').map(Number);
+  const dt = new Date(y, m - 1, d, h, mi, s);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+window.importFileSelected = async function(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  const XLSX = window.XLSX;
+  if (!XLSX) { showToast('XLSX library not loaded — refresh and try again', 'error'); return; }
+
+  if (!requirePin('import and REPLACE the database')) return;
+
+  let wb;
+  try {
+    const data = await file.arrayBuffer();
+    wb = XLSX.read(data, { type: 'array' });
+  } catch (err) {
+    showToast('Cannot read file — must be a valid .xlsx exported from DB Export', 'error');
+    return;
+  }
+
+  const parseSheet = name => XLSX.utils.sheet_to_json(wb.Sheets[name] || {});
+  const invoiceRows = parseSheet('Invoices');
+  const depositRows = parseSheet('Deposits');
+  const expenseRows = parseSheet('Expenses');
+
+  if (!invoiceRows.length && !depositRows.length && !expenseRows.length) {
+    showToast('File appears empty or sheets not found (need: Invoices, Deposits, Expenses)', 'error');
+    return;
+  }
+
+  if (!confirm(
+    `⚠️ REPLACE ENTIRE DATABASE?\n\n` +
+    `This will permanently DELETE all current records and replace with:\n` +
+    `  • ${invoiceRows.length} invoices\n` +
+    `  • ${depositRows.length} deposits\n` +
+    `  • ${expenseRows.length} expenses\n\n` +
+    `This CANNOT be undone. Proceed?`
+  )) return;
+
+  showToast('Importing — please wait…', 'info');
+  try {
+    // Map each row to a { id, data } entry for bulkSetDocs
+    const invEntries = invoiceRows
+      .filter(r => r['DocID'])
+      .map(r => {
+        const dt = _parseImportDate(r['Date'], r['Time']);
+        return {
+          id: String(r['DocID']),
+          data: {
+            invoiceNumber: String(r['Invoice #'] || ''),
+            date:          String(r['Date'] || ''),
+            time:          String(r['Time'] || '00:00'),
+            dateObj:       dt ? Timestamp.fromDate(dt) : serverTimestamp(),
+            customer:      { name: String(r['Customer'] || 'Walk-in') },
+            payment: {
+              method:     String(r['Payment Method'] || 'Cash'),
+              subtotal:   +Number(r['Subtotal'] || 0).toFixed(2),
+              vat:        +Number(r['VAT'] || 0).toFixed(2),
+              grandTotal: +Number(r['Grand Total'] || 0).toFixed(2),
+            },
+            impacts: {
+              cash:   +Number(r['Cash']   || 0).toFixed(2),
+              card:   +Number(r['Card']   || 0).toFixed(2),
+              tabby:  +Number(r['Tabby']  || 0).toFixed(2),
+              cheque: +Number(r['Cheque'] || 0).toFixed(2),
+            },
+            status:  String(r['Status'] || 'Paid'),
+            deleted: r['Deleted'] === 'YES',
+          },
+        };
+      });
+
+    const depEntries = depositRows
+      .filter(r => r['DocID'])
+      .map(r => {
+        const dt = _parseImportDate(r['Date'], r['Time']);
+        return {
+          id: String(r['DocID']),
+          data: {
+            depositId:   String(r['Deposit ID'] || ''),
+            date:        String(r['Date'] || ''),
+            time:        String(r['Time'] || '00:00'),
+            dateObj:     dt ? Timestamp.fromDate(dt) : serverTimestamp(),
+            depositor:   String(r['Depositor'] || ''),
+            bank:        String(r['Bank'] || ''),
+            amount:      +Number(r['Amount'] || 0).toFixed(2),
+            slipNumber:  String(r['Slip #'] || ''),
+            deleted:     r['Deleted'] === 'YES',
+          },
+        };
+      });
+
+    const expEntries = expenseRows
+      .filter(r => r['DocID'])
+      .map(r => {
+        const dt = _parseImportDate(r['Date'], r['Time']);
+        return {
+          id: String(r['DocID']),
+          data: {
+            expenseId:     String(r['Expense ID'] || ''),
+            date:          String(r['Date'] || ''),
+            time:          String(r['Time'] || '00:00'),
+            dateObj:       dt ? Timestamp.fromDate(dt) : serverTimestamp(),
+            description:   String(r['Description'] || ''),
+            amount:        +Number(r['Amount'] || 0).toFixed(2),
+            receiptNumber: String(r['Receipt #'] || ''),
+            deleted:       r['Deleted'] === 'YES',
+          },
+        };
+      });
+
+    // Delete all then write back
+    await Promise.all([
+      bulkDeleteCollection('invoices'),
+      bulkDeleteCollection('deposits'),
+      bulkDeleteCollection('expenses'),
+    ]);
+    await Promise.all([
+      bulkSetDocs('invoices', invEntries),
+      bulkSetDocs('deposits', depEntries),
+      bulkSetDocs('expenses', expEntries),
+    ]);
+
+    invalidateCashFlowCache();
+    await Promise.all([loadDashboardStats(), loadActivityFeed()]);
+    showToast(`Imported: ${invEntries.length} inv · ${depEntries.length} dep · ${expEntries.length} exp`, 'success');
+  } catch (err) {
+    console.error('❌ DB import error:', err);
+    showToast('Import failed — database may be in a partial state. Re-import or restore from backup.', 'error');
+  }
+};
 
 window.createBackup = async function() {
   if (!requirePin('create a backup')) return;

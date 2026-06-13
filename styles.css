@@ -899,6 +899,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   color: var(--sky-700);
   box-shadow: var(--shadow-sm);
 }
+.dash-action-danger { border-color: var(--rose-300); color: var(--rose-600); }
+.dash-action-danger:hover { background: var(--rose-50); border-color: var(--rose-400); color: var(--rose-700); }
 .dash-right { display: flex; align-items: center; gap: 10px; }
 .btn-back-pos {
   display: flex; align-items: center; gap: 6px;
@@ -1538,16 +1540,16 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .activity-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 20px;
-  padding: 10px 0 14px;
+  justify-content: center;
+  gap: 10px 24px;
+  padding: 12px 0 16px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
 }
 .filter-group {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 8px;
 }
 .filter-label {
   font-size: 11px;
@@ -1555,7 +1557,27 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   text-transform: uppercase;
   letter-spacing: .5px;
   color: var(--text-secondary);
-  margin-right: 2px;
+  white-space: nowrap;
+}
+.filter-select {
+  padding: 6px 28px 6px 10px;
+  border: 1.5px solid var(--slate-200);
+  border-radius: var(--radius);
+  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 8px center;
+  appearance: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--slate-700);
+  font-family: 'Montserrat', sans-serif;
+  cursor: pointer;
+  transition: all var(--t);
+  min-width: 120px;
+}
+.filter-select:hover,
+.filter-select:focus {
+  border-color: var(--sky-400);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(14,165,233,.12);
 }
 
 /* ── Type Badges ───────────────────────────────────────────── */

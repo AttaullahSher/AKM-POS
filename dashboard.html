@@ -53,7 +53,14 @@
         <button class="dash-action-btn" onclick="createBackup()" title="Create Backup">
           🗄️ Backup
         </button>
+        <button class="dash-action-btn" onclick="exportDatabase()" title="Export full database to Excel">
+          📤 DB Export
+        </button>
+        <button class="dash-action-btn dash-action-danger" onclick="importDatabase()" title="Import database from Excel (replaces all data — PIN required)">
+          📥 DB Import
+        </button>
       </div>
+      <input type="file" id="dbImportFile" accept=".xlsx,.xls" style="display:none" onchange="importFileSelected(this)">
 
       <div class="dash-right">
         <div id="offlineIndicator" class="offline-indicator" style="display:none;">
@@ -142,21 +149,25 @@
           <h2 class="section-title">Transaction Activity</h2>
         </div>
 
-        <!-- Filter rows -->
+        <!-- Filter row — dropdowns -->
         <div class="activity-filters">
           <div class="filter-group">
-            <span class="filter-label">Type</span>
-            <button class="btn-filter active" data-type-filter="all"     onclick="setTypeFilter('all')">All</button>
-            <button class="btn-filter"        data-type-filter="invoice" onclick="setTypeFilter('invoice')">Invoices</button>
-            <button class="btn-filter"        data-type-filter="deposit" onclick="setTypeFilter('deposit')">Deposits</button>
-            <button class="btn-filter"        data-type-filter="expense" onclick="setTypeFilter('expense')">Expenses</button>
+            <label class="filter-label" for="typeFilter">Type</label>
+            <select id="typeFilter" class="filter-select" onchange="setTypeFilter(this.value)">
+              <option value="all">All</option>
+              <option value="invoice">Invoices</option>
+              <option value="deposit">Deposits</option>
+              <option value="expense">Expenses</option>
+            </select>
           </div>
           <div class="filter-group">
-            <span class="filter-label">Period</span>
-            <button class="btn-filter active" data-date-filter="all"   onclick="setDateFilter('all')">All</button>
-            <button class="btn-filter"        data-date-filter="today" onclick="setDateFilter('today')">Today</button>
-            <button class="btn-filter"        data-date-filter="week"  onclick="setDateFilter('week')">Week</button>
-            <button class="btn-filter"        data-date-filter="month" onclick="setDateFilter('month')">Month</button>
+            <label class="filter-label" for="periodFilter">Period</label>
+            <select id="periodFilter" class="filter-select" onchange="setDateFilter(this.value)">
+              <option value="all">All</option>
+              <option value="today">Today</option>
+              <option value="week">Week</option>
+              <option value="month">Month</option>
+            </select>
           </div>
         </div>
 
@@ -277,6 +288,9 @@
   <!-- Toast -->
   <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
 
+
+  <!-- SheetJS — Excel export/import (loaded before modules so XLSX is on window) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <!-- Scripts -->
   <script type="module" src="config.js"></script>
