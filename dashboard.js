@@ -7,6 +7,7 @@ import {
   db,
   getTodayInvoices,
   markInvoiceAsRefunded,
+  softDeleteDocument,
   formatDate,
   formatTime,
   getAllTimeCashFlow,
@@ -114,7 +115,7 @@ async function loadDashboardStats() {
     let cash = 0, card = 0, tabby = 0, cheque = 0;
 
     invoices.forEach(inv => {
-      if (inv.status === 'Paid') {
+      if (inv.status === 'Paid' && !inv.deleted) {
         totalSales += inv.payment?.grandTotal || 0;
         totalVAT   += inv.payment?.vat        || 0;
         cash       += inv.impacts?.cash       || 0;
@@ -238,7 +239,11 @@ function displayActivity(items) {
 
   tbody.innerHTML = items.map(item => {
     const isRefunded = item.type === 'invoice' && item.status === 'Refunded';
-    const rowClass   = isRefunded ? 'row-refunded' : `row-type-${item.type}`;
+    const isDeleted  = item.deleted === true;
+
+    let rowClass = `row-type-${item.type}`;
+    if (isDeleted)  rowClass = 'row-deleted';
+    else if (isRefunded) rowClass += ' row-refunded';
 
     // Type badge
     const typeLabel = item.type === 'invoice' ? 'Invoice'
@@ -250,10 +255,10 @@ function displayActivity(items) {
     const dateCell = `${fmtDateStr(item.date)}<br><span class="time-badge">${fmtTimeStr(item.time)}</span>`;
 
     // Amount — invoices are income (+), deposits/expenses are outflows (−)
-    const isOut      = item.type !== 'invoice' || isRefunded;
-    const amtClass   = isOut ? 'amount-out' : 'amount-in';
-    const amtSign    = isOut ? '−' : '+';
-    const amtCell    = `<span class="${amtClass}">${amtSign} AED ${item.amount.toFixed(2)}</span>`;
+    const isOut    = item.type !== 'invoice' || isRefunded || isDeleted;
+    const amtClass = isOut ? 'amount-out' : 'amount-in';
+    const amtSign  = isOut ? '−' : '+';
+    const amtCell  = `<span class="${amtClass}">${amtSign} AED ${item.amount.toFixed(2)}</span>`;
 
     // Info cell — payment method / bank / receipt
     let info = '';
@@ -265,9 +270,11 @@ function displayActivity(items) {
       info = `<span class="info-badge">Rcpt: ${esc(item.receipt)}</span>`;
     }
 
-    // Status badge
+    // Status badge — deleted overrides everything
     let statusBadge;
-    if (item.type === 'invoice') {
+    if (isDeleted) {
+      statusBadge = `<span class="status-badge deleted">Deleted</span>`;
+    } else if (item.type === 'invoice') {
       statusBadge = `<span class="status-badge ${item.status.toLowerCase()}">${item.status}</span>`;
     } else if (item.type === 'deposit') {
       statusBadge = `<span class="status-badge deposited">Deposited</span>`;
@@ -275,15 +282,18 @@ function displayActivity(items) {
       statusBadge = `<span class="status-badge expensed">Expense</span>`;
     }
 
-    // Actions — only invoices have view/refund
+    // Actions — deleted rows have no actions; live rows always get Delete button
     let actions = '';
-    if (item.type === 'invoice') {
-      actions += `<button onclick="reprintInvoice('${item.id}')" class="btn-table-action btn-view">View</button>`;
-      if (!isRefunded) {
-        actions += `<button onclick="refundInvoice('${item.id}','${esc(item.refId)}')" class="btn-table-action btn-refund">Refund</button>`;
-      } else {
-        actions += '<span class="refunded-label">Refunded</span>';
+    if (!isDeleted) {
+      if (item.type === 'invoice') {
+        actions += `<button onclick="reprintInvoice('${item.id}')" class="btn-table-action btn-view">View</button>`;
+        if (!isRefunded) {
+          actions += `<button onclick="refundInvoice('${item.id}','${esc(item.refId)}')" class="btn-table-action btn-refund">Refund</button>`;
+        } else {
+          actions += '<span class="refunded-label">Refunded</span>';
+        }
       }
+      actions += `<button onclick="deleteActivity('${item.type}','${item.id}','${esc(item.refId)}')" class="btn-table-action btn-delete" title="Delete (PIN required)">🗑️</button>`;
     }
 
     return `<tr class="${rowClass}">
@@ -314,6 +324,31 @@ window.refundInvoice = async function(id, num) {
   } catch (err) {
     console.error('❌ Refund error:', err);
     showToast('Failed to refund invoice', 'error');
+  }
+};
+
+// ─── Delete (PIN-protected soft delete) ──────────────────────────
+// The record is kept for audit; the ID/number is never reused.
+// Deleted items show in the feed with strikethrough but are excluded
+// from all financial totals (cash in hand, sales, VAT, etc.).
+
+const COLLECTION_MAP = { invoice: 'invoices', deposit: 'deposits', expense: 'expenses' };
+
+window.deleteActivity = async function(type, id, refId) {
+  const pin = window.prompt(`🔒 PIN required to delete ${type} ${refId}:`);
+  if (pin === null) return;
+  if (pin.trim() !== '2532') { showToast('Incorrect PIN', 'error'); return; }
+
+  if (!confirm(`Delete ${type} "${refId}"?\n\nIt will be marked Deleted and removed from all totals. The ID is kept for audit and will never be reused.`)) return;
+
+  try {
+    await softDeleteDocument(COLLECTION_MAP[type], id);
+    showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} ${refId} deleted`, 'success');
+    invalidateCashFlowCache();
+    await Promise.all([loadDashboardStats(), loadActivityFeed()]);
+  } catch (err) {
+    console.error('❌ Delete error:', err);
+    showToast('Failed to delete — try again', 'error');
   }
 };
 

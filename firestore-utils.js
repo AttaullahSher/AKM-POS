@@ -479,9 +479,22 @@ export const updateRepairJobStatus = updateRepairStatus;
 export const getRecentDeposits     = loadRecentDeposits;
 export const getRecentExpenses     = loadRecentExpenses;
 
+// ─── Soft Delete ────────────────────────────────────────────
+// Marks a document as deleted without removing it. The ID / number is
+// preserved forever for audit trail and is NEVER reused by counters.
+export async function softDeleteDocument(collectionName, docId) {
+  const docRef = doc(db, collectionName, docId);
+  await updateDoc(docRef, {
+    deleted:   true,
+    deletedAt: serverTimestamp(),
+  });
+  debugLog('🗑️ Soft deleted:', collectionName, docId);
+}
+
 // ─── All-Time Cash Flow (5-year lookback) ───────────────────
 // Returns { totalCash, totalDeposits, totalExpenses, cashInHand }
 // Used for the running "Cash in Hand" stat that carries forward across days.
+// Deleted documents are excluded from all totals.
 export async function getAllTimeCashFlow() {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 1825); // 5 years
@@ -507,12 +520,16 @@ export async function getAllTimeCashFlow() {
     let totalCash = 0;
     invSnap.forEach(d => {
       const data = d.data();
-      if (data.status === 'Paid') totalCash += data.impacts?.cash || 0;
+      if (data.status === 'Paid' && !data.deleted) totalCash += data.impacts?.cash || 0;
     });
     let totalDeposits = 0;
-    depSnap.forEach(d => { totalDeposits += d.data().amount || 0; });
+    depSnap.forEach(d => {
+      if (!d.data().deleted) totalDeposits += d.data().amount || 0;
+    });
     let totalExpenses = 0;
-    expSnap.forEach(d => { totalExpenses += d.data().amount || 0; });
+    expSnap.forEach(d => {
+      if (!d.data().deleted) totalExpenses += d.data().amount || 0;
+    });
 
     return {
       totalCash,
@@ -567,6 +584,7 @@ export async function getRecentActivity(days = 90) {
         amount:      data.payment?.grandTotal || 0,
         status:      data.status  || 'Paid',
         payment:     data.payment?.method || 'Cash',
+        deleted:     data.deleted || false,
       });
     });
 
@@ -584,6 +602,7 @@ export async function getRecentActivity(days = 90) {
         status:      'Deposited',
         payment:     data.bank      || '',
         slip:        data.slipNumber || '',
+        deleted:     data.deleted || false,
       });
     });
 
@@ -599,6 +618,7 @@ export async function getRecentActivity(days = 90) {
         amount:      data.amount     || 0,
         status:      'Expense',
         receipt:     data.receiptNumber || '',
+        deleted:     data.deleted || false,
       });
     });
 

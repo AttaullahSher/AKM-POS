@@ -1617,6 +1617,42 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .row-type-deposit td { background: #f0fdf4 !important; }
 .row-type-expense td { background: #fff1f2 !important; }
 
+/* ── Deleted rows ──────────────────────────────────────────── */
+.row-deleted td {
+  background: #f8f8f8 !important;
+  opacity: 0.55;
+  text-decoration: line-through;
+  color: var(--slate-400);
+}
+.row-deleted .status-badge.deleted {
+  text-decoration: none; /* badge text stays readable */
+}
+
+/* ── Delete button ─────────────────────────────────────────── */
+.btn-delete {
+  background: transparent;
+  border: 1.5px solid var(--rose-300);
+  color: var(--rose-500);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--t);
+  line-height: 1;
+}
+.btn-delete:hover {
+  background: var(--rose-500);
+  border-color: var(--rose-500);
+  color: white;
+}
+
+/* ── Deleted status badge ──────────────────────────────────── */
+.status-badge.deleted {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
 @media screen and (max-width: 768px) {
   .activity-filters { gap: 8px 12px; }
   .activity-table th:nth-child(4),
