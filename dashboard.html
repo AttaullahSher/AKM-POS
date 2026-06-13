@@ -56,6 +56,9 @@
       </div>
 
       <div class="dash-right">
+        <div id="offlineIndicator" class="offline-indicator" style="display:none;">
+          ⚡ Offline — data served from cache
+        </div>
         <button onclick="window.location.href='index.html'" class="btn-back-pos">
           ← Back to POS
         </button>
@@ -80,7 +83,7 @@
           <div class="stat-content">
             <div class="stat-label">Cash in Hand</div>
             <div class="stat-value" id="cashInHand">0.00</div>
-            <div class="stat-meta">After deposits &amp; expenses</div>
+            <div class="stat-meta">Running total — carries forward</div>
           </div>
         </div>
 
@@ -133,39 +136,51 @@
         </div>
       </div>
 
-      <!-- Recent Invoices -->
+      <!-- Transaction Activity Feed -->
       <div class="section-card">
         <div class="section-header">
-          <h2 class="section-title">Invoices</h2>
-          <div class="section-actions">
-            <button class="btn-filter active" data-filter="all"   onclick="filterInvoices('all')">All</button>
-            <button class="btn-filter"        data-filter="today" onclick="filterInvoices('today')">Today</button>
-            <button class="btn-filter"        data-filter="week"  onclick="filterInvoices('week')">This Week</button>
-            <button class="btn-filter"        data-filter="month" onclick="filterInvoices('month')">This Month</button>
+          <h2 class="section-title">Transaction Activity</h2>
+        </div>
+
+        <!-- Filter rows -->
+        <div class="activity-filters">
+          <div class="filter-group">
+            <span class="filter-label">Type</span>
+            <button class="btn-filter active" data-type-filter="all"     onclick="setTypeFilter('all')">All</button>
+            <button class="btn-filter"        data-type-filter="invoice" onclick="setTypeFilter('invoice')">Invoices</button>
+            <button class="btn-filter"        data-type-filter="deposit" onclick="setTypeFilter('deposit')">Deposits</button>
+            <button class="btn-filter"        data-type-filter="expense" onclick="setTypeFilter('expense')">Expenses</button>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Period</span>
+            <button class="btn-filter active" data-date-filter="all"   onclick="setDateFilter('all')">All</button>
+            <button class="btn-filter"        data-date-filter="today" onclick="setDateFilter('today')">Today</button>
+            <button class="btn-filter"        data-date-filter="week"  onclick="setDateFilter('week')">Week</button>
+            <button class="btn-filter"        data-date-filter="month" onclick="setDateFilter('month')">Month</button>
           </div>
         </div>
 
         <div class="table-container">
-          <table class="data-table">
+          <table class="data-table activity-table">
             <thead>
               <tr>
-                <th>Invoice #</th>
-                <th>Date</th>
-                <th>Customer</th>
-                <th>Total (AED)</th>
-                <th>Payment</th>
-                <th>Status</th>
+                <th>Type</th>
+                <th>ID / Ref</th>
+                <th>Date &amp; Time</th>
+                <th>Description</th>
+                <th>Amount (AED)</th>
+                <th>Info &amp; Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
-            <tbody id="invoicesTableBody">
-              <tr><td colspan="7" class="table-loading">Loading invoices…</td></tr>
+            <tbody id="activityTableBody">
+              <tr><td colspan="7" class="table-loading">Loading activity…</td></tr>
             </tbody>
           </table>
         </div>
 
         <div class="pagination">
-          <button class="btn-pagination" onclick="loadMoreInvoices()">Load More Invoices</button>
+          <button class="btn-pagination" onclick="loadMoreActivity()">Load 6 Months</button>
         </div>
       </div>
 

@@ -46,6 +46,7 @@ export function formatDate(date, format = 'YYYY-MM-DD') {
     case 'DD MMM YYYY':      return `${day} ${mon3} ${year}`;
     case 'DD-MMM-YYYY':      return `${day}-${mon3}-${year}`;
     case 'DD MMM YYYY HH:mm:ss': return `${day} ${mon3} ${year} ${hours}:${minutes}:${seconds}`;
+    case 'YYYY-MM-DD_HH-mm':   return `${year}-${month}-${day}_${hours}-${minutes}`;
     default:                 return d.toISOString();
   }
 }
@@ -477,3 +478,143 @@ export const markInvoiceAsRefunded = refundInvoice;
 export const updateRepairJobStatus = updateRepairStatus;
 export const getRecentDeposits     = loadRecentDeposits;
 export const getRecentExpenses     = loadRecentExpenses;
+
+// ─── All-Time Cash Flow (5-year lookback) ───────────────────
+// Returns { totalCash, totalDeposits, totalExpenses, cashInHand }
+// Used for the running "Cash in Hand" stat that carries forward across days.
+export async function getAllTimeCashFlow() {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 1825); // 5 years
+  try {
+    const [invSnap, depSnap, expSnap] = await Promise.all([
+      getDocs(query(
+        collection(db, 'invoices'),
+        where('dateObj', '>=', toTimestamp(cutoff)),
+        orderBy('dateObj', 'desc')
+      )),
+      getDocs(query(
+        collection(db, 'deposits'),
+        where('dateObj', '>=', toTimestamp(cutoff)),
+        orderBy('dateObj', 'desc')
+      )),
+      getDocs(query(
+        collection(db, 'expenses'),
+        where('dateObj', '>=', toTimestamp(cutoff)),
+        orderBy('dateObj', 'desc')
+      )),
+    ]);
+
+    let totalCash = 0;
+    invSnap.forEach(d => {
+      const data = d.data();
+      if (data.status === 'Paid') totalCash += data.impacts?.cash || 0;
+    });
+    let totalDeposits = 0;
+    depSnap.forEach(d => { totalDeposits += d.data().amount || 0; });
+    let totalExpenses = 0;
+    expSnap.forEach(d => { totalExpenses += d.data().amount || 0; });
+
+    return {
+      totalCash,
+      totalDeposits,
+      totalExpenses,
+      cashInHand: totalCash - totalDeposits - totalExpenses,
+    };
+  } catch (err) {
+    console.error('❌ getAllTimeCashFlow:', err);
+    return null;
+  }
+}
+
+// ─── Unified Activity Feed ───────────────────────────────────
+// Returns invoices + deposits + expenses merged and sorted by date/time desc.
+export async function getRecentActivity(days = 90) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  try {
+    const [invSnap, depSnap, expSnap] = await Promise.all([
+      getDocs(query(
+        collection(db, 'invoices'),
+        where('dateObj', '>=', toTimestamp(cutoff)),
+        orderBy('dateObj', 'desc'),
+        limit(300)
+      )),
+      getDocs(query(
+        collection(db, 'deposits'),
+        where('dateObj', '>=', toTimestamp(cutoff)),
+        orderBy('dateObj', 'desc'),
+        limit(300)
+      )),
+      getDocs(query(
+        collection(db, 'expenses'),
+        where('dateObj', '>=', toTimestamp(cutoff)),
+        orderBy('dateObj', 'desc'),
+        limit(300)
+      )),
+    ]);
+
+    const items = [];
+
+    invSnap.forEach(d => {
+      const data = d.data();
+      items.push({
+        id:          d.id,
+        type:        'invoice',
+        refId:       data.invoiceNumber || '',
+        date:        data.date          || '',
+        time:        data.time          || '00:00:00',
+        description: data.customer?.name || 'Walk-in',
+        amount:      data.payment?.grandTotal || 0,
+        status:      data.status  || 'Paid',
+        payment:     data.payment?.method || 'Cash',
+      });
+    });
+
+    depSnap.forEach(d => {
+      const data = d.data();
+      const slip = data.slipNumber ? ` · Slip: ${data.slipNumber}` : '';
+      items.push({
+        id:          d.id,
+        type:        'deposit',
+        refId:       data.depositId || '',
+        date:        data.date      || '',
+        time:        data.time      || '00:00:00',
+        description: `${data.depositor || ''}${data.bank ? ` → ${data.bank}` : ''}${slip}`,
+        amount:      data.amount    || 0,
+        status:      'Deposited',
+        payment:     data.bank      || '',
+        slip:        data.slipNumber || '',
+      });
+    });
+
+    expSnap.forEach(d => {
+      const data = d.data();
+      items.push({
+        id:          d.id,
+        type:        'expense',
+        refId:       data.expenseId  || '',
+        date:        data.date       || '',
+        time:        data.time       || '00:00:00',
+        description: data.description || '',
+        amount:      data.amount     || 0,
+        status:      'Expense',
+        receipt:     data.receiptNumber || '',
+      });
+    });
+
+    // Sort by date desc, then time desc — safe string comparison for YYYY-MM-DD / HH:mm:ss
+    items.sort((a, b) => {
+      const dc = b.date.localeCompare(a.date);
+      return dc !== 0 ? dc : b.time.localeCompare(a.time);
+    });
+
+    return items;
+  } catch (err) {
+    if (err.code === 'failed-precondition') {
+      console.warn('⏳ Index building for activity feed…');
+    } else {
+      console.error('❌ getRecentActivity:', err);
+    }
+    return [];
+  }
+}
