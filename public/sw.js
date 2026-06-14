@@ -3,8 +3,12 @@
    Bump CACHE_VERSION on every deploy to invalidate old caches.
    ============================================================ */
 
-const CACHE_VERSION = 'akm-pos-v5.2.0';
+const CACHE_VERSION = 'akm-pos-v5.2.1';
 const CACHE_NAME    = `${CACHE_VERSION}-static`;
+
+// Silently swallow non-fatal cache storage errors (quota exceeded, opaque
+// responses, network errors mid-read). These never affect app correctness.
+const safePut = (cache, req, res) => cache.put(req, res).catch(() => {});
 
 // Core app shell — precached on install so the app launches offline.
 // Vite hashes the CSS/JS bundles, so those are NOT listed here; they are cached
@@ -87,7 +91,7 @@ self.addEventListener('fetch', (event) => {
       fetch(req)
         .then((res) => {
           const copy = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(req, copy));
+          caches.open(CACHE_NAME).then((c) => safePut(c, req, copy));
           return res;
         })
         .catch(() => caches.match(req).then((r) => r || caches.match('/index.html')))
@@ -102,7 +106,7 @@ self.addEventListener('fetch', (event) => {
         .then((res) => {
           if (res && res.status === 200) {
             const copy = res.clone();
-            caches.open(CACHE_NAME).then((c) => c.put(req, copy));
+            caches.open(CACHE_NAME).then((c) => safePut(c, req, copy));
           }
           return res;
         })

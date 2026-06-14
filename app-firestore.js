@@ -170,73 +170,105 @@ window.printDailyReport = async function() {
     const cashInHand    = cash - totalDeposits - totalExpenses;
 
     const money = (n) => 'AED ' + (Number(n) || 0).toFixed(2);
-    const pw = window.open('', '_blank', 'width=420,height=720');
+    const pw = window.open('', '_blank', 'width=400,height=720');
     pw.document.write(`<!DOCTYPE html><html><head>
       <meta charset="UTF-8">
       <title>Daily Report — ${formatDate(today,'DD MMM YYYY')}</title>
       <style>
-        @page { size: 80mm auto; margin: 3mm 4mm; }
+        /* Let the browser use whatever paper the user picks; keep our own margins */
+        @page { size: auto; margin: 10mm 12mm; }
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'Montserrat',Arial,sans-serif; color:#000; background:#fff;
-               width:72mm; margin:0 auto; padding:6px 0; font-size:10px; line-height:1.45; }
-        .head { text-align:center; border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:6px; }
-        .head h1 { font-size:15px; font-weight:900; letter-spacing:1px; }
-        .head .sub { font-size:10px; font-weight:700; }
-        .head .date { font-size:10px; }
-        .sec { margin-bottom:8px; }
-        .sec-t { font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.5px;
-                 border-bottom:1px dashed #000; padding-bottom:2px; margin-bottom:4px; }
-        .row { display:flex; justify-content:space-between; gap:8px; padding:1px 0; }
-        .row b { font-weight:800; }
-        .row.total { border-top:1px solid #000; margin-top:3px; padding-top:3px;
-                     font-weight:900; font-size:11px; }
-        .li { padding:3px 0; border-bottom:1px dotted #999; }
-        .li-top { display:flex; justify-content:space-between; gap:6px; font-weight:700; }
-        .li-sub { font-size:9px; color:#333; }
-        .foot { text-align:center; border-top:1px dashed #000; margin-top:8px; padding-top:5px; font-size:9px; }
-        .no-print { text-align:center; margin-top:14px; }
-        .no-print button { padding:8px 14px; border:none; border-radius:6px; font-size:12px;
-                font-weight:700; cursor:pointer; font-family:inherit; }
-        @media print { .no-print { display:none; } body { width:auto; padding:0; } }
+        body {
+          font-family:'Montserrat',Arial,sans-serif;
+          color:#000; background:#fff;
+          width:130mm;        /* fixed narrow column — never overridden on print */
+          max-width:100%;
+          margin:0 auto;
+          padding:6px 0;
+          font-size:9px;
+          line-height:1.5;
+        }
+        .head { text-align:center; border-bottom:2px solid #000; padding-bottom:5px; margin-bottom:5px; }
+        .head h1  { font-size:14px; font-weight:900; letter-spacing:1px; }
+        .head .sub{ font-size:9px; font-weight:700; }
+        .head .dt { font-size:9px; }
+        .sec { margin-bottom:7px; }
+        .sec-t {
+          font-size:8.5px; font-weight:900; text-transform:uppercase; letter-spacing:.5px;
+          border-bottom:1px dashed #000; padding-bottom:2px; margin-bottom:3px;
+        }
+        /* KEY FIX: value is right-aligned and never wraps */
+        .row {
+          display:flex; justify-content:space-between;
+          align-items:baseline; gap:4px; padding:1px 0;
+        }
+        .row .lbl { flex:1; }
+        .row .val { white-space:nowrap; flex-shrink:0; font-weight:700; }
+        .row.total {
+          border-top:1px solid #000; margin-top:3px; padding-top:3px;
+          font-weight:900; font-size:10px;
+        }
+        .li { padding:3px 0; border-bottom:1px dotted #bbb; }
+        .li-top { display:flex; justify-content:space-between; gap:4px; font-weight:700; }
+        .li-top .val { white-space:nowrap; flex-shrink:0; }
+        .li-sub { font-size:8px; color:#444; margin-top:1px; }
+        .foot {
+          text-align:center; border-top:1px dashed #000;
+          margin-top:8px; padding-top:5px; font-size:8px;
+        }
+        .no-print { text-align:center; margin-top:16px; }
+        .no-print button {
+          padding:8px 16px; border:none; border-radius:6px;
+          font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;
+        }
+        @media print { .no-print { display:none; } }
       </style>
     </head><body>
       <div class="head">
         <h1>AKM MUSIC</h1>
         <div class="sub">Daily Report</div>
-        <div class="date">${formatDate(today,'DD MMM YYYY')}</div>
+        <div class="dt">${formatDate(today,'DD MMM YYYY')}</div>
       </div>
 
       <div class="sec">
         <div class="sec-t">Sales Summary</div>
-        <div class="row"><span>Total Sales (incl VAT)</span><b>${money(totalSales)}</b></div>
-        <div class="row"><span>VAT (5%)</span><span>${money(totalVAT)}</span></div>
-        <div class="row"><span>Net Sales (excl VAT)</span><span>${money(totalSales-totalVAT)}</span></div>
-        <div class="row"><span>Paid Invoices</span><b>${paidInvoices}</b></div>
+        <div class="row"><span class="lbl">Total Sales (incl VAT)</span><span class="val">${money(totalSales)}</span></div>
+        <div class="row"><span class="lbl">VAT (5%)</span><span class="val">${money(totalVAT)}</span></div>
+        <div class="row"><span class="lbl">Net Sales (excl VAT)</span><span class="val">${money(totalSales-totalVAT)}</span></div>
+        <div class="row"><span class="lbl">Paid Invoices</span><span class="val">${paidInvoices}</span></div>
       </div>
 
       <div class="sec">
         <div class="sec-t">Payment Breakdown</div>
-        <div class="row"><span>Cash</span><span>${money(cash)}</span></div>
-        <div class="row"><span>Card</span><span>${money(card)}</span></div>
-        <div class="row"><span>Tabby</span><span>${money(tabby)}</span></div>
-        <div class="row"><span>Cheque</span><span>${money(cheque)}</span></div>
+        <div class="row"><span class="lbl">Cash</span><span class="val">${money(cash)}</span></div>
+        <div class="row"><span class="lbl">Card</span><span class="val">${money(card)}</span></div>
+        <div class="row"><span class="lbl">Tabby</span><span class="val">${money(tabby)}</span></div>
+        <div class="row"><span class="lbl">Cheque</span><span class="val">${money(cheque)}</span></div>
       </div>
 
       <div class="sec">
         <div class="sec-t">Cash Flow</div>
-        <div class="row"><span>Cash Sales</span><span>${money(cash)}</span></div>
-        <div class="row"><span>− Bank Deposits</span><span>${money(totalDeposits)}</span></div>
-        <div class="row"><span>− Expenses</span><span>${money(totalExpenses)}</span></div>
-        <div class="row total"><span>Cash in Hand</span><span>${money(cashInHand)}</span></div>
+        <div class="row"><span class="lbl">Cash Sales</span><span class="val">${money(cash)}</span></div>
+        <div class="row"><span class="lbl">− Bank Deposits</span><span class="val">${money(totalDeposits)}</span></div>
+        <div class="row"><span class="lbl">− Expenses</span><span class="val">${money(totalExpenses)}</span></div>
+        <div class="row total"><span class="lbl">Cash in Hand</span><span class="val">${money(cashInHand)}</span></div>
       </div>
 
       ${deposits.length ? `<div class="sec"><div class="sec-t">Bank Deposits (${deposits.length})</div>
-        ${deposits.map(d=>`<div class="li"><div class="li-top"><span>${d.depositId||''} · ${d.depositor||''}</span><span>${money(d.amount)}</span></div><div class="li-sub">${d.bank||''}${d.slipNumber?` · Slip ${d.slipNumber}`:''}</div></div>`).join('')}
-        <div class="row total"><span>Total Deposits</span><span>${money(totalDeposits)}</span></div></div>` : ''}
+        ${deposits.filter(d=>!d.deleted).map(d=>`<div class="li">
+          <div class="li-top"><span>${d.depositId||''} · ${d.depositor||''}</span><span class="val">${money(d.amount)}</span></div>
+          <div class="li-sub">${d.bank||''}${d.slipNumber?` · Slip ${d.slipNumber}`:''}</div>
+        </div>`).join('')}
+        <div class="row total"><span class="lbl">Total Deposits</span><span class="val">${money(totalDeposits)}</span></div>
+      </div>` : ''}
 
       ${expenses.length ? `<div class="sec"><div class="sec-t">Expenses (${expenses.length})</div>
-        ${expenses.map(e=>`<div class="li"><div class="li-top"><span>${e.expenseId||''}</span><span>${money(e.amount)}</span></div><div class="li-sub">${e.description||''}${e.receiptNumber?` · Rcpt ${e.receiptNumber}`:''}</div></div>`).join('')}
-        <div class="row total"><span>Total Expenses</span><span>${money(totalExpenses)}</span></div></div>` : ''}
+        ${expenses.filter(e=>!e.deleted).map(e=>`<div class="li">
+          <div class="li-top"><span>${e.expenseId||''}</span><span class="val">${money(e.amount)}</span></div>
+          <div class="li-sub">${e.description||''}${e.receiptNumber?` · Rcpt ${e.receiptNumber}`:''}</div>
+        </div>`).join('')}
+        <div class="row total"><span class="lbl">Total Expenses</span><span class="val">${money(totalExpenses)}</span></div>
+      </div>` : ''}
 
       <div class="foot">
         Generated ${formatDate(new Date(),'DD MMM YYYY')} ${formatTime(new Date())}<br>
@@ -312,17 +344,14 @@ function showMainApp() {
 
 async function initializePOS() {
   debugLog('🚀 Initializing AKM-POS v4.0');
-  const screen = document.getElementById('loadingScreen');
-  if (screen) screen.style.display = 'flex';
+  // Loading screen was already hidden by showMainApp() — don't re-show it.
+  // Show a placeholder in the invoice number while Firestore responds.
+  initializeItemsTable();
+  updateEl('invNum', '…');
 
   try {
-    initializeItemsTable();
-    setLoadingText('Loading invoice number…');
     await loadNextInvoiceNumber();
-
-    setLoadingText('Loading today\'s stats…');
     await loadDashboardData();
-
     setupAutoRefresh();
 
     // Handle ?reprint=<docId> deep-link from dashboard "View" button
@@ -337,8 +366,6 @@ async function initializePOS() {
   } catch (err) {
     console.error('Init error:', err);
     showToast('⚠️ Partial load — offline mode active.', 'warning');
-  } finally {
-    if (screen) setTimeout(() => { screen.style.display = 'none'; }, 300);
   }
 }
 
@@ -460,6 +487,7 @@ async function loadNextInvoiceNumber() {
     console.error('Invoice number error:', err);
     const yy = String(new Date().getFullYear()).slice(-2);
     updateEl('invNum', `${yy}-${BUSINESS.STARTING_INVOICE_NUMBER}`);
+    showToast('Could not load invoice number — estimate shown', 'warning');
   }
 }
 

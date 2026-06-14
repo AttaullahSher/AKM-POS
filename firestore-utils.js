@@ -691,6 +691,6 @@ export async function resetAllCollections() {
     bulkDeleteCollection('invoices'),
     bulkDeleteCollection('deposits'),
     bulkDeleteCollection('expenses'),
-    bulkDeleteCollection('_counters'),
+    bulkDeleteCollection('counters'),
   ]);
 }

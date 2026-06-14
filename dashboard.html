@@ -329,10 +329,7 @@
   <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
 
 
-  <!-- SheetJS — Excel export/import (loaded before modules so XLSX is on window) -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-  <!-- Scripts -->
+  <!-- Scripts — SheetJS is lazy-loaded on first Export/Import click (saves ~430 KB on initial load) -->
   <script type="module" src="config.js"></script>
   <script type="module" src="utils.js"></script>
   <script type="module" src="firebase-config.js"></script>

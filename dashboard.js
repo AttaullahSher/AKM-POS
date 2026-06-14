@@ -23,6 +23,26 @@ import { showToast } from './utils.js';
 
 const ALLOWED_EMAIL = APP_CONFIG.ALLOWED_EMAIL;
 
+// ─── XLSX Lazy Loader ────────────────────────────────────────────
+// SheetJS (~430 KB) is deferred until the user triggers Export or Import.
+let _xlsxPromise = null;
+function ensureXLSX() {
+  if (window.XLSX) return Promise.resolve();
+  if (!_xlsxPromise) {
+    _xlsxPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src     = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      s.onload  = resolve;
+      s.onerror = () => {
+        _xlsxPromise = null; // allow retry on next call
+        reject(new Error('Failed to load XLSX library — check your connection.'));
+      };
+      document.head.appendChild(s);
+    });
+  }
+  return _xlsxPromise;
+}
+
 let currentUser      = null;
 let currentTaxReport = null;
 let allActivity      = [];
@@ -82,26 +102,21 @@ window.addEventListener('offline', updateOfflineIndicator);
 async function initDashboard() {
   debugLog('🚀 AKM Dashboard v5.0');
   updateOfflineIndicator();
+
+  // Show dashboard immediately — data loads in the background
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('dashboardApp').style.display  = 'block';
+
+  // Set up refresh intervals unconditionally (not dependent on first load succeeding)
+  setInterval(() => loadDashboardStats(), 60_000);
+  setInterval(() => { invalidateCashFlowCache(); loadDashboardStats(); loadActivityFeed(); }, 300_000);
+
   try {
     await Promise.all([loadDashboardStats(), loadActivityFeed()]);
-
-    // Refresh today's fast stats every 60 s
-    setInterval(() => loadDashboardStats(), 60_000);
-
-    // Full refresh (including expensive all-time cash flow) every 5 min
-    setInterval(() => {
-      invalidateCashFlowCache();
-      loadDashboardStats();
-      loadActivityFeed();
-    }, 300_000);
-
     showToast('Dashboard loaded', 'success');
   } catch (err) {
     console.error('❌ Dashboard init error:', err);
     showToast('Error loading dashboard', 'error');
-  } finally {
-    document.getElementById('loadingScreen').style.display = 'none';
-    document.getElementById('dashboardApp').style.display  = 'block';
   }
 }
 
@@ -140,6 +155,7 @@ async function loadDashboardStats() {
     updateEl('chequeSales',       cheque.toFixed(2));
   } catch (err) {
     console.error('❌ Stats error:', err);
+    showToast('Could not refresh stats — check connection', 'warning');
   }
 }
 
@@ -748,13 +764,18 @@ window.resetAllData = async function() {
   try {
     showToast('Resetting database…', 'info');
     await resetAllCollections();
-    invalidateCashFlowCache();
-    await Promise.all([loadDashboardStats(), loadActivityFeed()]);
     closeDbModal();
-    showToast('All data has been reset.', 'success');
+    showToast('All data reset — reloading…', 'success');
+    // Reload after reset so the Firestore IndexedDB cache is cleared and
+    // re-synced from scratch (avoids BloomFilter mismatches on stale local data).
+    setTimeout(() => window.location.reload(), 1200);
   } catch (err) {
     console.error('❌ Reset error:', err);
-    showToast('Reset failed — check console', 'error');
+    const isPermission = err.code === 'permission-denied' || err.message?.includes('permission');
+    showToast(isPermission
+      ? 'Permission denied — sign in as sales@akm-music.com and try again'
+      : `Reset failed: ${err.message || 'check your connection and try again'}`,
+      'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Reset'; }
   }
@@ -998,9 +1019,11 @@ window.exportDatabase = async function() {
   if (!requirePin('export full database')) return;
   showToast('Fetching all records…', 'info');
   try {
-    const { invoices, deposits, expenses } = await getAllDocsForExport();
+    const [{ invoices, deposits, expenses }] = await Promise.all([
+      getAllDocsForExport(),
+      ensureXLSX(),
+    ]);
     const XLSX = window.XLSX;
-    if (!XLSX) { showToast('XLSX library not loaded — refresh and try again', 'error'); return; }
 
     const wb = XLSX.utils.book_new();
 
@@ -1066,7 +1089,7 @@ window.exportDatabase = async function() {
     showToast(`Exported: ${invoices.length} inv · ${deposits.length} dep · ${expenses.length} exp`, 'success');
   } catch (err) {
     console.error('❌ DB export error:', err);
-    showToast('Export failed — check console', 'error');
+    showToast(err.message?.includes('XLSX') ? err.message : 'Export failed — check your connection and try again', 'error');
   }
 };
 
@@ -1092,17 +1115,15 @@ window.importFileSelected = async function(input) {
   if (!file) return;
   input.value = '';
 
-  const XLSX = window.XLSX;
-  if (!XLSX) { showToast('XLSX library not loaded — refresh and try again', 'error'); return; }
-
   if (!requirePin('import and REPLACE the database')) return;
 
+  showToast('Reading file…', 'info');
   let wb;
   try {
-    const data = await file.arrayBuffer();
-    wb = XLSX.read(data, { type: 'array' });
+    const [, data] = await Promise.all([ensureXLSX(), file.arrayBuffer()]);
+    wb = window.XLSX.read(data, { type: 'array' });
   } catch (err) {
-    showToast('Cannot read file — must be a valid .xlsx exported from DB Export', 'error');
+    showToast(err.message?.includes('XLSX') ? err.message : 'Cannot read file — must be a valid .xlsx exported from DB Export', 'error');
     return;
   }
 
