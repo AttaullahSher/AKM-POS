@@ -50,10 +50,10 @@ let activeTypeFilter = 'all';
 let activeDateFilter = 'all';
 
 const TAX_QUARTERS = {
-  Q1: { name: 'Q1: Aug–Nov', months: [8, 9, 10, 11] },
-  Q2: { name: 'Q2: Dec–Feb', months: [12, 1, 2] },
-  Q3: { name: 'Q3: Mar–May', months: [3, 4, 5] },
-  Q4: { name: 'Q4: Jun–Jul', months: [6, 7] }
+  Q1: { name: 'Q1: Apr–Jun', months: [4, 5, 6] },
+  Q2: { name: 'Q2: Jul–Sep', months: [7, 8, 9] },
+  Q3: { name: 'Q3: Oct–Dec', months: [10, 11, 12] },
+  Q4: { name: 'Q4: Jan–Mar', months: [1, 2, 3] }
 };
 
 // ─── All-Time Cash Flow Cache ────────────────────────────────────
@@ -388,15 +388,9 @@ window.closeTaxReportModal = function() {
 window.generateQuarterlyReport = async function(quarter) {
   const qi = TAX_QUARTERS[quarter];
   if (!qi) return;
-  const yr = new Date().getFullYear();
-  let startDate, endDate;
-  if (quarter === 'Q2') {
-    startDate = new Date(yr - 1, 11, 1);
-    endDate   = new Date(yr, 2, 0);
-  } else {
-    startDate = new Date(yr, Math.min(...qi.months) - 1, 1);
-    endDate   = new Date(yr, Math.max(...qi.months), 0);
-  }
+  const yr        = new Date().getFullYear();
+  const startDate = new Date(yr, Math.min(...qi.months) - 1, 1);
+  const endDate   = new Date(yr, Math.max(...qi.months), 0);
   await generateTaxReport(startDate, endDate, qi.name);
 };
 

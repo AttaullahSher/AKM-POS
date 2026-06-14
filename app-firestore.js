@@ -170,56 +170,55 @@ window.printDailyReport = async function() {
     const cashInHand    = cash - totalDeposits - totalExpenses;
 
     const money = (n) => 'AED ' + (Number(n) || 0).toFixed(2);
-    const pw = window.open('', '_blank', 'width=400,height=720');
+    const pw = window.open('', '_blank', 'width=340,height=760');
     pw.document.write(`<!DOCTYPE html><html><head>
       <meta charset="UTF-8">
       <title>Daily Report — ${formatDate(today,'DD MMM YYYY')}</title>
       <style>
-        /* Let the browser use whatever paper the user picks; keep our own margins */
-        @page { size: auto; margin: 10mm 12mm; }
+        /* 80 mm thermal paper — zero page margins, body handles spacing */
+        @page { size: 80mm auto; margin: 0; }
         * { margin:0; padding:0; box-sizing:border-box; }
         body {
           font-family:'Montserrat',Arial,sans-serif;
           color:#000; background:#fff;
-          width:130mm;        /* fixed narrow column — never overridden on print */
-          max-width:100%;
-          margin:0 auto;
-          padding:6px 0;
-          font-size:9px;
+          width:76mm;
+          margin:2mm auto;
+          padding:3mm;
+          border:1px solid #000;   /* outer border box */
+          font-size:8.5px;
           line-height:1.5;
         }
-        .head { text-align:center; border-bottom:2px solid #000; padding-bottom:5px; margin-bottom:5px; }
-        .head h1  { font-size:14px; font-weight:900; letter-spacing:1px; }
-        .head .sub{ font-size:9px; font-weight:700; }
-        .head .dt { font-size:9px; }
-        .sec { margin-bottom:7px; }
+        .head { text-align:center; border-bottom:1.5px solid #000; padding-bottom:4px; margin-bottom:4px; }
+        .head h1  { font-size:13px; font-weight:900; letter-spacing:1px; }
+        .head .sub{ font-size:8.5px; font-weight:700; }
+        .head .dt { font-size:8.5px; }
+        .sec { margin-bottom:6px; }
         .sec-t {
-          font-size:8.5px; font-weight:900; text-transform:uppercase; letter-spacing:.5px;
+          font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:.5px;
           border-bottom:1px dashed #000; padding-bottom:2px; margin-bottom:3px;
         }
-        /* KEY FIX: value is right-aligned and never wraps */
         .row {
           display:flex; justify-content:space-between;
-          align-items:baseline; gap:4px; padding:1px 0;
+          align-items:baseline; gap:3px; padding:1px 0;
         }
         .row .lbl { flex:1; }
         .row .val { white-space:nowrap; flex-shrink:0; font-weight:700; }
         .row.total {
           border-top:1px solid #000; margin-top:3px; padding-top:3px;
-          font-weight:900; font-size:10px;
+          font-weight:900; font-size:9px;
         }
-        .li { padding:3px 0; border-bottom:1px dotted #bbb; }
-        .li-top { display:flex; justify-content:space-between; gap:4px; font-weight:700; }
+        .li { padding:2px 0; border-bottom:1px dotted #999; }
+        .li-top { display:flex; justify-content:space-between; gap:3px; font-weight:700; }
         .li-top .val { white-space:nowrap; flex-shrink:0; }
-        .li-sub { font-size:8px; color:#444; margin-top:1px; }
+        .li-sub { font-size:7.5px; color:#444; margin-top:1px; }
         .foot {
           text-align:center; border-top:1px dashed #000;
-          margin-top:8px; padding-top:5px; font-size:8px;
+          margin-top:6px; padding-top:4px; font-size:7.5px;
         }
-        .no-print { text-align:center; margin-top:16px; }
+        .no-print { text-align:center; margin-top:14px; }
         .no-print button {
-          padding:8px 16px; border:none; border-radius:6px;
-          font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;
+          padding:7px 14px; border:none; border-radius:5px;
+          font-size:11px; font-weight:700; cursor:pointer; font-family:inherit;
         }
         @media print { .no-print { display:none; } }
       </style>
