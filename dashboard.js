@@ -134,7 +134,7 @@ async function loadDashboardStats() {
     let cash = 0, card = 0, tabby = 0, cheque = 0;
 
     invoices.forEach(inv => {
-      if (inv.status === 'Paid' && !inv.deleted) {
+      if (inv.status === 'Paid' && !inv.deleted && !inv.superseded) {
         totalSales += inv.payment?.grandTotal || 0;
         totalVAT   += inv.payment?.vat        || 0;
         cash       += inv.impacts?.cash       || 0;
@@ -256,12 +256,14 @@ function displayActivity(items) {
   }
 
   tbody.innerHTML = items.map(item => {
-    const isRefunded = item.type === 'invoice' && item.status === 'Refunded';
-    const isDeleted  = item.deleted === true;
+    const isRefunded   = item.type === 'invoice' && item.status === 'Refunded';
+    const isDeleted    = item.deleted    === true;
+    const isSuperseded = item.type === 'invoice' && item.superseded === true;
 
     let rowClass = `row-type-${item.type}`;
-    if (isDeleted)  rowClass = 'row-deleted';
-    else if (isRefunded) rowClass += ' row-refunded';
+    if (isDeleted)        rowClass = 'row-deleted';
+    else if (isSuperseded) rowClass += ' row-superseded';
+    else if (isRefunded)  rowClass += ' row-refunded';
 
     // Type badge
     const typeLabel = item.type === 'invoice' ? 'Invoice'
@@ -292,6 +294,8 @@ function displayActivity(items) {
     let statusBadge;
     if (isDeleted) {
       statusBadge = `<span class="status-badge deleted">Deleted</span>`;
+    } else if (isSuperseded) {
+      statusBadge = `<span class="status-badge superseded">Superseded</span>`;
     } else if (item.type === 'invoice') {
       statusBadge = `<span class="status-badge ${item.status.toLowerCase()}">${item.status}</span>`;
     } else if (item.type === 'deposit') {
@@ -420,16 +424,18 @@ async function generateTaxReport(startDate, endDate, periodName) {
       const subtotal   = inv.payment?.subtotal   || 0;
       const vat        = inv.payment?.vat        || 0;
       const grandTotal = inv.payment?.grandTotal || 0;
-      if (inv.status === 'Paid') {
-        totalSales  += grandTotal;
-        totalVAT    += vat;
-        cashSales   += inv.impacts?.cash   || 0;
-        cardSales   += inv.impacts?.card   || 0;
-        tabbySales  += inv.impacts?.tabby  || 0;
-        chequeSales += inv.impacts?.cheque || 0;
-        paidInvoices++;
-      } else if (inv.status === 'Refunded') {
-        refundedInvoices++;
+      if (!inv.superseded) {
+        if (inv.status === 'Paid') {
+          totalSales  += grandTotal;
+          totalVAT    += vat;
+          cashSales   += inv.impacts?.cash   || 0;
+          cardSales   += inv.impacts?.card   || 0;
+          tabbySales  += inv.impacts?.tabby  || 0;
+          chequeSales += inv.impacts?.cheque || 0;
+          paidInvoices++;
+        } else if (inv.status === 'Refunded') {
+          refundedInvoices++;
+        }
       }
       return {
         invoiceNumber: inv.invoiceNumber,
@@ -437,7 +443,7 @@ async function generateTaxReport(startDate, endDate, periodName) {
         customer: inv.customer?.name || 'Walk-in',
         subtotal, vat, grandTotal,
         payment: inv.payment?.method || 'Cash',
-        status: inv.status
+        status: inv.superseded ? `Superseded→${inv.supersededBy}` : inv.status
       };
     });
 

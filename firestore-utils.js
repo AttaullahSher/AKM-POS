@@ -152,7 +152,10 @@ export const getNextExpenseID = getNextExpenseId;
 // ─── Invoices ────────────────────────────────────────────────
 
 export async function createInvoice(invoiceData) {
-  const { invoiceNumber, date, customer, payment, items, status = 'Paid' } = invoiceData;
+  const {
+    invoiceNumber, date, customer, payment, items, status = 'Paid',
+    isAmendment = false, originalInvoiceId = null, originalInvoiceNumber = null,
+  } = invoiceData;
   const today = new Date();
   const yy    = String(today.getFullYear()).slice(-2);
   const seq   = parseInt((invoiceNumber.split('-')[1]) || '0', 10);
@@ -183,6 +186,8 @@ export async function createInvoice(invoiceData) {
     impacts,
     refundedAt: null,
     notes: '',
+    isAmendment,
+    ...(isAmendment && { originalInvoiceId, originalInvoiceNumber }),
   };
 
   const docRef = await addDoc(collection(db, 'invoices'), invoice);
@@ -229,6 +234,12 @@ export async function refundInvoice(docId) {
     'impacts.cheque': 0,
   });
   debugLog('✅ Invoice refunded:', docId);
+}
+
+export async function markInvoiceSuperseded(invoiceId, amendmentNumber) {
+  const docRef = doc(db, 'invoices', invoiceId);
+  await updateDoc(docRef, { superseded: true, supersededBy: amendmentNumber, supersededAt: serverTimestamp() });
+  debugLog('✅ Invoice superseded:', invoiceId, '→', amendmentNumber);
 }
 
 export async function getInvoiceById(docId) {

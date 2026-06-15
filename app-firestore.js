@@ -20,6 +20,8 @@ import {
   loadRecentInvoices,
   markInvoiceAsRefunded,
   getInvoiceById,
+  getInvoiceByNumber,
+  markInvoiceSuperseded,
   formatDate,
   formatTime,
 } from './firestore-utils.js';
@@ -155,7 +157,7 @@ window.printDailyReport = async function() {
     let totalSales = 0, totalVAT = 0, paidInvoices = 0;
     let cash = 0, card = 0, tabby = 0, cheque = 0;
     invoices.forEach(inv => {
-      if (inv.status === 'Paid' && !inv.deleted) {
+      if (inv.status === 'Paid' && !inv.deleted && !inv.superseded) {
         totalSales += inv.payment?.grandTotal || 0;
         totalVAT   += inv.payment?.vat        || 0;
         cash       += inv.impacts?.cash       || 0;
@@ -185,16 +187,16 @@ window.printDailyReport = async function() {
           margin:2mm auto;
           padding:3mm;
           border:1px solid #000;
-          font-size:10px;
-          line-height:1.5;
+          font-size:12px;
+          line-height:1.55;
         }
         .head { text-align:center; border-bottom:1.5px solid #000; padding-bottom:4px; margin-bottom:4px; }
-        .head h1  { font-size:16px; font-weight:900; letter-spacing:1px; }
-        .head .sub{ font-size:10px; font-weight:700; }
-        .head .dt { font-size:10px; }
+        .head h1  { font-size:18px; font-weight:900; letter-spacing:1px; }
+        .head .sub{ font-size:12px; font-weight:700; }
+        .head .dt { font-size:12px; }
         .sec { margin-bottom:6px; }
         .sec-t {
-          font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.5px;
+          font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:.5px;
           border-bottom:1px dashed #000; padding-bottom:2px; margin-bottom:3px;
         }
         .row {
@@ -202,14 +204,14 @@ window.printDailyReport = async function() {
           align-items:baseline; gap:3px; padding:1px 0;
         }
         .row .lbl { flex:1; }
-        .row .val { white-space:nowrap; flex-shrink:0; font-weight:700; font-size:13px; }
+        .row .val { white-space:nowrap; flex-shrink:0; font-weight:700; font-size:15px; }
         .row.total {
           border-top:1px solid #000; margin-top:3px; padding-top:3px;
-          font-weight:900; font-size:13px;
+          font-weight:900; font-size:15px;
         }
         .li { padding:2px 0; border-bottom:1px dotted #999; }
         .li-top { display:flex; justify-content:space-between; gap:3px; font-weight:700; }
-        .li-top .val { white-space:nowrap; flex-shrink:0; font-size:13px; }
+        .li-top .val { white-space:nowrap; flex-shrink:0; font-size:15px; }
         .li-sub { font-size:8.5px; color:#444; margin-top:1px; }
         .foot {
           text-align:center; border-top:1px dashed #000;
@@ -503,7 +505,7 @@ async function loadDashboardData() {
 
     let cash = 0, card = 0, tabby = 0, cheque = 0;
     invoices.forEach(inv => {
-      if (inv.status === 'Paid' && !inv.deleted) {
+      if (inv.status === 'Paid' && !inv.deleted && !inv.superseded) {
         cash   += inv.impacts?.cash   || 0;
         card   += inv.impacts?.card   || 0;
         tabby  += inv.impacts?.tabby  || 0;
@@ -676,10 +678,12 @@ function setReprintUI(inv) {
   const printBtn    = document.getElementById('printBtn');
   const refundBtn   = document.getElementById('refundBtn');
   const whatsappBtn = document.getElementById('whatsappBtn');
+  const amendBtn    = document.getElementById('amendBtn');
   const clearBtn    = document.getElementById('clearBtn');
   if (printBtn) { printBtn.disabled = false; printBtn.textContent = '🖨️ Reprint'; }
   if (clearBtn) clearBtn.textContent = '🆕 New';
   if (whatsappBtn) whatsappBtn.style.display = 'inline-flex';
+  if (amendBtn)    amendBtn.style.display    = 'inline-flex';
   if (refundBtn) {
     refundBtn.style.display = 'inline-flex';
     const refunded = inv.status === 'Refunded';
@@ -693,11 +697,13 @@ function setNewInvoiceUI() {
   const printBtn    = document.getElementById('printBtn');
   const refundBtn   = document.getElementById('refundBtn');
   const whatsappBtn = document.getElementById('whatsappBtn');
+  const amendBtn    = document.getElementById('amendBtn');
   const clearBtn    = document.getElementById('clearBtn');
   if (printBtn) { printBtn.disabled = false; printBtn.textContent = '🖨️ Save & Print Invoice'; }
   if (clearBtn) clearBtn.textContent = '🗑️ Reset';
-  if (refundBtn) refundBtn.style.display = 'none';
+  if (refundBtn)   refundBtn.style.display   = 'none';
   if (whatsappBtn) whatsappBtn.style.display = 'none';
+  if (amendBtn)    amendBtn.style.display    = 'none';
 }
 
 window.shareInvoiceWhatsApp = function() {
@@ -729,6 +735,52 @@ window.shareInvoiceWhatsApp = function() {
     `Thank you for your purchase! 🎵`,
   ].join('\n');
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+};
+
+async function getNextAmendmentNumber(baseNumber) {
+  // Strip existing suffix so amendments of amendments chain from original
+  const base = baseNumber.replace(/-[A-Z]$/, '');
+  for (const letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+    const candidate = `${base}-${letter}`;
+    const existing  = await getInvoiceByNumber(candidate);
+    if (!existing) return candidate;
+  }
+  throw new Error('Too many amendments on this invoice');
+}
+
+window.saveAsAmendment = async function() {
+  if (!isReprintMode || !reprintInvoiceData) return;
+  const data = collectInvoiceData();
+  if (!data) return;
+
+  const amendBtn = document.getElementById('amendBtn');
+  if (amendBtn) { amendBtn.disabled = true; amendBtn.textContent = '⏳ Saving…'; }
+
+  try {
+    const originalNumber = reprintInvoiceData.originalInvoiceNumber || reprintInvoiceData.invoiceNumber;
+    const originalId     = reprintInvoiceData.originalInvoiceId     || reprintInvoiceData.id;
+    const amendmentNumber = await getNextAmendmentNumber(originalNumber);
+
+    data.invoiceNumber          = amendmentNumber;
+    data.isAmendment            = true;
+    data.originalInvoiceId      = originalId;
+    data.originalInvoiceNumber  = originalNumber;
+
+    updateEl('invNum', amendmentNumber);
+    await saveInvoice(data);
+    await markInvoiceSuperseded(reprintInvoiceData.id, amendmentNumber);
+    showToast(`Amendment ${amendmentNumber} saved`, 'success');
+    setTimeout(() => { preparePrintLayout(); window.print(); }, 300);
+  } catch (err) {
+    console.error('Amendment error:', err);
+    showToast('Amendment failed: ' + err.message, 'error');
+    if (amendBtn) { amendBtn.disabled = false; amendBtn.textContent = '📝 Amend'; }
+  } finally {
+    setTimeout(async () => {
+      await loadDashboardData();
+      if (amendBtn) { amendBtn.disabled = false; amendBtn.textContent = '📝 Amend'; }
+    }, PERF.PRINT_RESTORE_DELAY || 3000);
+  }
 };
 
 window.handleRefund = async function() {
@@ -769,12 +821,16 @@ window.openHistoryModal = async function() {
     }
     // Serial order: newest invoice number first (invoices on the same day share a
     // midnight dateObj, so the DB can't order them — sort by number here).
-    const seq = (n) => parseInt((n || '').split('-')[1], 10) || 0;
-    invoices.sort((a, b) => seq(b.invoiceNumber) - seq(a.invoiceNumber));
+    const seq    = (n) => parseInt((n || '').split('-')[1], 10) || 0;
+    const suffix = (n) => (n || '').split('-')[2] || '';
+    invoices.sort((a, b) => {
+      const d = seq(b.invoiceNumber) - seq(a.invoiceNumber);
+      return d !== 0 ? d : suffix(a.invoiceNumber).localeCompare(suffix(b.invoiceNumber));
+    });
     container.innerHTML = `
       <div class="history-grid">
         ${invoices.slice(0, 120).map(inv => `
-          <div class="history-card ${inv.status === 'Refunded' ? 'refunded' : ''}"
+          <div class="history-card ${inv.status === 'Refunded' ? 'refunded' : ''} ${inv.isAmendment ? 'amendment' : ''} ${inv.superseded ? 'superseded' : ''}"
                onclick="handleReprintInvoice('${inv.id}'); closeHistoryModal();">
             <div class="history-card-top">
               <span class="history-inv-num">${inv.invoiceNumber}</span>
@@ -787,6 +843,8 @@ window.openHistoryModal = async function() {
             <div class="history-card-footer">
               <span class="history-inv-method">${inv.payment || 'Cash'}</span>
               <span class="history-inv-status ${(inv.status || 'Paid').toLowerCase()}">${inv.status || 'Paid'}</span>
+              ${inv.superseded  ? `<span class="history-amend-badge superseded-badge" title="Superseded by ${inv.supersededBy}">SUPERSEDED</span>` : ''}
+              ${inv.isAmendment && !inv.superseded ? `<span class="history-amend-badge" title="Amended from ${inv.originalInvoiceNumber}">AMEND</span>` : ''}
             </div>
           </div>
         `).join('')}
