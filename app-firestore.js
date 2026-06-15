@@ -184,17 +184,17 @@ window.printDailyReport = async function() {
           width:76mm;
           margin:2mm auto;
           padding:3mm;
-          border:1px solid #000;   /* outer border box */
-          font-size:8.5px;
+          border:1px solid #000;
+          font-size:10px;
           line-height:1.5;
         }
         .head { text-align:center; border-bottom:1.5px solid #000; padding-bottom:4px; margin-bottom:4px; }
-        .head h1  { font-size:13px; font-weight:900; letter-spacing:1px; }
-        .head .sub{ font-size:8.5px; font-weight:700; }
-        .head .dt { font-size:8.5px; }
+        .head h1  { font-size:16px; font-weight:900; letter-spacing:1px; }
+        .head .sub{ font-size:10px; font-weight:700; }
+        .head .dt { font-size:10px; }
         .sec { margin-bottom:6px; }
         .sec-t {
-          font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:.5px;
+          font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.5px;
           border-bottom:1px dashed #000; padding-bottom:2px; margin-bottom:3px;
         }
         .row {
@@ -202,18 +202,18 @@ window.printDailyReport = async function() {
           align-items:baseline; gap:3px; padding:1px 0;
         }
         .row .lbl { flex:1; }
-        .row .val { white-space:nowrap; flex-shrink:0; font-weight:700; }
+        .row .val { white-space:nowrap; flex-shrink:0; font-weight:700; font-size:13px; }
         .row.total {
           border-top:1px solid #000; margin-top:3px; padding-top:3px;
-          font-weight:900; font-size:9px;
+          font-weight:900; font-size:13px;
         }
         .li { padding:2px 0; border-bottom:1px dotted #999; }
         .li-top { display:flex; justify-content:space-between; gap:3px; font-weight:700; }
-        .li-top .val { white-space:nowrap; flex-shrink:0; }
-        .li-sub { font-size:7.5px; color:#444; margin-top:1px; }
+        .li-top .val { white-space:nowrap; flex-shrink:0; font-size:13px; }
+        .li-sub { font-size:8.5px; color:#444; margin-top:1px; }
         .foot {
           text-align:center; border-top:1px dashed #000;
-          margin-top:6px; padding-top:4px; font-size:7.5px;
+          margin-top:6px; padding-top:4px; font-size:8.5px;
         }
         .no-print { text-align:center; margin-top:14px; }
         .no-print button {
@@ -673,11 +673,13 @@ function populateReprintForm(inv) {
 
 // Action buttons: "reprint/refund" mode (viewing a saved invoice from History)
 function setReprintUI(inv) {
-  const printBtn  = document.getElementById('printBtn');
-  const refundBtn = document.getElementById('refundBtn');
-  const clearBtn  = document.getElementById('clearBtn');
+  const printBtn    = document.getElementById('printBtn');
+  const refundBtn   = document.getElementById('refundBtn');
+  const whatsappBtn = document.getElementById('whatsappBtn');
+  const clearBtn    = document.getElementById('clearBtn');
   if (printBtn) { printBtn.disabled = false; printBtn.textContent = '🖨️ Reprint'; }
   if (clearBtn) clearBtn.textContent = '🆕 New';
+  if (whatsappBtn) whatsappBtn.style.display = 'inline-flex';
   if (refundBtn) {
     refundBtn.style.display = 'inline-flex';
     const refunded = inv.status === 'Refunded';
@@ -688,13 +690,46 @@ function setReprintUI(inv) {
 
 // Action buttons: normal "new invoice" mode
 function setNewInvoiceUI() {
-  const printBtn  = document.getElementById('printBtn');
-  const refundBtn = document.getElementById('refundBtn');
-  const clearBtn  = document.getElementById('clearBtn');
+  const printBtn    = document.getElementById('printBtn');
+  const refundBtn   = document.getElementById('refundBtn');
+  const whatsappBtn = document.getElementById('whatsappBtn');
+  const clearBtn    = document.getElementById('clearBtn');
   if (printBtn) { printBtn.disabled = false; printBtn.textContent = '🖨️ Save & Print Invoice'; }
   if (clearBtn) clearBtn.textContent = '🗑️ Reset';
   if (refundBtn) refundBtn.style.display = 'none';
+  if (whatsappBtn) whatsappBtn.style.display = 'none';
 }
+
+window.shareInvoiceWhatsApp = function() {
+  const inv = reprintInvoiceData;
+  if (!inv) return;
+  const itemLines = (inv.items || []).map(it =>
+    `  • ${it.quantity || 1}x ${it.description || '—'} — AED ${(it.amount || 0).toFixed(2)}`
+  ).join('\n');
+  const sub   = (inv.payment?.subtotal   || 0).toFixed(2);
+  const vat   = (inv.payment?.vat        || 0).toFixed(2);
+  const total = (inv.payment?.grandTotal || 0).toFixed(2);
+  const customer = inv.customer?.name  || 'Valued Customer';
+  const phone    = inv.customer?.phone ? ` | ${inv.customer.phone}` : '';
+  const msg = [
+    `*AKM Music Centre LLC*`,
+    `Invoice: *${inv.invoiceNumber}*`,
+    `Date: ${inv.date || ''}`,
+    `Customer: ${customer}${phone}`,
+    ``,
+    `*Items:*`,
+    itemLines,
+    ``,
+    `Subtotal : AED ${sub}`,
+    `VAT (5%) : AED ${vat}`,
+    `*Total   : AED ${total}*`,
+    `Payment  : ${inv.payment?.method || 'Cash'}`,
+    `Status   : ${inv.status || 'Paid'}`,
+    ``,
+    `Thank you for your purchase! 🎵`,
+  ].join('\n');
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+};
 
 window.handleRefund = async function() {
   if (!isReprintMode || !reprintInvoiceData) return;
