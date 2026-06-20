@@ -8,6 +8,7 @@ import {
   getDoc,
   getDocs,
   addDoc,
+  setDoc,
   updateDoc,
   writeBatch,
   query,
@@ -200,27 +201,26 @@ export const getNextExpenseID = getNextExpenseId;
 
 export async function createInvoice(invoiceData) {
   const {
-    invoiceNumber, date, customer, payment, items, status = 'Paid',
+    invoiceNumber: passedNumber,
+    date, customer, payment, items, status = 'Paid',
     isAmendment = false, originalInvoiceId = null, originalInvoiceNumber = null,
   } = invoiceData;
-  const today = new Date();
-  const yy    = String(today.getFullYear()).slice(-2);
-  const seq   = parseInt((invoiceNumber.split('-')[1]) || '0', 10);
 
-  const impacts = {
-    cash:   payment.method === 'Cash'   ? payment.grandTotal : 0,
-    card:   payment.method === 'Card'   ? payment.grandTotal : 0,
-    tabby:  payment.method === 'Tabby'  ? payment.grandTotal : 0,
-    cheque: payment.method === 'Cheque' ? payment.grandTotal : 0,
-  };
+  const counterRef  = doc(db, 'counters', 'invoices');
+  // Pre-generate a stable document ID so we know it before the write completes
+  const invoiceRef  = doc(collection(db, 'invoices'));
+  const currentYear = new Date().getFullYear();
+  const yy          = String(currentYear).slice(-2);
+  const INIT        = APP_CONFIG.BUSINESS.STARTING_INVOICE_NUMBER;
+  const now         = new Date();
 
-  const invoice = {
+  const buildDoc = (invoiceNumber, sequence) => ({
     invoiceNumber,
-    year: today.getFullYear(),
-    sequence: seq,
-    date: formatDate(new Date(date), 'YYYY-MM-DD'),
+    year: currentYear,
+    sequence,
+    date:    formatDate(new Date(date), 'YYYY-MM-DD'),
     dateObj: toTimestamp(new Date(date)),
-    time: formatTime(today),
+    time:    formatTime(now),
     createdAt: serverTimestamp(),
     customer: {
       name:  customer.name  || 'Walk-in Customer',
@@ -230,16 +230,62 @@ export async function createInvoice(invoiceData) {
     payment,
     items,
     status,
-    impacts,
+    impacts: {
+      cash:   payment.method === 'Cash'   ? payment.grandTotal : 0,
+      card:   payment.method === 'Card'   ? payment.grandTotal : 0,
+      tabby:  payment.method === 'Tabby'  ? payment.grandTotal : 0,
+      cheque: payment.method === 'Cheque' ? payment.grandTotal : 0,
+    },
     refundedAt: null,
     notes: '',
     isAmendment,
     ...(isAmendment && { originalInvoiceId, originalInvoiceNumber }),
-  };
+  });
 
-  const docRef = await addDoc(collection(db, 'invoices'), invoice);
-  debugLog('✅ Invoice saved:', invoiceNumber, docRef.id);
-  return docRef.id;
+  // Amendments already have a letter-suffix number assigned by the caller — just write the doc.
+  if (isAmendment && passedNumber) {
+    const seq = parseInt((passedNumber.split('-')[1]) || '0', 10);
+    await setDoc(invoiceRef, buildDoc(passedNumber, seq));
+    debugLog('✅ Amendment saved:', passedNumber, invoiceRef.id);
+    return { id: invoiceRef.id, invoiceNumber: passedNumber };
+  }
+
+  // New invoice: counter increment + invoice write in ONE atomic transaction.
+  // If anything fails, BOTH roll back — counter is never burned without a matching document.
+  try {
+    const result = await Promise.race([
+      runTransaction(db, async (tx) => {
+        const snap = await tx.get(counterRef);
+        const data = snap.exists() ? snap.data() : {};
+        const next = (data.year === currentYear && data.lastSequence >= INIT)
+          ? data.lastSequence + 1 : INIT;
+        const invoiceNumber = `${yy}-${String(next).padStart(5, '0')}`;
+
+        tx.set(counterRef, { year: currentYear, lastSequence: next, updatedAt: serverTimestamp() }, { merge: true });
+        tx.set(invoiceRef, buildDoc(invoiceNumber, next));
+
+        return { invoiceNumber, sequence: next };
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+    ]);
+
+    writeLocalCounter(currentYear, result.sequence);
+    debugLog('✅ Invoice saved (online, atomic):', result.invoiceNumber, invoiceRef.id);
+    return { id: invoiceRef.id, invoiceNumber: result.invoiceNumber };
+
+  } catch {
+    // Offline: assign number from localStorage + queue invoice write to IndexedDB.
+    // The counter on the server is NOT touched here — the next online transaction will
+    // read the real server counter and give the correct next number.
+    const last = readLocalCounter(currentYear);
+    const next = Math.max(last + 1, INIT);
+    writeLocalCounter(currentYear, next);
+    const invoiceNumber = `${yy}-${String(next).padStart(5, '0')}`;
+
+    await setDoc(invoiceRef, buildDoc(invoiceNumber, next));
+    debugLog('📱 Invoice queued offline:', invoiceNumber, invoiceRef.id);
+    return { id: invoiceRef.id, invoiceNumber };
+  }
 }
 
 export async function loadRecentInvoices(days = 90) {

@@ -8,7 +8,6 @@ import {
 } from './firebase-config.js';
 
 import {
-  getNextInvoiceNumber,
   peekNextInvoiceNumber,
   getNextDepositId,
   getNextExpenseId,
@@ -76,6 +75,15 @@ window.addEventListener('online', async () => {
 });
 
 window.addEventListener('offline', updateSyncBadge);
+
+// Warn before closing tab if there are writes still queued to sync.
+// This catches the accidental-close scenario that causes missing invoices.
+window.addEventListener('beforeunload', e => {
+  if (_pendingSyncCount > 0) {
+    e.preventDefault();
+    return (e.returnValue = `${_pendingSyncCount} invoice(s) are still syncing. Closing now may lose data.`);
+  }
+});
 
 // Auto-capitalise / spell-correct known instrument & brand words when leaving a
 // Model or Description field (local dictionary — no AI, instant, offline).
@@ -644,32 +652,29 @@ async function saveNewInvoice() {
   const btn = document.getElementById('printBtn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Saving…'; }
 
+  let saved = false;
   try {
-    // Commit the real sequential number NOW (only on a valid save). Page loads
-    // only peek, so refreshing never burns a number — it's consumed here.
-    const committed = await getNextInvoiceNumber();
-    data.invoiceNumber = committed;
-    updateEl('invNum', committed);
-
-    if (navigator.onLine) {
-      await saveInvoice(data);
-    } else {
-      saveInvoice(data).catch(() => {}); // fire-and-forget; Firestore queues locally
-    }
+    // Counter increment + invoice write are ONE atomic Firestore transaction.
+    // If anything fails both roll back — the counter is never burned without a document.
+    const { invoiceNumber } = await saveInvoice(data);
+    updateEl('invNum', invoiceNumber);
     trackOfflineSave();
     showToast('✅ Invoice saved!', 'success');
+    saved = true;
     setTimeout(() => { preparePrintLayout(); window.print(); }, 300);
   } catch (err) {
     console.error('Save error:', err);
-    showToast('⚠️ Save error — printing anyway (offline mode).', 'warning');
-    setTimeout(() => { preparePrintLayout(); window.print(); }, 300);
+    // Do NOT print — printing an unsaved invoice creates a phantom record with no Firestore entry.
+    showToast('❌ Could not save invoice. Check your connection and try again.', 'error');
   } finally {
     setTimeout(() => {
-      loadDashboardData().catch(() => {});    // non-blocking — never stalls the button
-      loadNextInvoiceNumber().catch(() => {}); // non-blocking
-      resetInvoiceForm();
+      if (saved) {
+        loadDashboardData().catch(() => {});
+        loadNextInvoiceNumber().catch(() => {});
+        resetInvoiceForm();
+      }
       if (btn) { btn.disabled = false; btn.textContent = '🖨️ Save & Print Invoice'; }
-    }, PERF.PRINT_RESTORE_DELAY);
+    }, saved ? PERF.PRINT_RESTORE_DELAY : 0);
   }
 }
 
