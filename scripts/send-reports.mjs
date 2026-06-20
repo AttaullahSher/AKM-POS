@@ -264,7 +264,7 @@ async function sendDailyReport() {
   );
 
   await resend.emails.send({
-    from, to: TO,
+    from: FROM, to: TO,
     subject: `AKM Daily Report — ${fmtDisplay(today)} | Sales: ${fmt(c.totalSales)} | Cash: ${fmt(c.cashInHand)}`,
     html,
   });
