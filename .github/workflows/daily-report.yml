@@ -1,0 +1,29 @@
+name: Daily Report Email
+
+on:
+  schedule:
+    # 9:30 PM UAE time = 17:30 UTC (UAE is UTC+4)
+    - cron: '30 17 * * *'
+  # Allow manual trigger from GitHub Actions tab to test
+  workflow_dispatch:
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install script dependencies
+        run: npm install firebase-admin resend --no-save
+        working-directory: scripts
+
+      - name: Send daily report email
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: node daily-report-email.mjs
+        working-directory: scripts
