@@ -47,17 +47,20 @@
         <button class="dash-action-btn" onclick="openTaxReportModal()" title="Tax/VAT Reports">
           📊 Tax Reports
         </button>
-        <button class="dash-action-btn" onclick="openExportModal()" title="Export Data">
+        <button class="dash-action-btn" onclick="openExportModal()" title="Export monthly report">
           💾 Export
         </button>
-        <button class="dash-action-btn" onclick="createBackup()" title="Create Backup">
+        <button class="dash-action-btn" onclick="createBackup()" title="Create JSON backup">
           🗄️ Backup
+        </button>
+        <button class="dash-action-btn" onclick="openDbModal()" title="Database management">
+          🗃️ Database
         </button>
       </div>
 
       <div class="dash-right">
-        <div id="syncStatus" class="sync-status synced" title="Sync status">
-          <span class="sync-dot"></span><span class="sync-label">Synced</span>
+        <div id="offlineIndicator" class="offline-indicator" style="display:none;">
+          ⚡ Offline — data served from cache
         </div>
         <button onclick="window.location.href='index.html'" class="btn-back-pos">
           ← Back to POS
@@ -83,7 +86,7 @@
           <div class="stat-content">
             <div class="stat-label">Cash in Hand</div>
             <div class="stat-value" id="cashInHand">0.00</div>
-            <div class="stat-meta">After deposits &amp; expenses</div>
+            <div class="stat-meta">Running total — carries forward</div>
           </div>
         </div>
 
@@ -136,39 +139,59 @@
         </div>
       </div>
 
-      <!-- Recent Invoices -->
+      <!-- Transaction Activity Feed -->
       <div class="section-card">
         <div class="section-header">
-          <h2 class="section-title">Invoices</h2>
-          <div class="section-actions">
-            <button class="btn-filter active" data-filter="all"   onclick="filterInvoices('all')">All</button>
-            <button class="btn-filter"        data-filter="today" onclick="filterInvoices('today')">Today</button>
-            <button class="btn-filter"        data-filter="week"  onclick="filterInvoices('week')">This Week</button>
-            <button class="btn-filter"        data-filter="month" onclick="filterInvoices('month')">This Month</button>
+          <h2 class="section-title">Transaction Activity</h2>
+        </div>
+
+        <!-- Filter row — dropdowns -->
+        <div class="activity-filters">
+          <div class="filter-group">
+            <label class="filter-label" for="typeFilter">Type</label>
+            <select id="typeFilter" class="filter-select" onchange="setTypeFilter(this.value)">
+              <option value="all">All</option>
+              <option value="invoice">Invoices</option>
+              <option value="deposit">Deposits</option>
+              <option value="expense">Expenses</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label" for="periodFilter">Period</label>
+            <select id="periodFilter" class="filter-select" onchange="setDateFilter(this.value)">
+              <option value="all">All</option>
+              <option value="today">Today</option>
+              <option value="week">Week</option>
+              <option value="month">Month</option>
+            </select>
+          </div>
+          <div class="filter-group filter-group-search">
+            <label class="filter-label" for="invoiceSearch">Invoice #</label>
+            <input type="search" id="invoiceSearch" class="filter-search" placeholder="e.g. 12345 or 26-12345" oninput="setInvoiceSearch(this.value)" autocomplete="off">
           </div>
         </div>
 
         <div class="table-container">
-          <table class="data-table">
+          <table class="data-table activity-table">
             <thead>
               <tr>
-                <th>Invoice #</th>
-                <th>Date</th>
-                <th>Customer</th>
-                <th>Total (AED)</th>
-                <th>Payment</th>
-                <th>Status</th>
+                <th>Type</th>
+                <th>ID / Ref</th>
+                <th>Date &amp; Time</th>
+                <th>Description</th>
+                <th>Amount (AED)</th>
+                <th>Info &amp; Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
-            <tbody id="invoicesTableBody">
-              <tr><td colspan="7" class="table-loading">Loading invoices…</td></tr>
+            <tbody id="activityTableBody">
+              <tr><td colspan="7" class="table-loading">Loading activity…</td></tr>
             </tbody>
           </table>
         </div>
 
         <div class="pagination">
-          <button class="btn-pagination" onclick="loadMoreInvoices()">Load More Invoices</button>
+          <button class="btn-pagination" onclick="loadMoreActivity()">Load 6 Months</button>
         </div>
       </div>
 
@@ -190,22 +213,22 @@
           <div class="quarter-grid">
             <button onclick="generateQuarterlyReport('Q1')" class="quarter-btn">
               <div class="quarter-name">Q1</div>
-              <div class="quarter-period">Aug – Nov</div>
+              <div class="quarter-period">Apr – Jun</div>
               <div class="quarter-label">Tax Period 1</div>
             </button>
             <button onclick="generateQuarterlyReport('Q2')" class="quarter-btn">
               <div class="quarter-name">Q2</div>
-              <div class="quarter-period">Dec – Feb</div>
+              <div class="quarter-period">Jul – Sep</div>
               <div class="quarter-label">Tax Period 2</div>
             </button>
             <button onclick="generateQuarterlyReport('Q3')" class="quarter-btn">
               <div class="quarter-name">Q3</div>
-              <div class="quarter-period">Mar – May</div>
+              <div class="quarter-period">Oct – Dec</div>
               <div class="quarter-label">Tax Period 3</div>
             </button>
             <button onclick="generateQuarterlyReport('Q4')" class="quarter-btn">
               <div class="quarter-name">Q4</div>
-              <div class="quarter-period">Jun – Jul</div>
+              <div class="quarter-period">Jan – Mar</div>
               <div class="quarter-label">Tax Period 4</div>
             </button>
           </div>
@@ -262,11 +285,55 @@
     </div>
   </div>
 
+  <!-- ===== DATABASE MODAL ===== -->
+  <div id="dbModal" class="modal-overlay">
+    <div class="modal-content" style="max-width:480px;">
+      <div class="modal-header">
+        <h3>🗃️ Database Management</h3>
+        <button class="modal-close" onclick="closeDbModal()" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+
+        <!-- Export -->
+        <div class="db-action-card">
+          <div class="db-card-icon">📤</div>
+          <div class="db-card-body">
+            <div class="db-card-title">Export Database</div>
+            <div class="db-card-desc">Download all records as a 3-sheet Excel file. Use to review or clean up duplicates.</div>
+          </div>
+          <button class="db-card-btn db-btn-primary" onclick="exportDatabase()">Export</button>
+        </div>
+
+        <!-- Import -->
+        <div class="db-action-card db-card-warn">
+          <div class="db-card-icon">📥</div>
+          <div class="db-card-body">
+            <div class="db-card-title">Import Database</div>
+            <div class="db-card-desc">Replace ALL records with rows from an exported .xlsx file. PIN required. Cannot be undone.</div>
+          </div>
+          <button class="db-card-btn db-btn-warn" onclick="importDatabase()">Import</button>
+        </div>
+
+        <!-- Reset -->
+        <div class="db-action-card db-card-danger">
+          <div class="db-card-icon">🗑️</div>
+          <div class="db-card-body">
+            <div class="db-card-title">Reset All Data</div>
+            <div class="db-card-desc">Permanently delete ALL invoices, deposits, expenses and counters. For testing only.</div>
+          </div>
+          <button class="db-card-btn db-btn-danger" onclick="resetAllData()">Reset</button>
+        </div>
+
+        <input type="file" id="dbImportFile" accept=".xlsx,.xls" style="display:none" onchange="importFileSelected(this)">
+      </div>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
 
 
-  <!-- Scripts -->
+  <!-- Scripts — SheetJS is lazy-loaded on first Export/Import click (saves ~430 KB on initial load) -->
   <script type="module" src="config.js"></script>
   <script type="module" src="utils.js"></script>
   <script type="module" src="firebase-config.js"></script>

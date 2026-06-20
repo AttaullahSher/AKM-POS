@@ -14,7 +14,6 @@ import {
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
-  setLogLevel,
   waitForPendingWrites,
   enableNetwork,
   disableNetwork,
@@ -25,6 +24,8 @@ import {
   addDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
+  writeBatch,
   query,
   where,
   orderBy,
@@ -46,21 +47,16 @@ const db = initializeFirestore(app, {
     cacheSizeBytes: CACHE_CONFIG.SIZE_BYTES,
     tabManager: CACHE_CONFIG.MULTI_TAB ? persistentMultipleTabManager() : undefined
   }),
-  // Force long-polling: the shop's flaky internet breaks Firestore's streaming
-  // WebChannel/QUIC connection. Long-polling (plain HTTP) is far more tolerant
-  // of dropped/slow/changing networks and avoids the QUIC retry storms.
-  experimentalForceLongPolling: true,
+  // Shop networks / proxies / antivirus often break Firestore's streaming
+  // WebChannel ('Listen' 400 errors). Auto-detect and fall back to long-polling.
+  experimentalAutoDetectLongPolling: true,
 });
-
-// Quiet Firestore's chatty transport warnings (the "Listen stream transport
-// errored" spam when the network drops). Real errors still surface.
-setLogLevel('error');
 
 // Google provider locked to akm-music.com domain hint
 const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ hd: 'akm-music.com' });
 
-console.log('✅ Firebase initialised (single instance, offline cache on)');
+console.log('✅ Firebase initialised (single instance)');
 
 export {
   app,
@@ -72,6 +68,9 @@ export {
   onAuthStateChanged,
   signOut,
   // Firestore helpers
+  waitForPendingWrites,
+  enableNetwork,
+  disableNetwork,
   collection,
   doc,
   getDoc,
@@ -79,15 +78,13 @@ export {
   addDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
+  writeBatch,
   query,
   where,
   orderBy,
   limit,
   runTransaction,
   serverTimestamp,
-  Timestamp,
-  // Offline / sync helpers
-  waitForPendingWrites,
-  enableNetwork,
-  disableNetwork
+  Timestamp
 };

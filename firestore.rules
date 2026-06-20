@@ -32,9 +32,9 @@ service cloud.firestore {
       allow read: if isAuthorized();
       allow create: if isAuthorized() && isValidInvoice();
       allow update: if isAuthorized(); // For refunds & customer updates
-      allow delete: if false; // Never delete invoices (audit trail)
+      allow delete: if isAuthorized(); // Authorized for full-reset only (PIN-protected in UI)
     }
-    
+
     // ===== DEPOSITS COLLECTION =====
     match /deposits/{depositId} {
       allow read: if isAuthorized();
@@ -43,10 +43,12 @@ service cloud.firestore {
         && request.resource.data.amount > 0
         && request.resource.data.depositId is string
         && request.resource.data.yearMonth is string;
-      allow update: if false; // Immutable after creation
-      allow delete: if false; // Never delete deposits
+      // Only soft-delete fields may be changed — amounts/IDs stay immutable
+      allow update: if isAuthorized()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt']);
+      allow delete: if isAuthorized(); // Authorized for full-reset only (PIN-protected in UI)
     }
-    
+
     // ===== EXPENSES COLLECTION =====
     match /expenses/{expenseId} {
       allow read: if isAuthorized();
@@ -55,10 +57,12 @@ service cloud.firestore {
         && request.resource.data.amount > 0
         && request.resource.data.category is string
         && request.resource.data.expenseId is string;
-      allow update: if false; // Immutable after creation
-      allow delete: if false; // Never delete expenses
+      // Only soft-delete fields may be changed — amounts/IDs stay immutable
+      allow update: if isAuthorized()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt']);
+      allow delete: if isAuthorized(); // Authorized for full-reset only (PIN-protected in UI)
     }
-    
+
     // ===== REPAIRS COLLECTION =====
     match /repairs/{repairId} {
       allow read: if isAuthorized();
@@ -68,13 +72,13 @@ service cloud.firestore {
       allow update: if isAuthorized(); // For status updates
       allow delete: if false; // Never delete repair jobs
     }
-      // ===== COUNTERS COLLECTION =====
+
+    // ===== COUNTERS COLLECTION =====
     // Critical for invoice number generation
     match /counters/{counterId} {
       allow read: if isAuthorized();
-      // Allow create for initialization, update for transactions
-      allow create, update: if isAuthorized();
-      allow delete: if false;
+      // Allow create for initialization, update for transactions, delete for full-reset
+      allow create, update, delete: if isAuthorized();
     }
   }
 }
