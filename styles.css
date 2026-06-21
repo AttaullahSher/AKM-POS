@@ -602,6 +602,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   outline: none !important;
 }
 .item-input[type="number"] { text-align: right; }
+.item-input[type="text"]  { text-transform: uppercase; }
+
+/* Customer fields — uppercase without Caps Lock */
+#custName, #custPhone, #custTRN { text-transform: uppercase; }
 
 .add-item-btn {
   margin: 10px 0 14px;

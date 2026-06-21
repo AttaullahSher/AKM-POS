@@ -1282,6 +1282,15 @@ document.addEventListener('DOMContentLoaded', () => {
   if (invDate) invDate.value = todayUAE();
   updateSyncBadge();
 
+  // Auto-uppercase every text input in the invoice form — no Caps Lock needed.
+  document.querySelector('.invoice-card')?.addEventListener('input', e => {
+    const el = e.target;
+    if (el.tagName !== 'INPUT' || el.type !== 'text') return;
+    const pos = el.selectionStart;
+    el.value = el.value.toUpperCase();
+    el.setSelectionRange(pos, pos);
+  });
+
   document.getElementById('googleSignInBtn')?.addEventListener('click', signInWithGoogle);
   document.getElementById('logoutBtn')?.addEventListener('click', logout);
 
