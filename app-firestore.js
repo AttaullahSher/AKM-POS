@@ -19,6 +19,7 @@ import {
   getTodayDeposits,
   getTodayExpenses,
   getTodayCashIns,
+  getAllTimeCashFlow,
   loadRecentInvoices,
   markInvoiceAsRefunded,
   getInvoiceById,
@@ -206,11 +207,12 @@ window.printDailyReport = async function() {
   try {
     showToast('Generating daily report…', 'info');
     const today = new Date();
-    const [invoices, deposits, expenses, cashIns] = await Promise.all([
+    const [invoices, deposits, expenses, cashIns, allTime] = await Promise.all([
       getTodayInvoices(),
       getTodayDeposits(),
       getTodayExpenses(),
       getTodayCashIns(),
+      getAllTimeCashFlow(),
     ]);
 
     let totalSales = 0, totalVAT = 0, paidInvoices = 0;
@@ -236,6 +238,7 @@ window.printDailyReport = async function() {
     const totalExpenses     = expenses.filter(e => !e.deleted).reduce((s, e) => s + (e.amount || 0), 0);
     const cashInHand        = cash + totalCashIns - totalCashDeposits - totalExpenses;
 
+    const actualCashInHand  = allTime?.cashInHand ?? (cash + totalCashIns - totalCashDeposits - totalExpenses);
     const money = (n) => 'AED ' + (Number(n) || 0).toFixed(2);
     const pw = window.open('', '_blank', 'width=340,height=760');
     pw.document.write(`<!DOCTYPE html><html><head>
@@ -320,18 +323,18 @@ window.printDailyReport = async function() {
       </div>
 
       <div class="sec">
-        <div class="sec-t">Cash Flow</div>
+        <div class="sec-t">Today's Cash Flow</div>
         <div class="row"><span class="lbl">Cash Sales</span><span class="val">${money(cash)}</span></div>
         ${totalCashIns > 0 ? `<div class="row"><span class="lbl">+ Cash In</span><span class="val">${money(totalCashIns)}</span></div>` : ''}
-        <div class="row"><span class="lbl">− Cash Deposits</span><span class="val">${money(totalCashDeposits)}</span></div>
-        <div class="row"><span class="lbl">− Expenses</span><span class="val">${money(totalExpenses)}</span></div>
-        <div class="row total"><span class="lbl">Cash in Hand</span><span class="val">${money(cashInHand)}</span></div>
-        ${totalChequeDeps > 0 ? `<div class="row" style="margin-top:3px;font-size:10px;color:#555"><span class="lbl">Cheque Deposits (not deducted)</span><span class="val" style="font-size:12px">${money(totalChequeDeps)}</span></div>` : ''}
+        ${totalCashDeposits > 0 ? `<div class="row"><span class="lbl">− Cash Deposits</span><span class="val">${money(totalCashDeposits)}</span></div>` : ''}
+        ${totalExpenses > 0 ? `<div class="row"><span class="lbl">− Expenses</span><span class="val">${money(totalExpenses)}</span></div>` : ''}
+        ${totalChequeDeps > 0 ? `<div class="row" style="font-size:10px;color:#555"><span class="lbl">Cheque Deposits (memo)</span><span class="val" style="font-size:12px">${money(totalChequeDeps)}</span></div>` : ''}
+        <div class="row total" style="font-size:16px;border-top:2px solid #000;margin-top:5px;padding-top:4px;"><span class="lbl">Cash In Hand</span><span class="val">${money(actualCashInHand)}</span></div>
       </div>
 
       ${activeCashIns.length ? `<div class="sec"><div class="sec-t">Cash In (${activeCashIns.length})</div>
         ${activeCashIns.map(c=>`<div class="li">
-          <div class="li-top"><span>${c.cashInId||''} · ${c.purpose||''}</span><span class="val">${money(c.amount)}</span></div>
+          <div class="li-top"><span>${c.cashInId||''}</span><span class="val">${money(c.amount)}</span></div>
           ${c.reference ? `<div class="li-sub">${c.reference}</div>` : ''}
         </div>`).join('')}
         <div class="row total"><span class="lbl">Total Cash In</span><span class="val">${money(totalCashIns)}</span></div>
@@ -349,7 +352,7 @@ window.printDailyReport = async function() {
       ${expenses.length ? `<div class="sec"><div class="sec-t">Expenses (${expenses.length})</div>
         ${expenses.filter(e=>!e.deleted).map(e=>`<div class="li">
           <div class="li-top"><span>${e.expenseId||''}</span><span class="val">${money(e.amount)}</span></div>
-          <div class="li-sub">${e.description||''}${e.receiptNumber?` · Rcpt ${e.receiptNumber}`:''}</div>
+          ${e.description ? `<div class="li-sub">${e.description}</div>` : ''}
         </div>`).join('')}
         <div class="row total"><span class="lbl">Total Expenses</span><span class="val">${money(totalExpenses)}</span></div>
       </div>` : ''}
@@ -626,29 +629,19 @@ async function loadNextInvoiceNumber() {
 async function loadDashboardData() {
   if (!currentUser) return;
   try {
-    const [invoices, deposits, expenses, cashIns] = await Promise.all([
+    const [invoices, allTime] = await Promise.all([
       getTodayInvoices(),
-      getTodayDeposits(),
-      getTodayExpenses(),
-      getTodayCashIns(),
+      getAllTimeCashFlow(),
     ]);
 
-    let cash = 0, card = 0, tabby = 0, cheque = 0;
+    let totalSales = 0;
     invoices.forEach(inv => {
       if (inv.status === 'Paid' && !inv.deleted && !inv.superseded) {
-        cash   += inv.impacts?.cash   || 0;
-        card   += inv.impacts?.card   || 0;
-        tabby  += inv.impacts?.tabby  || 0;
-        cheque += inv.impacts?.cheque || 0;
+        totalSales += inv.payment?.grandTotal || 0;
       }
     });
 
-    const totalSales        = cash + card + tabby + cheque;
-    const totalCashDeposits = deposits.filter(d => !d.deleted && (d.depositType || 'Cash') === 'Cash').reduce((s, d) => s + (d.amount || 0), 0);
-    const totalExpenses     = expenses.filter(e => !e.deleted).reduce((s, e) => s + (e.amount || 0), 0);
-    const totalCashIns      = cashIns.filter(c => !c.deleted).reduce((s, c) => s + (c.amount || 0), 0);
-    const cashInHand        = cash + totalCashIns - totalCashDeposits - totalExpenses;
-
+    const cashInHand = allTime?.cashInHand ?? 0;
     updateEl('todaySalesQuick', totalSales.toFixed(2));
     updateEl('cashInHandQuick', cashInHand.toFixed(2));
   } catch (err) {
@@ -1287,8 +1280,9 @@ window.clearForm = function() {
   if (confirm('Clear the current invoice?')) {
     isReprintMode      = false;
     reprintInvoiceData = null;
-    loadNextInvoiceNumber();
+    setNewInvoiceUI();
     resetInvoiceForm();
+    loadNextInvoiceNumber();
     showToast('Form cleared.', 'info');
   }
 };
@@ -1323,6 +1317,14 @@ window.addItemRow = function() {
 function setupKeyboard() {
   document.addEventListener('keydown', (e) => {
     const active = document.activeElement;
+
+    // Cash In modal Enter chain
+    if (active.closest('#txModal') && e.key === 'Enter') {
+      e.preventDefault();
+      if (active.id === 'ciAmount') document.getElementById('ciReference')?.focus();
+      else window.submitCashIn();
+      return;
+    }
 
     // Deposit modal Enter chain
     if (active.closest('#depositModal') && e.key === 'Enter') {

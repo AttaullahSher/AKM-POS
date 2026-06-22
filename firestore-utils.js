@@ -650,7 +650,7 @@ export async function getAllTimeCashFlow() {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 1825); // 5 years
   try {
-    const [invSnap, depSnap, expSnap] = await Promise.all([
+    const [invSnap, depSnap, expSnap, cashInSnap] = await Promise.all([
       getDocs(query(
         collection(db, 'invoices'),
         where('dateObj', '>=', toTimestamp(cutoff)),
@@ -666,29 +666,41 @@ export async function getAllTimeCashFlow() {
         where('dateObj', '>=', toTimestamp(cutoff)),
         orderBy('dateObj', 'desc')
       )),
+      getDocs(query(
+        collection(db, 'cash_ins'),
+        where('dateObj', '>=', toTimestamp(cutoff)),
+        orderBy('dateObj', 'desc')
+      )),
     ]);
 
     let totalCash = 0;
     invSnap.forEach(d => {
       const data = d.data();
-      if (data.status === 'Paid' && !data.deleted) totalCash += data.impacts?.cash || 0;
+      // Exclude deleted AND superseded — superseded invoices are replaced by their amendment
+      if (data.status === 'Paid' && !data.deleted && !data.superseded) {
+        totalCash += data.impacts?.cash || 0;
+      }
     });
     let totalDeposits = 0;
     depSnap.forEach(d => {
       const data = d.data();
-      // Only cash deposits reduce cash in hand; cheque deposits are informational
       if (!data.deleted && (data.depositType || 'Cash') === 'Cash') totalDeposits += data.amount || 0;
     });
     let totalExpenses = 0;
     expSnap.forEach(d => {
       if (!d.data().deleted) totalExpenses += d.data().amount || 0;
     });
+    let totalCashIns = 0;
+    cashInSnap.forEach(d => {
+      if (!d.data().deleted) totalCashIns += d.data().amount || 0;
+    });
 
     return {
       totalCash,
+      totalCashIns,
       totalDeposits,
       totalExpenses,
-      cashInHand: totalCash - totalDeposits - totalExpenses,
+      cashInHand: totalCash + totalCashIns - totalDeposits - totalExpenses,
     };
   } catch (err) {
     console.error('❌ getAllTimeCashFlow:', err);
