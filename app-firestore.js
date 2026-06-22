@@ -831,31 +831,56 @@ function populateReprintForm(inv) {
 
 // Action buttons: "reprint/refund" mode (viewing a saved invoice from History)
 function setReprintUI(inv) {
-  const printBtn    = document.getElementById('printBtn');
-  const refundBtn   = document.getElementById('refundBtn');
-  const jpgBtn      = document.getElementById('jpgBtn');
-  const clearBtn    = document.getElementById('clearBtn');
-  if (printBtn) { printBtn.disabled = false; printBtn.textContent = '🖨️ Reprint'; }
+  const printBtn  = document.getElementById('printBtn');
+  const refundBtn = document.getElementById('refundBtn');
+  const jpgBtn    = document.getElementById('jpgBtn');
+  const clearBtn  = document.getElementById('clearBtn');
+  const card      = document.querySelector('.invoice-card');
+  const banner    = document.getElementById('reprintBanner');
+
   if (clearBtn) clearBtn.textContent = '🆕 New';
-  if (jpgBtn) jpgBtn.style.display = 'inline-flex';
-  if (refundBtn) {
-    refundBtn.style.display = 'inline-flex';
-    const refunded = inv.status === 'Refunded';
-    refundBtn.disabled    = refunded;
-    refundBtn.textContent = refunded ? '↩️ Refunded' : '↩️ Refund';
+  if (jpgBtn)   jpgBtn.style.display = 'inline-flex';
+
+  if (inv.superseded) {
+    if (printBtn) { printBtn.disabled = false; printBtn.textContent = '🖨️ Reprint'; }
+    if (refundBtn) refundBtn.style.display = 'none';
+    if (card)   card.classList.add('invoice-superseded');
+    if (banner) {
+      banner.className = 'reprint-banner reprint-banner--superseded';
+      banner.textContent = `⚠️ This invoice was superseded by ${inv.supersededBy || 'a newer version'} — read-only`;
+      banner.style.display = '';
+    }
+  } else {
+    if (printBtn) { printBtn.disabled = false; printBtn.textContent = '📝 Save & Reprint'; }
+    if (refundBtn) {
+      refundBtn.style.display = 'inline-flex';
+      const refunded = inv.status === 'Refunded';
+      refundBtn.disabled    = refunded;
+      refundBtn.textContent = refunded ? '↩️ Refunded' : '↩️ Refund';
+    }
+    if (card)   card.classList.remove('invoice-superseded');
+    if (banner) {
+      banner.className = 'reprint-banner reprint-banner--active';
+      banner.textContent = `✏️ Editing ${inv.invoiceNumber} — changes will be saved as a new amended invoice`;
+      banner.style.display = '';
+    }
   }
 }
 
 // Action buttons: normal "new invoice" mode
 function setNewInvoiceUI() {
-  const printBtn = document.getElementById('printBtn');
+  const printBtn  = document.getElementById('printBtn');
   const refundBtn = document.getElementById('refundBtn');
   const jpgBtn    = document.getElementById('jpgBtn');
   const clearBtn  = document.getElementById('clearBtn');
-  if (printBtn) { printBtn.disabled = false; printBtn.textContent = '🖨️ Save & Print Invoice'; }
-  if (clearBtn) clearBtn.textContent = '🗑️ Reset';
+  const card      = document.querySelector('.invoice-card');
+  const banner    = document.getElementById('reprintBanner');
+  if (printBtn)  { printBtn.disabled = false; printBtn.textContent = '🖨️ Save & Print Invoice'; }
+  if (clearBtn)  clearBtn.textContent = '🗑️ Reset';
   if (refundBtn) refundBtn.style.display = 'none';
   if (jpgBtn)    jpgBtn.style.display    = 'none';
+  if (card)      card.classList.remove('invoice-superseded');
+  if (banner)    banner.style.display = 'none';
 }
 
 window.saveInvoiceAsJpg = async function() {
@@ -944,41 +969,39 @@ async function getNextAmendmentNumber(baseNumber) {
   throw new Error('Too many amendments on this invoice');
 }
 
-window.saveAsAmendment = async function() {
+async function saveAsAmendment() {
   if (!isReprintMode || !reprintInvoiceData) return;
   const data = collectInvoiceData();
   if (!data) return;
 
-  const amendBtn = document.getElementById('amendBtn');
-  if (amendBtn) { amendBtn.disabled = true; amendBtn.textContent = '⏳ Saving…'; }
+  const btn = document.getElementById('printBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Saving…'; }
 
   try {
-    const originalNumber = reprintInvoiceData.originalInvoiceNumber || reprintInvoiceData.invoiceNumber;
-    const originalId     = reprintInvoiceData.originalInvoiceId     || reprintInvoiceData.id;
+    const originalNumber  = reprintInvoiceData.originalInvoiceNumber || reprintInvoiceData.invoiceNumber;
+    const originalId      = reprintInvoiceData.originalInvoiceId     || reprintInvoiceData.id;
     const amendmentNumber = await getNextAmendmentNumber(originalNumber);
 
-    data.invoiceNumber          = amendmentNumber;
-    data.isAmendment            = true;
-    data.originalInvoiceId      = originalId;
-    data.originalInvoiceNumber  = originalNumber;
+    data.invoiceNumber         = amendmentNumber;
+    data.isAmendment           = true;
+    data.originalInvoiceId     = originalId;
+    data.originalInvoiceNumber = originalNumber;
 
     updateEl('invNum', amendmentNumber);
     await saveInvoice(data);
     await markInvoiceSuperseded(reprintInvoiceData.id, amendmentNumber);
     trackOfflineSave();
-    showToast(`Amendment ${amendmentNumber} saved`, 'success');
+    showToast(`✅ Invoice ${amendmentNumber} saved`, 'success');
+    // afterprint event handles restorePrintLayout + resetToNewInvoice
     setTimeout(() => { preparePrintLayout(); window.print(); }, 300);
   } catch (err) {
     console.error('Amendment error:', err);
-    showToast('Amendment failed: ' + err.message, 'error');
-    if (amendBtn) { amendBtn.disabled = false; amendBtn.textContent = '📝 Amend'; }
+    showToast('❌ Save failed: ' + err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '📝 Save & Reprint'; }
   } finally {
-    setTimeout(async () => {
-      await loadDashboardData();
-      if (amendBtn) { amendBtn.disabled = false; amendBtn.textContent = '📝 Amend'; }
-    }, PERF.PRINT_RESTORE_DELAY || 3000);
+    setTimeout(() => loadDashboardData().catch(() => {}), PERF.PRINT_RESTORE_DELAY || 3000);
   }
-};
+}
 
 window.handleRefund = async function() {
   if (!isReprintMode || !reprintInvoiceData) return;
@@ -1272,7 +1295,12 @@ window.clearForm = function() {
 
 window.saveAndPrint = function() {
   if (isReprintMode) {
-    window.print();
+    // Superseded invoices: just reprint the physical copy, never create another record
+    if (reprintInvoiceData?.superseded) {
+      setTimeout(() => { preparePrintLayout(); window.print(); }, 50);
+    } else {
+      saveAsAmendment();
+    }
   } else {
     saveNewInvoice();
   }
