@@ -14,9 +14,11 @@ import {
   saveInvoice,
   saveDeposit,
   saveExpense,
+  createCashIn,
   getTodayInvoices,
   getTodayDeposits,
   getTodayExpenses,
+  getTodayCashIns,
   loadRecentInvoices,
   markInvoiceAsRefunded,
   getInvoiceById,
@@ -204,10 +206,11 @@ window.printDailyReport = async function() {
   try {
     showToast('Generating daily report…', 'info');
     const today = new Date();
-    const [invoices, deposits, expenses] = await Promise.all([
+    const [invoices, deposits, expenses, cashIns] = await Promise.all([
       getTodayInvoices(),
       getTodayDeposits(),
-      getTodayExpenses()
+      getTodayExpenses(),
+      getTodayCashIns(),
     ]);
 
     let totalSales = 0, totalVAT = 0, paidInvoices = 0;
@@ -223,14 +226,15 @@ window.printDailyReport = async function() {
         paidInvoices++;
       }
     });
-    // Only cash deposits reduce cash in hand; cheque deposits are informational
+    const activeCashIns     = cashIns.filter(c => !c.deleted);
+    const totalCashIns      = activeCashIns.reduce((s, c) => s + (c.amount || 0), 0);
     const activeDeps        = deposits.filter(d => !d.deleted);
     const cashDeposits      = activeDeps.filter(d => (d.depositType || 'Cash') === 'Cash');
     const chequeDeposits    = activeDeps.filter(d => d.depositType === 'Cheque');
     const totalCashDeposits = cashDeposits.reduce((s, d) => s + (d.amount || 0), 0);
     const totalChequeDeps   = chequeDeposits.reduce((s, d) => s + (d.amount || 0), 0);
     const totalExpenses     = expenses.filter(e => !e.deleted).reduce((s, e) => s + (e.amount || 0), 0);
-    const cashInHand        = cash - totalCashDeposits - totalExpenses;
+    const cashInHand        = cash + totalCashIns - totalCashDeposits - totalExpenses;
 
     const money = (n) => 'AED ' + (Number(n) || 0).toFixed(2);
     const pw = window.open('', '_blank', 'width=340,height=760');
@@ -318,11 +322,20 @@ window.printDailyReport = async function() {
       <div class="sec">
         <div class="sec-t">Cash Flow</div>
         <div class="row"><span class="lbl">Cash Sales</span><span class="val">${money(cash)}</span></div>
+        ${totalCashIns > 0 ? `<div class="row"><span class="lbl">+ Cash In</span><span class="val">${money(totalCashIns)}</span></div>` : ''}
         <div class="row"><span class="lbl">− Cash Deposits</span><span class="val">${money(totalCashDeposits)}</span></div>
         <div class="row"><span class="lbl">− Expenses</span><span class="val">${money(totalExpenses)}</span></div>
         <div class="row total"><span class="lbl">Cash in Hand</span><span class="val">${money(cashInHand)}</span></div>
         ${totalChequeDeps > 0 ? `<div class="row" style="margin-top:3px;font-size:10px;color:#555"><span class="lbl">Cheque Deposits (not deducted)</span><span class="val" style="font-size:12px">${money(totalChequeDeps)}</span></div>` : ''}
       </div>
+
+      ${activeCashIns.length ? `<div class="sec"><div class="sec-t">Cash In (${activeCashIns.length})</div>
+        ${activeCashIns.map(c=>`<div class="li">
+          <div class="li-top"><span>${c.cashInId||''} · ${c.purpose||''}</span><span class="val">${money(c.amount)}</span></div>
+          ${c.reference ? `<div class="li-sub">${c.reference}</div>` : ''}
+        </div>`).join('')}
+        <div class="row total"><span class="lbl">Total Cash In</span><span class="val">${money(totalCashIns)}</span></div>
+      </div>` : ''}
 
       ${activeDeps.length ? `<div class="sec"><div class="sec-t">Bank Deposits (${activeDeps.length})</div>
         ${activeDeps.map(d=>`<div class="li">
@@ -613,10 +626,11 @@ async function loadNextInvoiceNumber() {
 async function loadDashboardData() {
   if (!currentUser) return;
   try {
-    const [invoices, deposits, expenses] = await Promise.all([
+    const [invoices, deposits, expenses, cashIns] = await Promise.all([
       getTodayInvoices(),
       getTodayDeposits(),
       getTodayExpenses(),
+      getTodayCashIns(),
     ]);
 
     let cash = 0, card = 0, tabby = 0, cheque = 0;
@@ -632,7 +646,8 @@ async function loadDashboardData() {
     const totalSales        = cash + card + tabby + cheque;
     const totalCashDeposits = deposits.filter(d => !d.deleted && (d.depositType || 'Cash') === 'Cash').reduce((s, d) => s + (d.amount || 0), 0);
     const totalExpenses     = expenses.filter(e => !e.deleted).reduce((s, e) => s + (e.amount || 0), 0);
-    const cashInHand        = cash - totalCashDeposits - totalExpenses;
+    const totalCashIns      = cashIns.filter(c => !c.deleted).reduce((s, c) => s + (c.amount || 0), 0);
+    const cashInHand        = cash + totalCashIns - totalCashDeposits - totalExpenses;
 
     updateEl('todaySalesQuick', totalSales.toFixed(2));
     updateEl('cashInHandQuick', cashInHand.toFixed(2));
@@ -818,13 +833,11 @@ function populateReprintForm(inv) {
 function setReprintUI(inv) {
   const printBtn    = document.getElementById('printBtn');
   const refundBtn   = document.getElementById('refundBtn');
-  const whatsappBtn = document.getElementById('whatsappBtn');
-  const amendBtn    = document.getElementById('amendBtn');
+  const jpgBtn      = document.getElementById('jpgBtn');
   const clearBtn    = document.getElementById('clearBtn');
   if (printBtn) { printBtn.disabled = false; printBtn.textContent = '🖨️ Reprint'; }
   if (clearBtn) clearBtn.textContent = '🆕 New';
-  if (whatsappBtn) whatsappBtn.style.display = 'inline-flex';
-  if (amendBtn)    amendBtn.style.display    = 'inline-flex';
+  if (jpgBtn) jpgBtn.style.display = 'inline-flex';
   if (refundBtn) {
     refundBtn.style.display = 'inline-flex';
     const refunded = inv.status === 'Refunded';
@@ -835,17 +848,59 @@ function setReprintUI(inv) {
 
 // Action buttons: normal "new invoice" mode
 function setNewInvoiceUI() {
-  const printBtn    = document.getElementById('printBtn');
-  const refundBtn   = document.getElementById('refundBtn');
-  const whatsappBtn = document.getElementById('whatsappBtn');
-  const amendBtn    = document.getElementById('amendBtn');
-  const clearBtn    = document.getElementById('clearBtn');
+  const printBtn = document.getElementById('printBtn');
+  const refundBtn = document.getElementById('refundBtn');
+  const jpgBtn    = document.getElementById('jpgBtn');
+  const clearBtn  = document.getElementById('clearBtn');
   if (printBtn) { printBtn.disabled = false; printBtn.textContent = '🖨️ Save & Print Invoice'; }
   if (clearBtn) clearBtn.textContent = '🗑️ Reset';
-  if (refundBtn)   refundBtn.style.display   = 'none';
-  if (whatsappBtn) whatsappBtn.style.display = 'none';
-  if (amendBtn)    amendBtn.style.display    = 'none';
+  if (refundBtn) refundBtn.style.display = 'none';
+  if (jpgBtn)    jpgBtn.style.display    = 'none';
 }
+
+window.saveInvoiceAsJpg = async function() {
+  const container = document.querySelector('.invoice-card');
+  if (!container) return;
+
+  const btn = document.getElementById('jpgBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Saving…'; }
+
+  preparePrintLayout();
+  await new Promise(r => setTimeout(r, 100));
+
+  try {
+    if (typeof html2canvas === 'undefined') {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Failed to load image library'));
+        document.head.appendChild(s);
+      });
+    }
+    const canvas = await html2canvas(container, {
+      scale: 4,
+      backgroundColor: '#ffffff',
+      logging: false,
+      useCORS: true,
+    });
+    canvas.toBlob(blob => {
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      const num  = document.getElementById('invNum')?.textContent?.trim() || 'invoice';
+      a.download = `AKM-Invoice-${num}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+    }, 'image/jpeg', 0.95);
+  } catch (err) {
+    showToast('Save failed: ' + err.message, 'error');
+  } finally {
+    restorePrintLayout();
+    if (btn) { btn.disabled = false; btn.textContent = '📸 Save JPG'; }
+  }
+};
 
 window.shareInvoiceWhatsApp = function() {
   const inv = reprintInvoiceData;
@@ -1029,6 +1084,63 @@ window.selectDepositType = function(button, type) {
   button.classList.add('active');
 };
 
+// ─── Transaction Modal (Cash In / Cash Out) ──────────────────────
+
+window.openTransactionModal = function() {
+  document.getElementById('txScreen1').style.display = '';
+  document.getElementById('txScreen2').style.display = 'none';
+  document.getElementById('txModal').style.display = 'flex';
+  document.getElementById('ciAmount').value    = '';
+  document.getElementById('ciReference').value = '';
+};
+
+window.closeTxModal = function() {
+  document.getElementById('txModal').style.display = 'none';
+};
+
+window.txGoCashIn = function() {
+  document.getElementById('txScreen1').style.display = 'none';
+  document.getElementById('txScreen2').style.display = '';
+  setTimeout(() => document.getElementById('ciAmount')?.focus(), 100);
+};
+
+window.txGoBack = function() {
+  document.getElementById('txScreen2').style.display = 'none';
+  document.getElementById('txScreen1').style.display = '';
+};
+
+window.txOpenDeposit = function() {
+  window.closeTxModal();
+  window.openDepositModal();
+};
+
+window.txOpenExpense = function() {
+  window.closeTxModal();
+  window.openExpenseModal();
+};
+
+window.submitCashIn = async function() {
+  const amount    = parseFloat(document.getElementById('ciAmount')?.value);
+  const reference = document.getElementById('ciReference')?.value?.trim().toUpperCase();
+
+  if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
+
+  const btn = document.querySelector('#txScreen2 .btn-success');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Saving…'; }
+
+  try {
+    await createCashIn({ amount, reference });
+    showToast(`✅ Cash In AED ${amount.toFixed(2)} saved.`, 'success');
+    window.closeTxModal();
+    loadDashboardData().catch(() => {});
+  } catch (err) {
+    console.error('Cash In error:', err);
+    showToast('❌ Could not save. Try again.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✓ Save Cash In'; }
+  }
+};
+
 window.openDepositModal = function() {
   const modal = document.getElementById('depositModal');
   if (modal) modal.classList.add('show');
@@ -1036,7 +1148,7 @@ window.openDepositModal = function() {
   currentDepositType = 'Cash';
   document.querySelectorAll('#depositTypeGrid .deposit-type-btn').forEach(b => b.classList.remove('active'));
   document.querySelector('#depositTypeGrid .deposit-type-btn.cash')?.classList.add('active');
-  ['depositName','depositAmount','depositBank','depositRef'].forEach((id, i) => {
+  ['depositName','depositAmount','depositBank'].forEach((id, i) => {
     const el = document.getElementById(id);
     if (el) { el.value = ''; if (i === 0) setTimeout(() => el.focus(), 100); }
   });
@@ -1051,19 +1163,17 @@ window.submitDeposit = async function() {
   const name   = document.getElementById('depositName')?.value.trim();
   const amount = parseFloat(document.getElementById('depositAmount')?.value);
   const bank   = document.getElementById('depositBank')?.value.trim();
-  const slip   = document.getElementById('depositRef')?.value.trim();
 
   if (!name)             { showToast('Enter depositor name.', 'error');  document.getElementById('depositName')?.focus();   return; }
   if (!amount || amount <= 0) { showToast('Enter a valid amount.', 'error'); document.getElementById('depositAmount')?.focus(); return; }
   if (!bank)             { showToast('Enter bank name.', 'error');        document.getElementById('depositBank')?.focus();   return; }
-  if (!slip)             { showToast('Enter slip number.', 'error');      document.getElementById('depositRef')?.focus();    return; }
 
   _depositSaving = true;
   const btn = document.querySelector('#depositModal .btn-success');
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   try {
     const depositId = await getNextDepositId();
-    await saveDeposit({ depositId, amount, bank, slipNumber: slip, depositor: name, depositType: currentDepositType });
+    await saveDeposit({ depositId, amount, bank, depositor: name, depositType: currentDepositType });
     trackOfflineSave();
     showToast(`✅ ${currentDepositType} deposit AED ${amount.toFixed(2)} saved.`, 'success');
     closeDepositModal();
@@ -1082,7 +1192,7 @@ window.submitDeposit = async function() {
 window.openExpenseModal = function() {
   const modal = document.getElementById('expenseModal');
   if (modal) modal.classList.add('show');
-  ['expenseDesc','expenseAmount','expenseReceipt'].forEach((id, i) => {
+  ['expenseAmount','expenseDesc'].forEach((id, i) => {
     const el = document.getElementById(id);
     if (el) { el.value = ''; if (i === 0) setTimeout(() => el.focus(), 100); }
   });
@@ -1094,20 +1204,18 @@ window.closeExpenseModal = function() {
 
 window.submitExpense = async function() {
   if (_expenseSaving) return;
-  const desc     = document.getElementById('expenseDesc')?.value.trim();
   const amount   = parseFloat(document.getElementById('expenseAmount')?.value);
-  const receipt  = document.getElementById('expenseReceipt')?.value.trim();
+  const desc     = document.getElementById('expenseDesc')?.value.trim();
 
-  if (!desc)     { showToast('Enter a description.', 'error');     document.getElementById('expenseDesc')?.focus();     return; }
   if (!amount || amount <= 0) { showToast('Enter a valid amount.', 'error'); document.getElementById('expenseAmount')?.focus(); return; }
-  if (!receipt)  { showToast('Enter a receipt number.', 'error');  document.getElementById('expenseReceipt')?.focus();  return; }
+  if (!desc)     { showToast('Enter a description.', 'error');     document.getElementById('expenseDesc')?.focus();     return; }
 
   _expenseSaving = true;
   const btn = document.querySelector('#expenseModal .btn-primary');
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   try {
     const expenseId = await getNextExpenseId();
-    await saveExpense({ expenseId, description: desc, amount, receiptNumber: receipt });
+    await saveExpense({ expenseId, description: desc, amount });
     trackOfflineSave();
     showToast(`✅ Expense AED ${amount.toFixed(2)} saved.`, 'success');
     closeExpenseModal();
@@ -1204,7 +1312,7 @@ function setupKeyboard() {
     // Deposit modal Enter chain
     if (active.closest('#depositModal') && e.key === 'Enter') {
       e.preventDefault();
-      const seq = ['depositName','depositAmount','depositBank','depositRef'];
+      const seq = ['depositName','depositAmount','depositBank'];
       const idx = seq.indexOf(active.id);
       if (idx >= 0 && idx < seq.length - 1) document.getElementById(seq[idx + 1])?.focus();
       else if (idx === seq.length - 1) window.submitDeposit();
@@ -1214,7 +1322,7 @@ function setupKeyboard() {
     // Expense modal Enter chain (skip textarea — newlines allowed there)
     if (active.closest('#expenseModal') && e.key === 'Enter' && active.tagName !== 'TEXTAREA') {
       e.preventDefault();
-      const seq = ['expenseDesc','expenseAmount','expenseReceipt'];
+      const seq = ['expenseAmount','expenseDesc'];
       const idx = seq.indexOf(active.id);
       if (idx >= 0 && idx < seq.length - 1) document.getElementById(seq[idx + 1])?.focus();
       else if (idx === seq.length - 1) window.submitExpense();
