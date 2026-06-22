@@ -353,21 +353,33 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 /* Colored hover states */
-.hdr-btn.deposit-btn:hover  { background: var(--emerald-50); border-color: var(--emerald-200); color: var(--emerald-700); }
-.hdr-btn.expense-btn:hover  { background: var(--rose-50);    border-color: var(--rose-300);    color: var(--rose-600); }
-.hdr-btn.repair-btn:hover   { background: var(--amber-50);   border-color: var(--amber-200);   color: var(--amber-700); }
-.hdr-btn.history-btn:hover  { background: var(--purple-50);  border-color: var(--purple-200);  color: var(--purple-600); }
-.hdr-btn.report-btn:hover   { background: var(--blue-50);    border-color: var(--blue-100);    color: var(--blue-700); }
-.hdr-btn.dashboard-btn {
+.hdr-btn.deposit-btn:hover     { background: var(--emerald-50); border-color: var(--emerald-200); color: var(--emerald-700); }
+.hdr-btn.expense-btn:hover     { background: var(--rose-50);    border-color: var(--rose-300);    color: var(--rose-600); }
+.hdr-btn.repair-btn:hover      { background: var(--amber-50);   border-color: var(--amber-200);   color: var(--amber-700); }
+.hdr-btn.report-btn:hover      { background: var(--blue-50);    border-color: var(--blue-100);    color: var(--blue-700); }
+.hdr-btn.logout-btn:hover      { background: var(--rose-50);    border-color: var(--rose-300);    color: var(--rose-600); }
+/* Cash In button */
+.hdr-btn.cashin-btn:hover      { background: #f0fdf4; border-color: #86efac; color: #15803d; }
+/* Deposit header button */
+.hdr-btn.deposit-hdr-btn:hover { background: var(--emerald-50); border-color: var(--emerald-200); color: var(--emerald-700); }
+/* Expense header button */
+.hdr-btn.expense-hdr-btn:hover { background: var(--rose-50); border-color: var(--rose-300); color: var(--rose-600); }
+/* History — highlighted blue always */
+.hdr-btn.history-btn {
   background: var(--sky-600); border-color: var(--sky-700);
-  color: white; box-shadow: 0 3px 8px rgba(2,132,199,.3);
+  color: white; box-shadow: 0 3px 8px rgba(2,132,199,.25);
 }
-.hdr-btn.dashboard-btn:hover {
+.hdr-btn.history-btn:hover {
   background: var(--sky-700); border-color: var(--sky-800);
   color: white;
 }
-.hdr-btn.logout-btn:hover      { background: var(--rose-50);    border-color: var(--rose-300);    color: var(--rose-600); }
-.hdr-btn.transaction-btn:hover { background: var(--sky-50);     border-color: var(--sky-300);     color: var(--sky-700); }
+/* Dashboard */
+.hdr-btn.dashboard-btn {
+  background: white; border-color: var(--slate-200); color: var(--slate-600);
+}
+.hdr-btn.dashboard-btn:hover {
+  background: var(--sky-50); border-color: var(--sky-300); color: var(--sky-700);
+}
 
 /* ── Transaction Modal ─────────────────────────────────────── */
 .tx-modal { max-width: 560px; width: 100%; }

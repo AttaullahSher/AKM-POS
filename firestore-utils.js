@@ -440,10 +440,40 @@ export async function getTodayExpenses() {
   }
 }
 
+export async function getTodayCashIns() {
+  try {
+    const today = formatDate(new Date(), 'YYYY-MM-DD');
+    const q = query(collection(db, 'cash_ins'), where('date', '==', today));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    console.error('❌ getTodayCashIns:', err);
+    return [];
+  }
+}
+
+export async function createCashIn({ amount, reference = '' }) {
+  const today    = new Date();
+  const cashInId = await getNextCashInId();
+  const docRef   = await addDoc(collection(db, 'cash_ins'), {
+    cashInId,
+    amount,
+    reference,
+    date:      formatDate(today, 'YYYY-MM-DD'),
+    dateObj:   toTimestamp(today),
+    time:      formatTime(today),
+    createdAt: serverTimestamp(),
+    deleted:   false,
+  });
+  return docRef.id;
+}
+
+export const getNextCashInId = () => getNextMonthlyId('cash_ins_counter', 'CI');
+
 // ─── Deposits ────────────────────────────────────────────────
 
 export async function createDeposit(depositData) {
-  const { depositId, amount, bank, slipNumber, depositor, depositType = 'Cash' } = depositData;
+  const { depositId, amount, bank, slipNumber = '', depositor = '', depositType = 'Cash' } = depositData;
   // depositId format: D-MM## e.g. D-0601
   // Extract month from parts[1] first two chars
   const parts    = depositId.split('-');           // ['D', '0601']
@@ -477,7 +507,7 @@ export async function createDeposit(depositData) {
 // ─── Expenses ────────────────────────────────────────────────
 
 export async function createExpense(expenseData) {
-  const { expenseId, category = '', description, amount, receiptNumber } = expenseData;
+  const { expenseId, category = '', description, amount } = expenseData;
   // expenseId format: E-MM## e.g. E-0601
   const parts    = expenseId.split('-');
   const monthStr = parts[1] ? parts[1].substring(0, 2) : '00';
@@ -495,7 +525,6 @@ export async function createExpense(expenseData) {
     category,
     description,
     amount,
-    receiptNumber,
     cashImpact: -amount,
     notes: '',
   };

@@ -60,7 +60,7 @@
     <!-- Header: Brand | Stats | Action Buttons -->
     <header class="app-header">
 
-      <!-- LEFT: Brand + Daily Report -->
+      <!-- LEFT: Brand + Dashboard + Daily Report -->
       <div class="header-left">
         <div class="header-brand">
           <div class="brand-icon">🎵</div>
@@ -70,25 +70,32 @@
           </div>
           <span id="syncBadge" class="sync-badge" style="display:none;" title="Transactions saved offline — will sync when connected"></span>
         </div>
+        <a href="dashboard.html" class="hdr-btn dashboard-btn" title="Dashboard" aria-label="Dashboard">
+          <span class="hdr-icon">📊</span><span>Dashboard</span>
+        </a>
         <button onclick="printDailyReport()" class="hdr-btn report-btn" title="Daily Report" aria-label="Daily Report">
           <span class="hdr-icon">📄</span><span>Daily Report</span>
         </button>
       </div>
 
-      <!-- RIGHT: History + Transaction + Dashboard + Logout -->
+      <!-- RIGHT: Cash In | Deposit | Expenses | History | Logout -->
       <div class="header-actions">
+
+        <button onclick="openCashInModal()" class="hdr-btn cashin-btn" title="Cash In" aria-label="Cash In">
+          <span class="hdr-icon">💵</span><span>Cash In</span>
+        </button>
+
+        <button onclick="openDepositModal()" class="hdr-btn deposit-hdr-btn" title="Deposit" aria-label="Deposit">
+          <span class="hdr-icon">🏦</span><span>Deposit</span>
+        </button>
+
+        <button onclick="openExpenseModal()" class="hdr-btn expense-hdr-btn" title="Expenses" aria-label="Expenses">
+          <span class="hdr-icon">🧾</span><span>Expenses</span>
+        </button>
 
         <button onclick="openHistoryModal()" class="hdr-btn history-btn" title="Invoice History" aria-label="Invoice History">
           <span class="hdr-icon">📋</span><span>History</span>
         </button>
-
-        <button onclick="openTransactionModal()" class="hdr-btn transaction-btn" title="Transaction" aria-label="Transaction">
-          <span class="hdr-icon">💳</span><span>Transaction</span>
-        </button>
-
-        <a href="dashboard.html" class="hdr-btn dashboard-btn" title="Dashboard" aria-label="Dashboard">
-          <span class="hdr-icon">📊</span><span>Dashboard</span>
-        </a>
 
         <div class="hdr-divider"></div>
 
@@ -281,9 +288,9 @@
             <button type="button" class="deposit-type-btn cheque" data-type="Cheque" onclick="selectDepositType(this,'Cheque')">📄 Cheque</button>
           </div>
         </div>
-        <div class="form-group">
-          <label>Name of Depositor <span style="color:#f43f5e">*</span></label>
-          <input type="text" id="depositName" placeholder="Enter depositor name" aria-label="Depositor name" required autocomplete="off">
+        <div id="depositNameRow" class="form-group" style="display:none;">
+          <label id="depositNameLabel">Company Name <span style="color:#f43f5e">*</span></label>
+          <input type="text" id="depositName" placeholder="Enter company name" aria-label="Company name" autocomplete="off">
         </div>
         <div class="form-group">
           <label>Amount (AED) <span style="color:#f43f5e">*</span></label>
@@ -340,58 +347,27 @@
     </div>
   </div>
 
-  <!-- ===== TRANSACTION MODAL ===== -->
+  <!-- ===== CASH IN MODAL ===== -->
   <div id="txModal" class="modal-overlay" style="display:none;">
     <div class="modal-content tx-modal">
-
-      <!-- Screen 1: 3 cards -->
-      <div id="txScreen1">
-        <div class="modal-header">
-          <h3>💳 Transaction</h3>
-          <button class="modal-close-btn" onclick="closeTxModal()" aria-label="Close">×</button>
+      <div class="modal-header">
+        <h3>💵 Cash In</h3>
+        <button class="modal-close-btn" onclick="closeTxModal()" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Amount (AED) <span style="color:#f43f5e">*</span></label>
+          <input type="number" id="ciAmount" class="form-control" placeholder="0.00" min="0.01" step="0.01" autocomplete="off">
         </div>
-        <div class="tx-choices tx-three">
-          <button class="tx-choice-btn cash-in" onclick="txGoCashIn()">
-            <span class="tx-choice-icon">💵</span>
-            <span class="tx-choice-label">Cash In</span>
-            <span class="tx-choice-desc">Advance, old invoice, repair, rental</span>
-          </button>
-          <button class="tx-choice-btn deposit" onclick="txOpenDeposit()">
-            <span class="tx-choice-icon">🏦</span>
-            <span class="tx-choice-label">Deposits</span>
-            <span class="tx-choice-desc">Cash or cheque to bank</span>
-          </button>
-          <button class="tx-choice-btn expense" onclick="txOpenExpense()">
-            <span class="tx-choice-icon">🧾</span>
-            <span class="tx-choice-label">Expenses</span>
-            <span class="tx-choice-desc">Any business expense</span>
-          </button>
+        <div class="form-group">
+          <label>Description / Notes</label>
+          <input type="text" id="ciReference" class="form-control" placeholder="Customer name, invoice #, etc." autocomplete="off" style="text-transform:uppercase">
         </div>
       </div>
-
-      <!-- Screen 2: Cash In form -->
-      <div id="txScreen2" style="display:none;">
-        <div class="modal-header">
-          <button class="tx-back-btn" onclick="txGoBack()" aria-label="Back">← Back</button>
-          <h3>💵 Cash In</h3>
-          <button class="modal-close-btn" onclick="closeTxModal()" aria-label="Close">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Amount (AED) <span style="color:#f43f5e">*</span></label>
-            <input type="number" id="ciAmount" class="form-control" placeholder="0.00" min="0.01" step="0.01" autocomplete="off">
-          </div>
-          <div class="form-group">
-            <label>Description / Notes</label>
-            <input type="text" id="ciReference" class="form-control" placeholder="Customer name, invoice #, etc." autocomplete="off" style="text-transform:uppercase">
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="txGoBack()">← Back</button>
-          <button class="btn btn-success" onclick="submitCashIn()">✓ Save Cash In</button>
-        </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeTxModal()">Cancel</button>
+        <button class="btn btn-success" onclick="submitCashIn()">✓ Save Cash In</button>
       </div>
-
     </div>
   </div>
 

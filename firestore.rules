@@ -73,6 +73,23 @@ service cloud.firestore {
       allow delete: if false; // Never delete repair jobs
     }
 
+    // ===== CASH INS COLLECTION =====
+    match /cash_ins/{cashInId} {
+      allow read: if isAuthorized();
+      allow create: if isAuthorized()
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.cashInId is string;
+      allow update: if isAuthorized()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt']);
+      allow delete: if isAuthorized();
+    }
+
+    // ===== CASH INS COUNTER =====
+    match /cash_ins_counter/{docId} {
+      allow read, write: if isAuthorized();
+    }
+
     // ===== COUNTERS COLLECTION =====
     // Critical for invoice number generation
     match /counters/{counterId} {

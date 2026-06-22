@@ -1082,41 +1082,23 @@ window.selectDepositType = function(button, type) {
   currentDepositType = type;
   document.querySelectorAll('#depositTypeGrid .deposit-type-btn').forEach(b => b.classList.remove('active'));
   button.classList.add('active');
+  const nameRow = document.getElementById('depositNameRow');
+  if (nameRow) nameRow.style.display = type === 'Cheque' ? '' : 'none';
+  if (type === 'Cheque') setTimeout(() => document.getElementById('depositName')?.focus(), 80);
 };
 
 // ─── Transaction Modal (Cash In / Cash Out) ──────────────────────
 
-window.openTransactionModal = function() {
-  document.getElementById('txScreen1').style.display = '';
-  document.getElementById('txScreen2').style.display = 'none';
-  document.getElementById('txModal').style.display = 'flex';
+window.openCashInModal = function() {
   document.getElementById('ciAmount').value    = '';
   document.getElementById('ciReference').value = '';
+  document.getElementById('txModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('ciAmount')?.focus(), 100);
 };
+window.openTransactionModal = window.openCashInModal; // keep old name working
 
 window.closeTxModal = function() {
   document.getElementById('txModal').style.display = 'none';
-};
-
-window.txGoCashIn = function() {
-  document.getElementById('txScreen1').style.display = 'none';
-  document.getElementById('txScreen2').style.display = '';
-  setTimeout(() => document.getElementById('ciAmount')?.focus(), 100);
-};
-
-window.txGoBack = function() {
-  document.getElementById('txScreen2').style.display = 'none';
-  document.getElementById('txScreen1').style.display = '';
-};
-
-window.txOpenDeposit = function() {
-  window.closeTxModal();
-  window.openDepositModal();
-};
-
-window.txOpenExpense = function() {
-  window.closeTxModal();
-  window.openExpenseModal();
 };
 
 window.submitCashIn = async function() {
@@ -1125,7 +1107,7 @@ window.submitCashIn = async function() {
 
   if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
 
-  const btn = document.querySelector('#txScreen2 .btn-success');
+  const btn = document.querySelector('#txModal .btn-success');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Saving…'; }
 
   try {
@@ -1148,10 +1130,13 @@ window.openDepositModal = function() {
   currentDepositType = 'Cash';
   document.querySelectorAll('#depositTypeGrid .deposit-type-btn').forEach(b => b.classList.remove('active'));
   document.querySelector('#depositTypeGrid .deposit-type-btn.cash')?.classList.add('active');
-  ['depositName','depositAmount','depositBank'].forEach((id, i) => {
+  const nameRow = document.getElementById('depositNameRow');
+  if (nameRow) nameRow.style.display = 'none';
+  ['depositName','depositAmount','depositBank'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) { el.value = ''; if (i === 0) setTimeout(() => el.focus(), 100); }
+    if (el) el.value = '';
   });
+  setTimeout(() => document.getElementById('depositAmount')?.focus(), 100);
 };
 
 window.closeDepositModal = function() {
@@ -1160,13 +1145,15 @@ window.closeDepositModal = function() {
 
 window.submitDeposit = async function() {
   if (_depositSaving) return;
-  const name   = document.getElementById('depositName')?.value.trim();
   const amount = parseFloat(document.getElementById('depositAmount')?.value);
   const bank   = document.getElementById('depositBank')?.value.trim();
+  const name   = currentDepositType === 'Cheque'
+    ? document.getElementById('depositName')?.value.trim()
+    : '';
 
-  if (!name)             { showToast('Enter depositor name.', 'error');  document.getElementById('depositName')?.focus();   return; }
   if (!amount || amount <= 0) { showToast('Enter a valid amount.', 'error'); document.getElementById('depositAmount')?.focus(); return; }
-  if (!bank)             { showToast('Enter bank name.', 'error');        document.getElementById('depositBank')?.focus();   return; }
+  if (!bank)   { showToast('Enter bank name.', 'error');    document.getElementById('depositBank')?.focus();   return; }
+  if (currentDepositType === 'Cheque' && !name) { showToast('Enter company name.', 'error'); document.getElementById('depositName')?.focus(); return; }
 
   _depositSaving = true;
   const btn = document.querySelector('#depositModal .btn-success');
@@ -1312,7 +1299,9 @@ function setupKeyboard() {
     // Deposit modal Enter chain
     if (active.closest('#depositModal') && e.key === 'Enter') {
       e.preventDefault();
-      const seq = ['depositName','depositAmount','depositBank'];
+      const seq = currentDepositType === 'Cheque'
+        ? ['depositName','depositAmount','depositBank']
+        : ['depositAmount','depositBank'];
       const idx = seq.indexOf(active.id);
       if (idx >= 0 && idx < seq.length - 1) document.getElementById(seq[idx + 1])?.focus();
       else if (idx === seq.length - 1) window.submitDeposit();
