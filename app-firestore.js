@@ -79,6 +79,21 @@ window.addEventListener('online', async () => {
 
 window.addEventListener('offline', updateSyncBadge);
 
+// Refresh cash-in-hand whenever the user returns to this tab (e.g. after deleting
+// an invoice on the dashboard) so the header chip stays accurate.
+// Also correct a stale date field — if the page was left open overnight the date
+// field may still show yesterday. Only resets if the value is already in the past.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && currentUser) {
+    loadDashboardData().catch(() => {});
+    if (!isReprintMode) {
+      const invDate = document.getElementById('invDate');
+      const today   = todayUAE();
+      if (invDate && invDate.value < today) invDate.value = today;
+    }
+  }
+});
+
 // Warn before closing tab if there are writes still queued to sync.
 // This catches the accidental-close scenario that causes missing invoices.
 window.addEventListener('beforeunload', e => {
@@ -342,20 +357,20 @@ window.printDailyReport = async function() {
 
       ${activeDeps.length ? `<div class="sec"><div class="sec-t">Bank Deposits (${activeDeps.length})</div>
         ${activeDeps.map(d=>`<div class="li">
-          <div class="li-top"><span>${d.depositId||''} · ${d.depositor||''} ${d.depositType==='Cheque'?'[CHQ]':''}</span><span class="val">${money(d.amount)}</span></div>
+          <div class="li-top"><span>${d.depositId||''}${d.depositor ? ` · ${d.depositor}` : ''} ${d.depositType==='Cheque'?'[CHQ]':''}</span><span class="val">${money(d.amount)}</span></div>
           <div class="li-sub">${d.bank||''}${d.slipNumber?` · Slip ${d.slipNumber}`:''}</div>
         </div>`).join('')}
         <div class="row total"><span class="lbl">Cash Deps</span><span class="val">${money(totalCashDeposits)}</span></div>
         ${totalChequeDeps > 0 ? `<div class="row"><span class="lbl">Cheque Deps</span><span class="val">${money(totalChequeDeps)}</span></div>` : ''}
       </div>` : ''}
 
-      ${expenses.length ? `<div class="sec"><div class="sec-t">Expenses (${expenses.length})</div>
-        ${expenses.filter(e=>!e.deleted).map(e=>`<div class="li">
+      ${(() => { const activeExp = expenses.filter(e=>!e.deleted); return activeExp.length ? `<div class="sec"><div class="sec-t">Expenses (${activeExp.length})</div>
+        ${activeExp.map(e=>`<div class="li">
           <div class="li-top"><span>${e.expenseId||''}</span><span class="val">${money(e.amount)}</span></div>
           ${e.description ? `<div class="li-sub">${e.description}</div>` : ''}
         </div>`).join('')}
         <div class="row total"><span class="lbl">Total Expenses</span><span class="val">${money(totalExpenses)}</span></div>
-      </div>` : ''}
+      </div>` : ''; })()}
 
       <div class="foot">
         Generated ${formatDate(new Date(),'DD MMM YYYY')} ${formatTime(new Date())}<br>
@@ -691,7 +706,9 @@ function collectInvoiceData() {
   const dateInput     = document.getElementById('invDate')?.value;
   if (!dateInput) { showToast('Please select invoice date.', 'error'); return null; }
 
-  const date          = formatDate(new Date(dateInput), 'YYYY-MM-DD');
+  const date  = formatDate(new Date(dateInput), 'YYYY-MM-DD');
+  const today = todayUAE();
+  if (date > today) { showToast('Future dates are not allowed.', 'error'); document.getElementById('invDate').value = today; return null; }
   const customerName  = document.getElementById('custName')?.value.trim() || 'Walk-in Customer';
   const customerPhone = document.getElementById('custPhone')?.value.trim() || '';
   const customerTRN   = document.getElementById('custTRN')?.value.trim()   || '';
@@ -764,7 +781,7 @@ function resetInvoiceForm() {
     ['model','description'].forEach(f => { const el = document.getElementById(`${f}${i}`); if (el) el.value = ''; });
     const q = document.getElementById(`quantity${i}`); if (q) q.value = '';
     const p = document.getElementById(`price${i}`);    if (p) p.value = '';
-    const a = document.getElementById(`amount${i}`);   if (a) a.textContent = '0.00';
+    const a = document.getElementById(`amount${i}`);   if (a) a.textContent = '';
     const row = document.querySelector(`tr[data-row-index="${i}"]`);
     if (row && i > 3) row.style.display = 'none';
   }
@@ -783,7 +800,8 @@ window.handleReprintInvoice = async function(invoiceId) {
   showToast('Loading invoice…', 'info');
   try {
     const full = await getInvoiceById(invoiceId);
-    if (!full) { showToast('Invoice not found.', 'error'); return; }
+    if (!full)         { showToast('Invoice not found.', 'error');    return; }
+    if (full.deleted)  { showToast('That invoice has been deleted.', 'error'); return; }
     isReprintMode      = true;
     reprintInvoiceData = full;
     populateReprintForm(full);
@@ -805,8 +823,17 @@ function populateReprintForm(inv) {
   const custTRN = document.getElementById('custTRN');
   if (custTRN) custTRN.value = inv.customer?.trn || '';
 
-  const body = document.getElementById('itemsBody');
-  if (body && inv.items) {
+  // Clear ALL item rows first so stale data from a previously-loaded invoice doesn't bleed through
+  for (let i = 1; i <= VALIDATION.MAX_ITEMS_PER_INVOICE; i++) {
+    ['model','description'].forEach(f => { const el = document.getElementById(`${f}${i}`); if (el) el.value = ''; });
+    const q = document.getElementById(`quantity${i}`); if (q) q.value = '';
+    const p = document.getElementById(`price${i}`);    if (p) p.value = '';
+    const a = document.getElementById(`amount${i}`);   if (a) a.textContent = '';
+    const row = document.querySelector(`tr[data-row-index="${i}"]`);
+    if (row && i > 3) row.style.display = 'none';
+  }
+
+  if (inv.items) {
     inv.items.forEach((item, idx) => {
       const i = idx + 1;
       const row = document.querySelector(`tr[data-row-index="${i}"]`);
@@ -818,6 +845,14 @@ function populateReprintForm(inv) {
       const a    = document.getElementById(`amount${i}`);      if (a) a.textContent = item.amount > 0 ? item.amount.toFixed(2) : '';
     });
   }
+
+  // Restore payment method selection
+  currentPaymentMethod = inv.payment?.method || null;
+  document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('active'));
+  if (currentPaymentMethod) {
+    document.querySelector(`.payment-btn.${currentPaymentMethod.toLowerCase()}`)?.classList.add('active');
+  }
+
   calculateTotals();
   setReprintUI(inv);
 }
@@ -1024,16 +1059,16 @@ window.openHistoryModal = async function() {
 
   const container = document.getElementById('historyList');
   if (!container) return;
-  container.innerHTML = '<div class="history-loading">Loading today\'s invoices…</div>';
+  container.innerHTML = '<div class="history-loading">Loading today\'s activity…</div>';
 
   try {
-    const invoices = await getTodayInvoices();
-    if (!invoices.length) {
-      container.innerHTML = '<div class="history-empty">No invoices today yet.</div>';
-      return;
-    }
+    const [invoices, deposits, expenses, cashIns] = await Promise.all([
+      getTodayInvoices(), getTodayDeposits(), getTodayExpenses(), getTodayCashIns(),
+    ]);
 
-    // Sort: newest invoice number first, amendments after their original
+    let html = '';
+
+    // ── Invoices ──────────────────────────────────────────────────
     const seq    = (n) => parseInt((n || '').split('-')[1], 10) || 0;
     const suffix = (n) => (n || '').split('-')[2] || '';
     invoices.sort((a, b) => {
@@ -1041,50 +1076,104 @@ window.openHistoryModal = async function() {
       return d !== 0 ? d : suffix(a.invoiceNumber).localeCompare(suffix(b.invoiceNumber));
     });
 
-    container.innerHTML = `
-      <div class="history-table-wrap">
-        <table class="history-table">
-          <thead>
-            <tr>
-              <th>#Invoice</th>
-              <th>Customer</th>
-              <th>Time</th>
-              <th>Method</th>
-              <th style="text-align:right">Amount</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${invoices.map(inv => {
-              const rowClass = [
-                inv.status === 'Refunded' ? 'history-row-refunded' : '',
-                inv.isAmendment ? 'history-row-amendment' : '',
-                inv.superseded  ? 'history-row-superseded' : '',
-              ].filter(Boolean).join(' ');
-              const timeStr = (inv.time || '').substring(0, 5);
-              const grandTotal = inv.payment?.grandTotal ?? (inv.grandTotal || 0);
-              const method = inv.payment?.method || inv.payment || 'Cash';
-              const customer = inv.customer?.name || inv.customer || 'Walk-in';
-              return `
-                <tr class="${rowClass}" onclick="handleReprintInvoice('${inv.id}'); closeHistoryModal();">
-                  <td class="ht-num">
-                    ${inv.invoiceNumber}
-                    ${inv.isAmendment && !inv.superseded ? `<span class="history-amend-badge" title="Amended from ${inv.originalInvoiceNumber}">AMEND</span>` : ''}
-                    ${inv.superseded ? `<span class="history-amend-badge superseded-badge" title="Superseded by ${inv.supersededBy}">SUP</span>` : ''}
-                  </td>
-                  <td>${customer}</td>
-                  <td class="ht-time">${timeStr}</td>
-                  <td><span class="history-inv-method">${method}</span></td>
-                  <td class="ht-total">AED ${grandTotal.toFixed(2)}</td>
-                  <td><span class="history-inv-status ${(inv.status || 'Paid').toLowerCase()}">${inv.status || 'Paid'}</span></td>
-                </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>`;
+    html += `<div class="history-section-title">📄 Invoices</div>`;
+    if (!invoices.length) {
+      html += '<div class="history-empty" style="margin-bottom:8px;">No invoices today yet.</div>';
+    } else {
+      html += `<div class="history-table-wrap"><table class="history-table"><thead><tr>
+        <th>#Invoice</th><th>Customer</th><th>Time</th><th>Method</th>
+        <th style="text-align:right">Amount</th><th>Status</th>
+      </tr></thead><tbody>`;
+      invoices.forEach(inv => {
+        const isDeleted = !!inv.deleted;
+        const rowClass = [
+          isDeleted                              ? 'history-row-deleted'    : '',
+          !isDeleted && inv.status === 'Refunded' ? 'history-row-refunded'   : '',
+          !isDeleted && inv.isAmendment           ? 'history-row-amendment'  : '',
+          !isDeleted && inv.superseded            ? 'history-row-superseded' : '',
+        ].filter(Boolean).join(' ');
+        const timeStr    = (inv.time || '').substring(0, 5);
+        const grandTotal = inv.payment?.grandTotal ?? (inv.grandTotal || 0);
+        const method     = inv.payment?.method || inv.payment || 'Cash';
+        const customer   = inv.customer?.name || inv.customer || 'Walk-in';
+        const click      = isDeleted ? '' : `onclick="handleReprintInvoice('${inv.id}'); closeHistoryModal();"`;
+        const cursor     = isDeleted ? 'style="cursor:default"' : '';
+        html += `<tr class="${rowClass}" ${click} ${cursor}>
+          <td class="ht-num">
+            ${inv.invoiceNumber}
+            ${isDeleted                            ? `<span class="history-amend-badge deleted-badge">DEL</span>` : ''}
+            ${!isDeleted && inv.isAmendment && !inv.superseded ? `<span class="history-amend-badge" title="Amended from ${inv.originalInvoiceNumber}">AMEND</span>` : ''}
+            ${!isDeleted && inv.superseded          ? `<span class="history-amend-badge superseded-badge" title="Superseded by ${inv.supersededBy}">SUP</span>` : ''}
+          </td>
+          <td>${customer}</td>
+          <td class="ht-time">${timeStr}</td>
+          <td><span class="history-inv-method">${isDeleted ? '—' : method}</span></td>
+          <td class="ht-total">${isDeleted ? '—' : `AED ${grandTotal.toFixed(2)}`}</td>
+          <td><span class="history-inv-status ${isDeleted ? 'deleted' : (inv.status || 'Paid').toLowerCase()}">${isDeleted ? 'Deleted' : (inv.status || 'Paid')}</span></td>
+        </tr>`;
+      });
+      html += `</tbody></table></div>`;
+    }
+
+    // ── Cash Ins ──────────────────────────────────────────────────
+    if (cashIns.length) {
+      html += `<div class="history-section-title" style="margin-top:14px;">💵 Cash In</div>`;
+      html += `<div class="history-table-wrap"><table class="history-table"><thead><tr>
+        <th>ID</th><th>Time</th><th>Reference</th><th style="text-align:right">Amount</th>
+      </tr></thead><tbody>`;
+      cashIns.forEach(c => {
+        const del = !!c.deleted;
+        html += `<tr${del ? ' class="history-row-deleted" style="cursor:default"' : ''}>
+          <td>${c.cashInId || ''}</td>
+          <td class="ht-time">${(c.time || '').substring(0, 5)}</td>
+          <td>${c.reference || c.description || '—'}</td>
+          <td class="ht-total">${del ? '—' : `AED ${(c.amount || 0).toFixed(2)}`}</td>
+        </tr>`;
+      });
+      html += `</tbody></table></div>`;
+    }
+
+    // ── Deposits ──────────────────────────────────────────────────
+    if (deposits.length) {
+      html += `<div class="history-section-title" style="margin-top:14px;">🏦 Deposits</div>`;
+      html += `<div class="history-table-wrap"><table class="history-table"><thead><tr>
+        <th>ID</th><th>Time</th><th>Type</th><th>Bank</th><th style="text-align:right">Amount</th>
+      </tr></thead><tbody>`;
+      deposits.forEach(d => {
+        const del = !!d.deleted;
+        html += `<tr${del ? ' class="history-row-deleted" style="cursor:default"' : ''}>
+          <td>${d.depositId || ''}</td>
+          <td class="ht-time">${(d.time || '').substring(0, 5)}</td>
+          <td>${d.depositType || 'Cash'}</td>
+          <td>${d.bank || '—'}</td>
+          <td class="ht-total">${del ? '—' : `AED ${(d.amount || 0).toFixed(2)}`}</td>
+        </tr>`;
+      });
+      html += `</tbody></table></div>`;
+    }
+
+    // ── Expenses ──────────────────────────────────────────────────
+    if (expenses.length) {
+      html += `<div class="history-section-title" style="margin-top:14px;">💸 Expenses</div>`;
+      html += `<div class="history-table-wrap"><table class="history-table"><thead><tr>
+        <th>ID</th><th>Time</th><th>Description</th><th style="text-align:right">Amount</th>
+      </tr></thead><tbody>`;
+      expenses.forEach(e => {
+        const del = !!e.deleted;
+        html += `<tr${del ? ' class="history-row-deleted" style="cursor:default"' : ''}>
+          <td>${e.expenseId || ''}</td>
+          <td class="ht-time">${(e.time || '').substring(0, 5)}</td>
+          <td>${e.description || '—'}</td>
+          <td class="ht-total">${del ? '—' : `AED ${(e.amount || 0).toFixed(2)}`}</td>
+        </tr>`;
+      });
+      html += `</tbody></table></div>`;
+    }
+
+    container.innerHTML = html || '<div class="history-empty">No activity today yet.</div>';
   } catch (err) {
     console.error('History error:', err);
-    container.innerHTML = '<div style="color:#f43f5e;text-align:center;padding:20px;">Error loading invoices.</div>';
+    container.innerHTML = '<div style="color:#f43f5e;text-align:center;padding:20px;">Error loading activity.</div>';
   }
 };
 
@@ -1259,9 +1348,9 @@ function scheduleMidnightRefresh() {
   const msToMidnight = msPerDay - msIntoDay + 5000; // 5s past midnight buffer
 
   setTimeout(() => {
-    // New day: update the invoice date field so staff sees today's date
+    // New day: update the invoice date field and max so staff sees today's date
     const invDateEl = document.getElementById('invDate');
-    if (invDateEl && !isReprintMode) invDateEl.value = todayUAE();
+    if (invDateEl) { invDateEl.max = todayUAE(); if (!isReprintMode) invDateEl.value = todayUAE(); }
     // Reload invoice number — new day, fresh perspective from server
     loadNextInvoiceNumber().catch(() => {});
     // If history modal is open, reload it so it shows the new day (empty list)
@@ -1293,7 +1382,16 @@ window.saveAndPrint = function() {
     if (reprintInvoiceData?.superseded) {
       setTimeout(() => { preparePrintLayout(); window.print(); }, 50);
     } else {
-      saveAsAmendment();
+      // Only create an amendment record if total or payment method actually changed
+      const origTotal  = reprintInvoiceData.payment?.grandTotal || 0;
+      const origMethod = reprintInvoiceData.payment?.method || '';
+      const currTotal  = parseFloat(document.getElementById('grandTotal')?.textContent?.replace(/[^0-9.]/g, '')) || 0;
+      const currMethod = currentPaymentMethod || '';
+      if (Math.abs(currTotal - origTotal) > 0.001 || currMethod !== origMethod) {
+        saveAsAmendment();
+      } else {
+        setTimeout(() => { preparePrintLayout(); window.print(); }, 50);
+      }
     }
   } else {
     saveNewInvoice();
@@ -1385,6 +1483,7 @@ function setupKeyboard() {
 
     // Escape closes any open modal
     if (e.key === 'Escape') {
+      if (document.getElementById('txModal')?.style.display === 'flex')       { window.closeTxModal();    return; }
       if (document.getElementById('depositModal')?.classList.contains('show')) { closeDepositModal(); return; }
       if (document.getElementById('expenseModal')?.classList.contains('show')) { closeExpenseModal(); return; }
       if (document.getElementById('historyModal')?.classList.contains('show')) { closeHistoryModal(); return; }
@@ -1406,7 +1505,7 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('DOMContentLoaded', () => {
   const invDate = document.getElementById('invDate');
-  if (invDate) invDate.value = todayUAE();
+  if (invDate) { invDate.value = todayUAE(); invDate.max = todayUAE(); }
   updateSyncBadge();
 
   // Auto-uppercase every text input in the invoice form — no Caps Lock needed.

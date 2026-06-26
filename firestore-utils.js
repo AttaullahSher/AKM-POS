@@ -209,6 +209,9 @@ export async function createInvoice(invoiceData) {
   const counterRef  = doc(db, 'counters', 'invoices');
   // Pre-generate a stable document ID so we know it before the write completes
   const invoiceRef  = doc(collection(db, 'invoices'));
+  // processDate = UAE calendar date when the invoice was SAVED (always today, never backdated).
+  // date = what the user typed (may be a past date for backdated invoices).
+  const processDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dubai' });
   const currentYear = new Date().getFullYear();
   const yy          = String(currentYear).slice(-2);
   const INIT        = APP_CONFIG.BUSINESS.STARTING_INVOICE_NUMBER;
@@ -218,10 +221,11 @@ export async function createInvoice(invoiceData) {
     invoiceNumber,
     year: currentYear,
     sequence,
-    date:    formatDate(new Date(date), 'YYYY-MM-DD'),
-    dateObj: toTimestamp(new Date(date)),
-    time:    formatTime(now),
-    createdAt: serverTimestamp(),
+    date:        formatDate(new Date(date), 'YYYY-MM-DD'),
+    processDate,
+    dateObj:     toTimestamp(new Date(date)),
+    time:        formatTime(now),
+    createdAt:   serverTimestamp(),
     customer: {
       name:  customer.name  || 'Walk-in Customer',
       phone: customer.phone || '',
@@ -405,11 +409,21 @@ export async function loadRecentExpenses(days = 90) {
 
 export async function getTodayInvoices() {
   try {
-    const today = formatDate(new Date(), 'YYYY-MM-DD');
-    // Simple equality query — no composite index needed
-    const q = query(collection(db, 'invoices'), where('date', '==', today));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dubai' });
+    // Dual query: processDate catches backdated invoices saved today;
+    // date catches legacy invoices (pre-processDate) created today.
+    const [byProcess, byDate] = await Promise.all([
+      getDocs(query(collection(db, 'invoices'), where('processDate', '==', today))),
+      getDocs(query(collection(db, 'invoices'), where('date',        '==', today))),
+    ]);
+    const seen = new Set();
+    const docs = [];
+    for (const snap of [byProcess, byDate]) {
+      for (const d of snap.docs) {
+        if (!seen.has(d.id)) { seen.add(d.id); docs.push({ id: d.id, ...d.data() }); }
+      }
+    }
+    return docs;
   } catch (err) {
     console.error('❌ getTodayInvoices:', err);
     return [];
@@ -744,13 +758,15 @@ export async function getRecentActivity(days = 90) {
         type:        'invoice',
         refId:       data.invoiceNumber || '',
         date:        data.date          || '',
+        processDate: data.processDate   || '',
         time:        data.time          || '00:00:00',
         createdAt:   data.createdAt     || null,
         description: data.customer?.name || 'Walk-in',
         amount:      data.payment?.grandTotal || 0,
         status:      data.status  || 'Paid',
         payment:     data.payment?.method || 'Cash',
-        deleted:     data.deleted || false,
+        deleted:     data.deleted    || false,
+        superseded:  data.superseded || false,
       });
     });
 

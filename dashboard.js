@@ -188,13 +188,15 @@ function applyActivityFilters() {
   const now = new Date();
   if (activeDateFilter === 'today') {
     const today = formatDate(now, 'YYYY-MM-DD');
-    filtered = filtered.filter(item => item.date === today);
+    // Use processDate for invoices (catches backdated-but-processed-today),
+    // fall back to date for older invoices and for deposits/expenses (no processDate).
+    filtered = filtered.filter(item => (item.processDate || item.date) === today);
   } else if (activeDateFilter === 'week') {
     const cut = formatDate(new Date(now - 7 * 86400000), 'YYYY-MM-DD');
-    filtered = filtered.filter(item => item.date >= cut);
+    filtered = filtered.filter(item => (item.processDate || item.date) >= cut);
   } else if (activeDateFilter === 'month') {
     const cut = formatDate(new Date(now - 30 * 86400000), 'YYYY-MM-DD');
-    filtered = filtered.filter(item => item.date >= cut);
+    filtered = filtered.filter(item => (item.processDate || item.date) >= cut);
   }
 
   if (activeSearchQuery) {
@@ -282,8 +284,12 @@ function displayActivity(items) {
                     :                            'Expense';
     const typeBadge = `<span class="type-badge type-${item.type}">${typeLabel}</span>`;
 
-    // Date + time stacked
-    const dateCell = `${fmtDateStr(item.date)}<br><span class="time-badge">${fmtTimeStr(item.time)}</span>`;
+    // Date + time stacked — red if invoice was saved on a different day than the entered date
+    const isBackdated = item.type === 'invoice' && item.processDate && item.date !== item.processDate;
+    const dateStr  = isBackdated
+      ? `<span style="color:#dc2626;font-weight:700;" title="Entered ${fmtDateStr(item.date)}, saved ${fmtDateStr(item.processDate)}">${fmtDateStr(item.date)}</span>`
+      : fmtDateStr(item.date);
+    const dateCell = `${dateStr}<br><span class="time-badge">${fmtTimeStr(item.time)}</span>`;
 
     // Amount — invoices are income (+), deposits/expenses are outflows (−)
     const isOut    = item.type !== 'invoice' || isRefunded || isDeleted;

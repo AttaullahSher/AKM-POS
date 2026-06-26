@@ -57,21 +57,59 @@ const snap = (col, start, end) => start === end
   ? db.collection(col).where('date', '==', start).get()
   : db.collection(col).where('date', '>=', start).where('date', '<=', end).get();
 
+// Invoices need a dual query: processDate (new system) OR date (legacy invoices).
+// This ensures backdated invoices are counted on the day they were SAVED, not the invoice date.
+async function snapInvoices(start, end) {
+  const byProcess = start === end
+    ? db.collection('invoices').where('processDate', '==', start).get()
+    : db.collection('invoices').where('processDate', '>=', start).where('processDate', '<=', end).get();
+  const byDate = start === end
+    ? db.collection('invoices').where('date', '==', start).get()
+    : db.collection('invoices').where('date', '>=', start).where('date', '<=', end).get();
+  const [s1, s2] = await Promise.all([byProcess, byDate]);
+  const seen = new Set();
+  const docs = [];
+  for (const s of [s1, s2]) {
+    for (const d of s.docs) {
+      if (!seen.has(d.id)) { seen.add(d.id); docs.push(d.data()); }
+    }
+  }
+  return docs;
+}
+
 async function fetchAll(start, end) {
-  const [iS, dS, eS] = await Promise.all([
-    snap('invoices', start, end),
+  const [invoices, dS, eS, cS] = await Promise.all([
+    snapInvoices(start, end),
     snap('deposits', start, end),
     snap('expenses', start, end),
+    snap('cash_ins', start, end),
+  ]);
+  return {
+    invoices,
+    deposits: dS.docs.map(d => d.data()),
+    expenses: eS.docs.map(d => d.data()),
+    cashIns:  cS.docs.map(d => d.data()),
+  };
+}
+
+async function fetchAllTime() {
+  const cutoff = toStr(new Date(Date.now() - 5 * 365.25 * 24 * 3_600_000));
+  const [iS, dS, eS, cS] = await Promise.all([
+    db.collection('invoices').where('date', '>=', cutoff).get(),
+    db.collection('deposits').where('date', '>=', cutoff).get(),
+    db.collection('expenses').where('date', '>=', cutoff).get(),
+    db.collection('cash_ins').where('date', '>=', cutoff).get(),
   ]);
   return {
     invoices: iS.docs.map(d => d.data()),
     deposits: dS.docs.map(d => d.data()),
     expenses: eS.docs.map(d => d.data()),
+    cashIns:  cS.docs.map(d => d.data()),
   };
 }
 
 // ── Calculations ─────────────────────────────────────────────────
-function calc({ invoices, deposits, expenses }) {
+function calc({ invoices, deposits, expenses, cashIns = [] }) {
   let totalSales = 0, totalVAT = 0, paidCount = 0;
   let cash = 0, card = 0, tabby = 0, cheque = 0;
   const paidInv = [];
@@ -96,14 +134,16 @@ function calc({ invoices, deposits, expenses }) {
   const totalChequeDeps = chequeDeps.reduce((s, d) => s + (d.amount || 0), 0);
   const activeExp       = expenses.filter(e => !e.deleted);
   const totalExpenses   = activeExp.reduce((s, e)  => s + (e.amount || 0), 0);
-  const cashInHand      = cash - totalCashDeps - totalExpenses;
+  const activeCashIns   = cashIns.filter(c => !c.deleted);
+  const totalCashIns    = activeCashIns.reduce((s, c) => s + (c.amount || 0), 0);
+  const cashInHand      = cash + totalCashIns - totalCashDeps - totalExpenses;
   const netSales        = totalSales - totalVAT;
 
   return {
     totalSales, totalVAT, netSales, paidCount, paidInv,
     cash, card, tabby, cheque,
-    cashInHand, totalCashDeps, totalChequeDeps, totalExpenses,
-    activeDeps, cashDeps, chequeDeps, activeExp,
+    cashInHand, totalCashDeps, totalChequeDeps, totalExpenses, totalCashIns,
+    activeDeps, cashDeps, chequeDeps, activeExp, activeCashIns,
   };
 }
 
@@ -173,15 +213,18 @@ function paymentBlock(c) {
   ));
 }
 
-function cashFlowBlock(c) {
+function cashFlowBlock(c, runningTotal = null) {
+  const displayVal = runningTotal !== null ? runningTotal : c.cashInHand;
+  const label      = runningTotal !== null ? 'Cash in Hand (Running Total)' : 'Cash in Hand';
   return section('Cash Flow', GREEN, '#f0fdf4', tbl(
     tr('Cash Sales', fmt(c.cash)) +
+    (c.totalCashIns > 0 ? tr('+ Cash In', fmt(c.totalCashIns)) : '') +
     tr('− Cash Deposits to Bank', fmt(c.totalCashDeps)) +
     tr('− Expenses', fmt(c.totalExpenses))
   ) + divider() + tbl(
     `<tr>
-      <td style="padding:8px 12px;font-weight:900;font-size:15px;">Cash in Hand</td>
-      <td style="padding:8px 12px;text-align:right;font-weight:900;font-size:18px;color:${c.cashInHand>=0?GREEN:RED};">${fmt(c.cashInHand)}</td>
+      <td style="padding:8px 12px;font-weight:900;font-size:15px;">${label}</td>
+      <td style="padding:8px 12px;text-align:right;font-weight:900;font-size:18px;color:${displayVal>=0?GREEN:RED};">${fmt(displayVal)}</td>
     </tr>`
   ) + (c.totalChequeDeps > 0
     ? `<div style="padding:4px 12px 8px;font-size:11px;color:${PURP};">Cheque deposits (not deducted from cash): ${fmt(c.totalChequeDeps)}</div>`
@@ -207,6 +250,28 @@ function depositsBlock(c) {
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`);
+}
+
+function cashInsBlock(c) {
+  if (!c.activeCashIns.length) return '';
+  const rows = c.activeCashIns.map(ci =>
+    `<tr>
+      <td style="padding:4px 12px;font-size:12px;color:${GREEN};font-weight:700;">${ci.cashInId||''}</td>
+      <td style="padding:4px 12px;font-size:12px;">${ci.reference||'—'}</td>
+      <td style="padding:4px 12px;font-size:12px;text-align:right;font-weight:700;">${fmt(ci.amount)}</td>
+    </tr>`).join('');
+  return section(`Cash In (${c.activeCashIns.length})`, GREEN, '#f0fdf4',
+    `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      <thead><tr style="background:#f8fafc;">
+        <th style="padding:6px 12px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">ID</th>
+        <th style="padding:6px 12px;text-align:left;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Reference</th>
+        <th style="padding:6px 12px;text-align:right;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;">Amount</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr style="border-top:2px solid #d1fae5;">
+        <td colspan="2" style="padding:8px 12px;font-weight:800;">Total Cash In</td>
+        <td style="padding:8px 12px;text-align:right;font-weight:800;color:${GREEN};">${fmt(c.totalCashIns)}</td>
+      </tfoot></table>`);
 }
 
 function expensesBlock(c) {
@@ -253,22 +318,23 @@ function invoicesBlock(c, limit = 999) {
 
 // ── REPORT 1: Daily ──────────────────────────────────────────────
 async function sendDailyReport() {
-  const data = await fetchAll(todayS, todayS);
-  const c    = calc(data);
+  const [data, allTimeData] = await Promise.all([fetchAll(todayS, todayS), fetchAllTime()]);
+  const c       = calc(data);
+  const allTime = calc(allTimeData);
 
   const html = wrap(
     header('Daily Report', 'AKM Music Centre', fmtDisplay(today)) +
-    salesBlock(c) + paymentBlock(c) + cashFlowBlock(c) +
-    invoicesBlock(c) + depositsBlock(c) + expensesBlock(c) +
+    salesBlock(c) + paymentBlock(c) + cashFlowBlock(c, allTime.cashInHand) +
+    invoicesBlock(c) + cashInsBlock(c) + depositsBlock(c) + expensesBlock(c) +
     footer()
   );
 
   await resend.emails.send({
     from: FROM, to: TO,
-    subject: `AKM Daily Report — ${fmtDisplay(today)} | Sales: ${fmt(c.totalSales)} | Cash: ${fmt(c.cashInHand)}`,
+    subject: `AKM Daily Report — ${fmtDisplay(today)} | Sales: ${fmt(c.totalSales)} | Cash: ${fmt(allTime.cashInHand)}`,
     html,
   });
-  console.log(`✅ Daily report sent — Sales: ${fmt(c.totalSales)}, Cash in Hand: ${fmt(c.cashInHand)}`);
+  console.log(`✅ Daily report sent — Sales: ${fmt(c.totalSales)}, Cash in Hand: ${fmt(allTime.cashInHand)}`);
 }
 
 // ── REPORT 2: Monthly ────────────────────────────────────────────
@@ -290,7 +356,7 @@ async function sendMonthlyReport() {
       tr('Net Profit (est.)', fmt(c.netSales - c.totalExpenses), true, GREEN)
     )) +
     paymentBlock(c) + cashFlowBlock(c) +
-    depositsBlock(c) + expensesBlock(c) +
+    cashInsBlock(c) + depositsBlock(c) + expensesBlock(c) +
     footer()
   );
 
