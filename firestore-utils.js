@@ -410,15 +410,22 @@ export async function loadRecentExpenses(days = 90) {
 export async function getTodayInvoices() {
   try {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dubai' });
-    // Dual query: processDate catches backdated invoices saved today;
-    // date catches legacy invoices (pre-processDate) created today.
-    const [byProcess, byDate] = await Promise.all([
+    // UAE midnight = 00:00 +04:00, which is 20:00 UTC the previous calendar day
+    const dayStart = Timestamp.fromDate(new Date(`${today}T00:00:00+04:00`));
+    const dayEnd   = Timestamp.fromDate(new Date(`${today}T23:59:59+04:00`));
+    // Triple query so every invoice physically created today is counted:
+    //  1. processDate — new invoices (even if date was backdated)
+    //  2. date        — legacy invoices without processDate where date == today
+    //  3. createdAt   — catch-all: any invoice saved today in UAE time (handles
+    //                   pre-processDate invoices with a backdated date field)
+    const [byProcess, byDate, byCreatedAt] = await Promise.all([
       getDocs(query(collection(db, 'invoices'), where('processDate', '==', today))),
       getDocs(query(collection(db, 'invoices'), where('date',        '==', today))),
+      getDocs(query(collection(db, 'invoices'), where('createdAt', '>=', dayStart), where('createdAt', '<=', dayEnd))),
     ]);
     const seen = new Set();
     const docs = [];
-    for (const snap of [byProcess, byDate]) {
+    for (const snap of [byProcess, byDate, byCreatedAt]) {
       for (const d of snap.docs) {
         if (!seen.has(d.id)) { seen.add(d.id); docs.push({ id: d.id, ...d.data() }); }
       }

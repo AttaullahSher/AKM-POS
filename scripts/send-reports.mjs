@@ -57,19 +57,24 @@ const snap = (col, start, end) => start === end
   ? db.collection(col).where('date', '==', start).get()
   : db.collection(col).where('date', '>=', start).where('date', '<=', end).get();
 
-// Invoices need a dual query: processDate (new system) OR date (legacy invoices).
-// This ensures backdated invoices are counted on the day they were SAVED, not the invoice date.
+// Invoices need a triple query: processDate (new) OR date (legacy) OR createdAt range (pre-processDate backdated).
+// This ensures every invoice physically saved on a given UAE day is counted in that day's report.
 async function snapInvoices(start, end) {
+  // UAE midnight boundaries for the date range as UTC Timestamps
+  const { Timestamp } = await import('firebase-admin/firestore');
+  const rangeStart = Timestamp.fromDate(new Date(`${start}T00:00:00+04:00`));
+  const rangeEnd   = Timestamp.fromDate(new Date(`${end}T23:59:59+04:00`));
   const byProcess = start === end
     ? db.collection('invoices').where('processDate', '==', start).get()
     : db.collection('invoices').where('processDate', '>=', start).where('processDate', '<=', end).get();
   const byDate = start === end
     ? db.collection('invoices').where('date', '==', start).get()
     : db.collection('invoices').where('date', '>=', start).where('date', '<=', end).get();
-  const [s1, s2] = await Promise.all([byProcess, byDate]);
+  const byCreatedAt = db.collection('invoices').where('createdAt', '>=', rangeStart).where('createdAt', '<=', rangeEnd).get();
+  const [s1, s2, s3] = await Promise.all([byProcess, byDate, byCreatedAt]);
   const seen = new Set();
   const docs = [];
-  for (const s of [s1, s2]) {
+  for (const s of [s1, s2, s3]) {
     for (const d of s.docs) {
       if (!seen.has(d.id)) { seen.add(d.id); docs.push(d.data()); }
     }

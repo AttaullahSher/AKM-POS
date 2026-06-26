@@ -130,6 +130,7 @@ let currentPaymentMethod = null;
 let currentDepositType   = 'Cash';
 let isReprintMode        = false;
 let reprintInvoiceData   = null;
+let needsPageRefresh     = false;
 let originalInputStates  = [];
 let _depositSaving       = false;
 let _expenseSaving       = false;
@@ -1084,8 +1085,10 @@ window.openHistoryModal = async function() {
         <th>#Invoice</th><th>Customer</th><th>Time</th><th>Method</th>
         <th style="text-align:right">Amount</th><th>Status</th>
       </tr></thead><tbody>`;
+      const todayDate = todayUAE();
       invoices.forEach(inv => {
-        const isDeleted = !!inv.deleted;
+        const isDeleted   = !!inv.deleted;
+        const isBackdated = !isDeleted && !!inv.date && inv.date !== todayDate;
         const rowClass = [
           isDeleted                              ? 'history-row-deleted'    : '',
           !isDeleted && inv.status === 'Refunded' ? 'history-row-refunded'   : '',
@@ -1098,12 +1101,14 @@ window.openHistoryModal = async function() {
         const customer   = inv.customer?.name || inv.customer || 'Walk-in';
         const click      = isDeleted ? '' : `onclick="handleReprintInvoice('${inv.id}'); closeHistoryModal();"`;
         const cursor     = isDeleted ? 'style="cursor:default"' : '';
+        const numStyle   = isBackdated ? 'style="color:#dc2626;font-weight:800;"' : '';
         html += `<tr class="${rowClass}" ${click} ${cursor}>
-          <td class="ht-num">
+          <td class="ht-num" ${numStyle}>
             ${inv.invoiceNumber}
             ${isDeleted                            ? `<span class="history-amend-badge deleted-badge">DEL</span>` : ''}
             ${!isDeleted && inv.isAmendment && !inv.superseded ? `<span class="history-amend-badge" title="Amended from ${inv.originalInvoiceNumber}">AMEND</span>` : ''}
             ${!isDeleted && inv.superseded          ? `<span class="history-amend-badge superseded-badge" title="Superseded by ${inv.supersededBy}">SUP</span>` : ''}
+            ${isBackdated                           ? `<span class="history-amend-badge" style="background:#fee2e2;color:#dc2626;border-color:#fca5a5;" title="Invoice dated ${inv.date}">OLD</span>` : ''}
           </td>
           <td>${customer}</td>
           <td class="ht-time">${timeStr}</td>
@@ -1339,6 +1344,34 @@ function setupAutoRefresh() {
 
 // ─── Midnight Reset (UAE timezone) ──────────────────────────────
 
+function showMidnightOverlay() {
+  needsPageRefresh = true;
+  const btn = document.getElementById('printBtn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+  if (document.getElementById('midnightOverlay')) return;
+  const today = todayUAE();
+  const [y, m, d] = today.split('-').map(Number);
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const label = `${String(d).padStart(2,'0')} ${MON[m-1]} ${y}`;
+  const el = document.createElement('div');
+  el.id = 'midnightOverlay';
+  el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.92);display:flex;align-items:center;justify-content:center;font-family:inherit;';
+  el.innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:44px 36px;text-align:center;max-width:360px;width:90%;box-shadow:0 16px 60px rgba(0,0,0,.6);">
+      <div style="font-size:60px;margin-bottom:10px;">🌙</div>
+      <div style="font-size:24px;font-weight:900;color:#0f172a;margin-bottom:6px;">New Day!</div>
+      <div style="font-size:14px;color:#64748b;line-height:1.7;margin-bottom:28px;">
+        It's past midnight UAE time.<br>
+        Refresh to start invoicing for<br>
+        <strong style="color:#0ea5e9;font-size:16px;">${label}</strong>
+      </div>
+      <button onclick="location.reload()" style="background:#0ea5e9;color:#fff;border:none;border-radius:12px;padding:16px 0;font-size:17px;font-weight:800;cursor:pointer;width:100%;letter-spacing:.3px;box-shadow:0 4px 14px rgba(14,165,233,.4);">
+        🔄 Refresh Now
+      </button>
+    </div>`;
+  document.body.appendChild(el);
+}
+
 function scheduleMidnightRefresh() {
   // Compute ms remaining until midnight UAE (UTC+4)
   const UAEOffset  = 4 * 60 * 60 * 1000;
@@ -1348,17 +1381,9 @@ function scheduleMidnightRefresh() {
   const msToMidnight = msPerDay - msIntoDay + 5000; // 5s past midnight buffer
 
   setTimeout(() => {
-    // New day: update the invoice date field and max so staff sees today's date
-    const invDateEl = document.getElementById('invDate');
-    if (invDateEl) { invDateEl.max = todayUAE(); if (!isReprintMode) invDateEl.value = todayUAE(); }
-    // Reload invoice number — new day, fresh perspective from server
-    loadNextInvoiceNumber().catch(() => {});
-    // If history modal is open, reload it so it shows the new day (empty list)
-    const modal = document.getElementById('historyModal');
-    if (modal?.classList.contains('show')) {
-      window.openHistoryModal();
-    }
-    scheduleMidnightRefresh(); // schedule again for next midnight
+    showMidnightOverlay();
+    // Schedule again so if they refresh this fires for the next midnight too
+    scheduleMidnightRefresh();
   }, msToMidnight);
   debugLog(`⏰ Midnight refresh in ${Math.round(msToMidnight / 60000)} min`);
 }
@@ -1377,6 +1402,7 @@ window.clearForm = function() {
 };
 
 window.saveAndPrint = function() {
+  if (needsPageRefresh) { showMidnightOverlay(); return; }
   if (isReprintMode) {
     // Superseded invoices: just reprint the physical copy, never create another record
     if (reprintInvoiceData?.superseded) {

@@ -186,17 +186,21 @@ function applyActivityFilters() {
   }
 
   const now = new Date();
+  // effectiveDate: processDate (new) → createdAt UAE date (pre-processDate legacy) → date (oldest fallback)
+  const effectiveDate = item => {
+    if (item.processDate) return item.processDate;
+    const cAt = item.createdAt?.toDate?.()?.toLocaleDateString('en-CA', { timeZone: 'Asia/Dubai' });
+    return cAt || item.date;
+  };
   if (activeDateFilter === 'today') {
     const today = formatDate(now, 'YYYY-MM-DD');
-    // Use processDate for invoices (catches backdated-but-processed-today),
-    // fall back to date for older invoices and for deposits/expenses (no processDate).
-    filtered = filtered.filter(item => (item.processDate || item.date) === today);
+    filtered = filtered.filter(item => effectiveDate(item) === today);
   } else if (activeDateFilter === 'week') {
     const cut = formatDate(new Date(now - 7 * 86400000), 'YYYY-MM-DD');
-    filtered = filtered.filter(item => (item.processDate || item.date) >= cut);
+    filtered = filtered.filter(item => effectiveDate(item) >= cut);
   } else if (activeDateFilter === 'month') {
     const cut = formatDate(new Date(now - 30 * 86400000), 'YYYY-MM-DD');
-    filtered = filtered.filter(item => (item.processDate || item.date) >= cut);
+    filtered = filtered.filter(item => effectiveDate(item) >= cut);
   }
 
   if (activeSearchQuery) {
@@ -284,10 +288,12 @@ function displayActivity(items) {
                     :                            'Expense';
     const typeBadge = `<span class="type-badge type-${item.type}">${typeLabel}</span>`;
 
-    // Date + time stacked — red if invoice was saved on a different day than the entered date
-    const isBackdated = item.type === 'invoice' && item.processDate && item.date !== item.processDate;
+    // Date + time stacked — red if the invoice date differs from the day it was actually saved
+    const savedDate = item.processDate ||
+      (item.createdAt?.toDate?.()?.toLocaleDateString('en-CA', { timeZone: 'Asia/Dubai' }) ?? '');
+    const isBackdated = item.type === 'invoice' && savedDate && item.date !== savedDate;
     const dateStr  = isBackdated
-      ? `<span style="color:#dc2626;font-weight:700;" title="Entered ${fmtDateStr(item.date)}, saved ${fmtDateStr(item.processDate)}">${fmtDateStr(item.date)}</span>`
+      ? `<span style="color:#dc2626;font-weight:700;" title="Entered ${fmtDateStr(item.date)}, saved ${fmtDateStr(savedDate)}">${fmtDateStr(item.date)}</span>`
       : fmtDateStr(item.date);
     const dateCell = `${dateStr}<br><span class="time-badge">${fmtTimeStr(item.time)}</span>`;
 
