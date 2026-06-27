@@ -620,62 +620,85 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   padding: 0 24px;
   border-top: 1px solid var(--slate-100);
 }
-.items-table { width: 100%; border-collapse: collapse; }
-.items-table thead tr { background: var(--sky-700); border-bottom: 2px solid var(--sky-800); }
-.items-table thead th + th,
-.items-table tbody td + td { border-left: 1px solid var(--slate-100); }
+
+/* border-collapse:separate lets us apply border-radius to row cells */
+.items-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 3px;
+}
+
+/* Header — rounded ends, no gap between header and first row */
+.items-table thead tr { background: var(--sky-700); }
 .items-table thead th {
-  padding: 10px 8px;
+  padding: 10px 10px;
   font-size: 11px; font-weight: 700;
-  color: #ffffff; text-align: left;
+  color: #fff; text-align: left;
+  border-top: 2px solid var(--sky-800);
+  border-bottom: 2px solid var(--sky-800);
+}
+.items-table thead th:first-child {
+  border-left: 2px solid var(--sky-800);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.items-table thead th:last-child {
+  border-right: 2px solid var(--sky-800);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 .items-table thead th:nth-child(3),
 .items-table thead th:nth-child(4),
 .items-table thead th:nth-child(5) { text-align: right; }
-.items-table tbody tr {
-  border-bottom: 1px solid var(--slate-100);
+.items-table thead th + th { border-left: 1px solid var(--sky-600); }
+
+/* Body rows — each row is a card with its own border + rounded ends */
+.items-table tbody td {
+  padding: 0;
+  background: #f8fafc;
+  border-top: 1.5px solid var(--slate-200);
+  border-bottom: 1.5px solid var(--slate-200);
   transition: background var(--t-fast);
 }
-.items-table tbody tr:hover { background: var(--sky-50); }
-.items-table tbody td { padding: 5px 8px; }
-.items-table tbody td:nth-child(3),
-.items-table tbody td:nth-child(4) { text-align: right; }
-.items-table .amount-cell {
-  text-align: right;
-  font-size: 13px; font-weight: 700; color: var(--slate-700);
-  border: 1.5px solid var(--slate-200);
-  border-left: none;
+.items-table tbody td:first-child {
+  border-left: 1.5px solid var(--slate-200);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.items-table tbody td:last-child {
+  border-right: 1.5px solid var(--slate-200);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: var(--slate-50);
-  padding-right: 8px;
 }
-/* Row endpoint rounding — Model left-rounded, Amount right-rounded */
-.items-table tbody td:first-child .item-input {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-.items-table tbody td:nth-child(2) .item-input,
-.items-table tbody td:nth-child(3) .item-input,
-.items-table tbody td:nth-child(4) .item-input {
-  border-radius: 0;
-  border-left: none;
-}
+.items-table tbody td + td { border-left: 1px solid var(--slate-200); }
+.items-table tbody tr:hover td { background: var(--sky-50); }
+
+/* Inputs are borderless — the row card provides the border */
 .item-input {
-  width: 100%; padding: 6px 8px;
-  border: 1.5px solid var(--slate-200);
-  border-radius: var(--radius-sm);
-  font-size: 13px; background: var(--slate-50);
-  transition: all var(--t-fast);
+  width: 100%; padding: 8px 10px;
+  border: none; border-radius: 0;
+  background: transparent;
+  font-size: 13px; font-weight: 500;
   font-family: 'Montserrat', sans-serif !important;
+  outline: none;
+  transition: background var(--t-fast);
 }
 .item-input:focus {
-  border-color: var(--sky-400) !important;
-  background: white;
-  box-shadow: 0 0 0 2px rgba(14,165,233,.15);
-  outline: none !important;
+  background: rgba(14,165,233,.06);
+  outline: none;
 }
 .item-input[type="number"] { text-align: right; }
 .item-input[type="text"]  { text-transform: uppercase; }
+
+/* Amount cell — matches row height, right-aligned bold value */
+.items-table .amount-cell {
+  text-align: right;
+  font-size: 13px; font-weight: 700; color: var(--slate-700);
+  padding: 8px 10px;
+  min-width: 70px;
+}
+
+/* Row focus ring — highlight entire row when any input inside is focused */
+.items-table tbody tr:focus-within td {
+  background: #f0f9ff;
+  border-color: var(--sky-300);
+}
 
 /* Customer fields — uppercase without Caps Lock */
 #custName, #custPhone, #custTRN { text-transform: uppercase; }
