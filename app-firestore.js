@@ -1543,24 +1543,73 @@ document.addEventListener('DOMContentLoaded', () => {
   // ─── VAT Calculator ────────────────────────────────────────
   const vatAfterEl  = document.getElementById('vatCalcAfter');
   const vatBeforeEl = document.getElementById('vatCalcBefore');
+  const vatNoteEl   = document.getElementById('vatCalcNote');
   const VAT_RATE    = 0.05;
+  let vatResetTimer;
+
+  // Simulate exactly how calculateTotals() computes grand total from a base price.
+  // This ensures the pre-VAT value we suggest will produce the expected invoice total.
+  function simGrand(base) {
+    const vat = parseFloat((base * VAT_RATE).toFixed(2));
+    return parseFloat((base + vat).toFixed(2));
+  }
+
+  // Find a 2dp pre-VAT base whose invoice grand total equals `target`.
+  // Tries floor, round, and ceil candidates. Returns { base, grand, exact }.
+  function findPreVAT(target) {
+    const raw = target / (1 + VAT_RATE);
+    for (const fn of [Math.floor, Math.round, Math.ceil]) {
+      const base  = fn(raw * 100) / 100;
+      const grand = simGrand(base);
+      if (Math.abs(grand - target) < 0.001) return { base, grand, exact: true };
+    }
+    // No clean 2dp base gives this total — return standard round with actual grand
+    const base  = Math.round(raw * 100) / 100;
+    return { base, grand: simGrand(base), exact: false };
+  }
+
+  const vatNote = (txt, warn = false) => {
+    if (!vatNoteEl) return;
+    vatNoteEl.textContent = txt;
+    vatNoteEl.className = warn ? 'vat-calc-note vat-calc-warn' : 'vat-calc-note';
+  };
+
+  const scheduleVatReset = () => {
+    clearTimeout(vatResetTimer);
+    vatResetTimer = setTimeout(() => {
+      if (vatAfterEl)  vatAfterEl.value  = '';
+      if (vatBeforeEl) vatBeforeEl.value = '';
+      vatNote('VAT 5% · fill either to calculate');
+    }, 8000);
+  };
 
   vatAfterEl?.addEventListener('input', () => {
     const after = parseFloat(vatAfterEl.value);
     if (!isNaN(after) && after > 0) {
-      vatBeforeEl.value = (after / (1 + VAT_RATE)).toFixed(2);
+      const { base, grand, exact } = findPreVAT(after);
+      vatBeforeEl.value = base.toFixed(2);
+      if (exact) {
+        vatNote('VAT 5% · exact');
+      } else {
+        vatNote(`Enter ${base.toFixed(2)} → invoice = AED ${grand.toFixed(2)}`, true);
+      }
     } else {
       vatBeforeEl.value = '';
+      vatNote('VAT 5% · fill either to calculate');
     }
+    scheduleVatReset();
   });
 
   vatBeforeEl?.addEventListener('input', () => {
     const before = parseFloat(vatBeforeEl.value);
     if (!isNaN(before) && before > 0) {
-      vatAfterEl.value = (before * (1 + VAT_RATE)).toFixed(2);
+      vatAfterEl.value = parseFloat((before * (1 + VAT_RATE)).toFixed(2)).toFixed(2);
+      vatNote('VAT 5%');
     } else {
       vatAfterEl.value = '';
+      vatNote('VAT 5% · fill either to calculate');
     }
+    scheduleVatReset();
   });
 });
 

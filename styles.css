@@ -511,6 +511,12 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   margin-top: 4px;
   letter-spacing: .4px;
 }
+.vat-calc-note.vat-calc-warn {
+  color: #d97706;
+  background: #fef3c7;
+  border-radius: 4px;
+  padding: 3px 6px;
+}
 
 /* ===== Invoice Card ===== */
 .invoice-card {
@@ -637,11 +643,22 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .items-table .amount-cell {
   text-align: right;
   font-size: 13px; font-weight: 700; color: var(--slate-700);
+  border: 1.5px solid var(--slate-200);
+  border-left: none;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--slate-50);
+  padding-right: 8px;
 }
-.items-table .amount-cell:empty {
-  border: 1px solid #e8ecf1;
-  border-radius: 4px;
-  background: #fafbfc;
+/* Row endpoint rounding — Model left-rounded, Amount right-rounded */
+.items-table tbody td:first-child .item-input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.items-table tbody td:nth-child(2) .item-input,
+.items-table tbody td:nth-child(3) .item-input,
+.items-table tbody td:nth-child(4) .item-input {
+  border-radius: 0;
+  border-left: none;
 }
 .item-input {
   width: 100%; padding: 6px 8px;
