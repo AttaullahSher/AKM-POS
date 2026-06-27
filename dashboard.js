@@ -285,6 +285,7 @@ function displayActivity(items) {
     // Type badge
     const typeLabel = item.type === 'invoice' ? 'Invoice'
                     : item.type === 'deposit'  ? 'Deposit'
+                    : item.type === 'cashin'   ? 'Cash In'
                     :                            'Expense';
     const typeBadge = `<span class="type-badge type-${item.type}">${typeLabel}</span>`;
 
@@ -297,21 +298,16 @@ function displayActivity(items) {
       : fmtDateStr(item.date);
     const dateCell = `${dateStr}<br><span class="time-badge">${fmtTimeStr(item.time)}</span>`;
 
-    // Amount — invoices are income (+), deposits/expenses are outflows (−)
-    const isOut    = item.type !== 'invoice' || isRefunded || isDeleted;
+    // Amount — invoices and cash-ins are income (+), deposits/expenses are outflows (−)
+    const isOut    = (item.type !== 'invoice' && item.type !== 'cashin') || isRefunded || isDeleted;
     const amtClass = isOut ? 'amount-out' : 'amount-in';
     const amtSign  = isOut ? '−' : '+';
     const amtCell  = `<span class="${amtClass}">${amtSign} AED ${item.amount.toFixed(2)}</span>`;
 
-    // Info cell — payment method / bank / receipt
-    let info = '';
-    if (item.type === 'invoice') {
-      info = `<span class="payment-badge ${item.payment.toLowerCase()}">${item.payment}</span>`;
-    } else if (item.type === 'deposit' && item.slip) {
-      info = `<span class="info-badge">Slip: ${esc(item.slip)}</span>`;
-    } else if (item.type === 'expense' && item.receipt) {
-      info = `<span class="info-badge">Rcpt: ${esc(item.receipt)}</span>`;
-    }
+    // Info cell — payment method badge for invoices only
+    const info = item.type === 'invoice'
+      ? `<span class="payment-badge ${(item.payment || '').toLowerCase()}">${item.payment}</span>`
+      : '';
 
     // Status badge — deleted overrides everything
     let statusBadge;
@@ -323,6 +319,8 @@ function displayActivity(items) {
       statusBadge = `<span class="status-badge ${item.status.toLowerCase()}">${item.status}</span>`;
     } else if (item.type === 'deposit') {
       statusBadge = `<span class="status-badge deposited">Deposited</span>`;
+    } else if (item.type === 'cashin') {
+      statusBadge = `<span class="status-badge cashin">Cash In</span>`;
     } else {
       statusBadge = `<span class="status-badge expensed">Expense</span>`;
     }
@@ -377,7 +375,7 @@ window.refundInvoice = async function(id, num) {
 // Deleted items show in the feed with strikethrough but are excluded
 // from all financial totals (cash in hand, sales, VAT, etc.).
 
-const COLLECTION_MAP = { invoice: 'invoices', deposit: 'deposits', expense: 'expenses' };
+const COLLECTION_MAP = { invoice: 'invoices', deposit: 'deposits', expense: 'expenses', cashin: 'cash_ins' };
 
 window.deleteActivity = async function(type, id, refId) {
   const pin = window.prompt(`🔒 PIN required to delete ${type} ${refId}:`);

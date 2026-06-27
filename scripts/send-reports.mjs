@@ -16,7 +16,7 @@
  */
 
 import { initializeApp, cert } from 'firebase-admin/app';
-import { getFirestore }        from 'firebase-admin/firestore';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { Resend }              from 'resend';
 
 // ── Init ─────────────────────────────────────────────────────────
@@ -60,8 +60,6 @@ const snap = (col, start, end) => start === end
 // Invoices need a triple query: processDate (new) OR date (legacy) OR createdAt range (pre-processDate backdated).
 // This ensures every invoice physically saved on a given UAE day is counted in that day's report.
 async function snapInvoices(start, end) {
-  // UAE midnight boundaries for the date range as UTC Timestamps
-  const { Timestamp } = await import('firebase-admin/firestore');
   const rangeStart = Timestamp.fromDate(new Date(`${start}T00:00:00+04:00`));
   const rangeEnd   = Timestamp.fromDate(new Date(`${end}T23:59:59+04:00`));
   const byProcess = start === end

@@ -1875,6 +1875,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .type-invoice { background: var(--sky-100);     color: var(--sky-700); }
 .type-deposit  { background: var(--emerald-100); color: var(--emerald-700); }
 .type-expense  { background: var(--rose-100);    color: var(--rose-700); }
+.type-cashin   { background: #dcfce7;            color: #15803d; }
 
 /* ── Time Badge ────────────────────────────────────────────── */
 .time-badge {
@@ -1898,9 +1899,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   white-space: nowrap;
 }
 
-/* ── Extra status badges for deposits / expenses ───────────── */
+/* ── Extra status badges for deposits / expenses / cash-ins ── */
 .status-badge.deposited { background: var(--emerald-100); color: var(--emerald-700); }
 .status-badge.expensed  { background: var(--rose-100);    color: var(--rose-700); }
+.status-badge.cashin    { background: #dcfce7;            color: #15803d; }
 
 /* ── Activity table column widths ──────────────────────────── */
 .activity-table th:nth-child(1) { width: 90px; }   /* Type */
@@ -1919,6 +1921,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 /* ── Row tinting by type ───────────────────────────────────── */
 .row-type-deposit td { background: #f0fdf4 !important; }
 .row-type-expense td { background: #fff1f2 !important; }
+.row-type-cashin  td { background: #f0fdf4 !important; }
 
 /* ── Deleted rows ──────────────────────────────────────────── */
 .row-deleted td {

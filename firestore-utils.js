@@ -735,7 +735,7 @@ export async function getRecentActivity(days = 90) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
   try {
-    const [invSnap, depSnap, expSnap] = await Promise.all([
+    const [invSnap, depSnap, expSnap, ciSnap] = await Promise.all([
       getDocs(query(
         collection(db, 'invoices'),
         where('dateObj', '>=', toTimestamp(cutoff)),
@@ -750,6 +750,12 @@ export async function getRecentActivity(days = 90) {
       )),
       getDocs(query(
         collection(db, 'expenses'),
+        where('dateObj', '>=', toTimestamp(cutoff)),
+        orderBy('dateObj', 'desc'),
+        limit(300)
+      )),
+      getDocs(query(
+        collection(db, 'cash_ins'),
         where('dateObj', '>=', toTimestamp(cutoff)),
         orderBy('dateObj', 'desc'),
         limit(300)
@@ -779,7 +785,6 @@ export async function getRecentActivity(days = 90) {
 
     depSnap.forEach(d => {
       const data = d.data();
-      const slip = data.slipNumber ? ` · Slip: ${data.slipNumber}` : '';
       items.push({
         id:          d.id,
         type:        'deposit',
@@ -787,11 +792,9 @@ export async function getRecentActivity(days = 90) {
         date:        data.date      || '',
         time:        data.time      || '00:00:00',
         createdAt:   data.createdAt || null,
-        description: `${data.depositor || ''}${data.bank ? ` → ${data.bank}` : ''}${slip}`,
+        description: `${data.depositor || ''}${data.bank ? ` → ${data.bank}` : ''}`,
         amount:      data.amount    || 0,
         status:      'Deposited',
-        payment:     data.bank      || '',
-        slip:        data.slipNumber || '',
         deleted:     data.deleted || false,
       });
     });
@@ -808,8 +811,23 @@ export async function getRecentActivity(days = 90) {
         description: data.description || '',
         amount:      data.amount     || 0,
         status:      'Expense',
-        receipt:     data.receiptNumber || '',
         deleted:     data.deleted || false,
+      });
+    });
+
+    ciSnap.forEach(d => {
+      const data = d.data();
+      items.push({
+        id:          d.id,
+        type:        'cashin',
+        refId:       data.cashInId  || '',
+        date:        data.date      || '',
+        time:        data.time      || '00:00:00',
+        createdAt:   data.createdAt || null,
+        description: data.reference || '—',
+        amount:      data.amount    || 0,
+        status:      'Cash In',
+        deleted:     data.deleted   || false,
       });
     });
 

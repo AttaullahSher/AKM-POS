@@ -1067,115 +1067,107 @@ window.openHistoryModal = async function() {
       getTodayInvoices(), getTodayDeposits(), getTodayExpenses(), getTodayCashIns(),
     ]);
 
-    let html = '';
+    // Merge everything into one flat list, sort by time desc
+    const todayDate = todayUAE();
+    const allItems = [
+      ...invoices.map(inv => ({
+        _type: 'invoice', _id: inv.id, _deleted: !!inv.deleted,
+        id:        inv.invoiceNumber,
+        desc:      inv.customer?.name || inv.customer || 'Walk-in',
+        time:      (inv.time || '').substring(0, 5),
+        method:    inv.payment?.method || inv.payment || '',
+        amount:    inv.payment?.grandTotal ?? (inv.grandTotal || 0),
+        status:    inv.deleted ? 'Deleted' : (inv.status || 'Paid'),
+        isBackdated: !inv.deleted && !!inv.date && inv.date !== todayDate,
+        isAmendment: !!inv.isAmendment && !inv.superseded,
+        isSuperseded: !!inv.superseded,
+        origNum:   inv.originalInvoiceNumber || '',
+        supBy:     inv.supersededBy || '',
+        inv,
+      })),
+      ...cashIns.map(c => ({
+        _type: 'cashin', _id: c.id, _deleted: !!c.deleted,
+        id:     c.cashInId || '',
+        desc:   c.reference || c.description || '—',
+        time:   (c.time || '').substring(0, 5),
+        method: '',
+        amount: c.amount || 0,
+        status: c.deleted ? 'Deleted' : 'Cash In',
+      })),
+      ...deposits.map(d => ({
+        _type: 'deposit', _id: d.id, _deleted: !!d.deleted,
+        id:     d.depositId || '',
+        desc:   `${d.depositor || ''}${d.bank ? ` → ${d.bank}` : ''}` || '—',
+        time:   (d.time || '').substring(0, 5),
+        method: '',
+        amount: d.amount || 0,
+        status: d.deleted ? 'Deleted' : 'Deposited',
+      })),
+      ...expenses.map(e => ({
+        _type: 'expense', _id: e.id, _deleted: !!e.deleted,
+        id:     e.expenseId || '',
+        desc:   e.description || '—',
+        time:   (e.time || '').substring(0, 5),
+        method: '',
+        amount: e.amount || 0,
+        status: e.deleted ? 'Deleted' : 'Expense',
+      })),
+    ].sort((a, b) => b.time.localeCompare(a.time));
 
-    // ── Invoices ──────────────────────────────────────────────────
-    const seq    = (n) => parseInt((n || '').split('-')[1], 10) || 0;
-    const suffix = (n) => (n || '').split('-')[2] || '';
-    invoices.sort((a, b) => {
-      const d = seq(b.invoiceNumber) - seq(a.invoiceNumber);
-      return d !== 0 ? d : suffix(a.invoiceNumber).localeCompare(suffix(b.invoiceNumber));
+    if (!allItems.length) {
+      container.innerHTML = '<div class="history-empty">No activity today yet.</div>';
+      return;
+    }
+
+    let html = `<div class="history-table-wrap"><table class="history-table"><thead><tr>
+      <th>#&nbsp;/&nbsp;ID</th><th>Details</th><th>Time</th><th>Method</th>
+      <th style="text-align:right">Amount (AED)</th><th>Status</th>
+    </tr></thead><tbody>`;
+
+    allItems.forEach(item => {
+      const del  = item._deleted;
+      const type = item._type;
+
+      // Row styling
+      let rowClass = del ? 'history-row-deleted' : '';
+      if (!del && type === 'invoice') {
+        if (item.inv?.status === 'Refunded') rowClass = 'history-row-refunded';
+        else if (item.isAmendment)           rowClass = 'history-row-amendment';
+        else if (item.isSuperseded)          rowClass = 'history-row-superseded';
+      }
+
+      // Clickable invoices (not deleted)
+      const click  = (!del && type === 'invoice') ? `onclick="handleReprintInvoice('${item._id}'); closeHistoryModal();"` : '';
+      const cursor = del ? 'style="cursor:default"' : '';
+
+      // ID cell — red for backdated invoices
+      const idStyle = item.isBackdated ? 'style="color:#dc2626;font-weight:800;"' : '';
+      const badges  = type === 'invoice' ? [
+        del                ? `<span class="history-amend-badge deleted-badge">DEL</span>`                                                     : '',
+        item.isAmendment   ? `<span class="history-amend-badge" title="Amended from ${item.origNum}">AMEND</span>`                           : '',
+        item.isSuperseded  ? `<span class="history-amend-badge superseded-badge" title="Superseded by ${item.supBy}">SUP</span>`             : '',
+        item.isBackdated   ? `<span class="history-amend-badge" style="background:#fee2e2;color:#dc2626;border-color:#fca5a5;">OLD</span>`    : '',
+      ].join('') : '';
+
+      // Status badge colour
+      const statusClass = del ? 'deleted'
+        : type === 'invoice'  ? (item.inv?.status || 'paid').toLowerCase()
+        : type === 'cashin'   ? 'cashin'
+        : type === 'deposit'  ? 'deposited'
+        : 'expensed';
+
+      html += `<tr class="${rowClass}" ${click} ${cursor}>
+        <td class="ht-num" ${idStyle}>${item.id}${badges}</td>
+        <td>${item.desc}</td>
+        <td class="ht-time">${item.time}</td>
+        <td>${item.method ? `<span class="history-inv-method">${item.method}</span>` : ''}</td>
+        <td class="ht-total">${del ? '—' : `AED ${item.amount.toFixed(2)}`}</td>
+        <td><span class="history-inv-status ${statusClass}">${item.status}</span></td>
+      </tr>`;
     });
 
-    html += `<div class="history-section-title">📄 Invoices</div>`;
-    if (!invoices.length) {
-      html += '<div class="history-empty" style="margin-bottom:8px;">No invoices today yet.</div>';
-    } else {
-      html += `<div class="history-table-wrap"><table class="history-table"><thead><tr>
-        <th>#Invoice</th><th>Customer</th><th>Time</th><th>Method</th>
-        <th style="text-align:right">Amount</th><th>Status</th>
-      </tr></thead><tbody>`;
-      const todayDate = todayUAE();
-      invoices.forEach(inv => {
-        const isDeleted   = !!inv.deleted;
-        const isBackdated = !isDeleted && !!inv.date && inv.date !== todayDate;
-        const rowClass = [
-          isDeleted                              ? 'history-row-deleted'    : '',
-          !isDeleted && inv.status === 'Refunded' ? 'history-row-refunded'   : '',
-          !isDeleted && inv.isAmendment           ? 'history-row-amendment'  : '',
-          !isDeleted && inv.superseded            ? 'history-row-superseded' : '',
-        ].filter(Boolean).join(' ');
-        const timeStr    = (inv.time || '').substring(0, 5);
-        const grandTotal = inv.payment?.grandTotal ?? (inv.grandTotal || 0);
-        const method     = inv.payment?.method || inv.payment || 'Cash';
-        const customer   = inv.customer?.name || inv.customer || 'Walk-in';
-        const click      = isDeleted ? '' : `onclick="handleReprintInvoice('${inv.id}'); closeHistoryModal();"`;
-        const cursor     = isDeleted ? 'style="cursor:default"' : '';
-        const numStyle   = isBackdated ? 'style="color:#dc2626;font-weight:800;"' : '';
-        html += `<tr class="${rowClass}" ${click} ${cursor}>
-          <td class="ht-num" ${numStyle}>
-            ${inv.invoiceNumber}
-            ${isDeleted                            ? `<span class="history-amend-badge deleted-badge">DEL</span>` : ''}
-            ${!isDeleted && inv.isAmendment && !inv.superseded ? `<span class="history-amend-badge" title="Amended from ${inv.originalInvoiceNumber}">AMEND</span>` : ''}
-            ${!isDeleted && inv.superseded          ? `<span class="history-amend-badge superseded-badge" title="Superseded by ${inv.supersededBy}">SUP</span>` : ''}
-            ${isBackdated                           ? `<span class="history-amend-badge" style="background:#fee2e2;color:#dc2626;border-color:#fca5a5;" title="Invoice dated ${inv.date}">OLD</span>` : ''}
-          </td>
-          <td>${customer}</td>
-          <td class="ht-time">${timeStr}</td>
-          <td><span class="history-inv-method">${isDeleted ? '—' : method}</span></td>
-          <td class="ht-total">${isDeleted ? '—' : `AED ${grandTotal.toFixed(2)}`}</td>
-          <td><span class="history-inv-status ${isDeleted ? 'deleted' : (inv.status || 'Paid').toLowerCase()}">${isDeleted ? 'Deleted' : (inv.status || 'Paid')}</span></td>
-        </tr>`;
-      });
-      html += `</tbody></table></div>`;
-    }
-
-    // ── Cash Ins ──────────────────────────────────────────────────
-    if (cashIns.length) {
-      html += `<div class="history-section-title" style="margin-top:14px;">💵 Cash In</div>`;
-      html += `<div class="history-table-wrap"><table class="history-table"><thead><tr>
-        <th>ID</th><th>Time</th><th>Reference</th><th style="text-align:right">Amount</th>
-      </tr></thead><tbody>`;
-      cashIns.forEach(c => {
-        const del = !!c.deleted;
-        html += `<tr${del ? ' class="history-row-deleted" style="cursor:default"' : ''}>
-          <td>${c.cashInId || ''}</td>
-          <td class="ht-time">${(c.time || '').substring(0, 5)}</td>
-          <td>${c.reference || c.description || '—'}</td>
-          <td class="ht-total">${del ? '—' : `AED ${(c.amount || 0).toFixed(2)}`}</td>
-        </tr>`;
-      });
-      html += `</tbody></table></div>`;
-    }
-
-    // ── Deposits ──────────────────────────────────────────────────
-    if (deposits.length) {
-      html += `<div class="history-section-title" style="margin-top:14px;">🏦 Deposits</div>`;
-      html += `<div class="history-table-wrap"><table class="history-table"><thead><tr>
-        <th>ID</th><th>Time</th><th>Type</th><th>Bank</th><th style="text-align:right">Amount</th>
-      </tr></thead><tbody>`;
-      deposits.forEach(d => {
-        const del = !!d.deleted;
-        html += `<tr${del ? ' class="history-row-deleted" style="cursor:default"' : ''}>
-          <td>${d.depositId || ''}</td>
-          <td class="ht-time">${(d.time || '').substring(0, 5)}</td>
-          <td>${d.depositType || 'Cash'}</td>
-          <td>${d.bank || '—'}</td>
-          <td class="ht-total">${del ? '—' : `AED ${(d.amount || 0).toFixed(2)}`}</td>
-        </tr>`;
-      });
-      html += `</tbody></table></div>`;
-    }
-
-    // ── Expenses ──────────────────────────────────────────────────
-    if (expenses.length) {
-      html += `<div class="history-section-title" style="margin-top:14px;">💸 Expenses</div>`;
-      html += `<div class="history-table-wrap"><table class="history-table"><thead><tr>
-        <th>ID</th><th>Time</th><th>Description</th><th style="text-align:right">Amount</th>
-      </tr></thead><tbody>`;
-      expenses.forEach(e => {
-        const del = !!e.deleted;
-        html += `<tr${del ? ' class="history-row-deleted" style="cursor:default"' : ''}>
-          <td>${e.expenseId || ''}</td>
-          <td class="ht-time">${(e.time || '').substring(0, 5)}</td>
-          <td>${e.description || '—'}</td>
-          <td class="ht-total">${del ? '—' : `AED ${(e.amount || 0).toFixed(2)}`}</td>
-        </tr>`;
-      });
-      html += `</tbody></table></div>`;
-    }
-
-    container.innerHTML = html || '<div class="history-empty">No activity today yet.</div>';
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
   } catch (err) {
     console.error('History error:', err);
     container.innerHTML = '<div style="color:#f43f5e;text-align:center;padding:20px;">Error loading activity.</div>';
