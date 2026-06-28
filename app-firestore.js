@@ -680,10 +680,15 @@ async function saveNewInvoice() {
   try {
     // Counter increment + invoice write are ONE atomic Firestore transaction.
     // If anything fails both roll back — the counter is never burned without a document.
+    const previewNum = document.getElementById('invNum')?.textContent.trim();
     const { invoiceNumber } = await saveInvoice(data);
     updateEl('invNum', invoiceNumber);
     trackOfflineSave();
-    showToast('✅ Invoice saved!', 'success');
+    if (invoiceNumber !== previewNum) {
+      showToast(`Invoice number updated: ${previewNum} → ${invoiceNumber}`, 'info');
+    } else {
+      showToast('✅ Invoice saved!', 'success');
+    }
     saved = true;
     setTimeout(() => { preparePrintLayout(); window.print(); }, 300);
   } catch (err) {
@@ -1580,7 +1585,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (vatAfterEl)  vatAfterEl.value  = '';
       if (vatBeforeEl) vatBeforeEl.value = '';
       vatNote('VAT 5% · fill either to calculate');
-    }, 8000);
+    }, 15000);
   };
 
   vatAfterEl?.addEventListener('input', () => {
