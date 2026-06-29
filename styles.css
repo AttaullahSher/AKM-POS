@@ -604,6 +604,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   box-shadow: 0 0 0 3px rgba(14,165,233,.12);
   outline: none !important;
 }
+.meta-field--medium { flex: 2 1 0; min-width: 0; }
+.meta-field--short  { flex: 1 1 0; min-width: 0; }
 .inv-number-display {
   display: flex; align-items: center;
   padding: 6px 12px;
@@ -1572,10 +1574,12 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
     margin-bottom: 0 !important; white-space: nowrap !important; min-width: 0 !important;
   }
   /* Print-only label replacements: shorter text fits on same row */
-  .invoice-meta .meta-row:nth-child(2) .meta-field label { font-size: 0 !important; }
-  .invoice-meta .meta-row:nth-child(2) .meta-field label::after { content: "Name"; font-size: 9px !important; font-weight: 400; color: #000; }
-  .invoice-meta .meta-row:nth-child(3) .meta-field:first-child label { font-size: 0 !important; }
-  .invoice-meta .meta-row:nth-child(3) .meta-field:first-child label::after { content: "Mob"; font-size: 9px !important; font-weight: 400; color: #000; }
+  /* Row 2: Customer Name | Mobile */
+  .invoice-meta .meta-row:nth-child(2) .meta-field:first-child label { font-size: 0 !important; }
+  .invoice-meta .meta-row:nth-child(2) .meta-field:first-child label::after { content: "Name"; font-size: 9px !important; font-weight: 400; color: #000; }
+  .invoice-meta .meta-row:nth-child(2) .meta-field:last-child label { font-size: 0 !important; }
+  .invoice-meta .meta-row:nth-child(2) .meta-field:last-child label::after { content: "Mob"; font-size: 9px !important; font-weight: 400; color: #000; }
+  /* Row 3: Email (always hidden) | TRN */
   .invoice-meta .meta-row:nth-child(3) .meta-field:last-child label { font-size: 9px !important; font-weight: 400 !important; }
   .invoice-meta .print-text-replacement {
     width: auto !important; font-size: 11px !important; font-weight: 400 !important;

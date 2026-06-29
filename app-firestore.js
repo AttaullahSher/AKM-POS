@@ -27,6 +27,8 @@ import {
   markInvoiceSuperseded,
   formatDate,
   formatTime,
+  invalidateCache,
+  upsertCustomer,
 } from './firestore-utils.js';
 
 import { APP_CONFIG, debugLog } from './config.js';
@@ -79,13 +81,15 @@ window.addEventListener('online', async () => {
 
 window.addEventListener('offline', updateSyncBadge);
 
-// Refresh cash-in-hand whenever the user returns to this tab (e.g. after deleting
-// an invoice on the dashboard) so the header chip stays accurate.
-// Also correct a stale date field — if the page was left open overnight the date
-// field may still show yesterday. Only resets if the value is already in the past.
+// Refresh cash-in-hand when the user returns to this tab, but only if the cache
+// is stale (>5 min). This avoids burning Firestore reads on every tab switch.
+// Also correct a stale date field if the page was left open overnight.
+let _lastDashboardLoad = 0;
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && currentUser) {
-    loadDashboardData().catch(() => {});
+    if (Date.now() - _lastDashboardLoad > 300_000) {
+      loadDashboardData().catch(() => {});
+    }
     if (!isReprintMode) {
       const invDate = document.getElementById('invDate');
       const today   = todayUAE();
@@ -141,6 +145,13 @@ function preparePrintLayout() {
   if (originalInputStates.length > 0) return;
   const container = document.querySelector('.invoice-card');
   if (!container) return;
+
+  // Always hide email from print
+  const emailEl = document.getElementById('custEmail');
+  if (emailEl) {
+    const field = emailEl.closest('.meta-field');
+    if (field) { field.style.display = 'none'; field.dataset.hiddenForPrint = '1'; }
+  }
 
   // Hide empty phone / TRN meta fields from print
   ['custPhone', 'custTRN'].forEach(id => {
@@ -644,6 +655,7 @@ async function loadNextInvoiceNumber() {
 
 async function loadDashboardData() {
   if (!currentUser) return;
+  _lastDashboardLoad = Date.now();
   try {
     const [invoices, allTime] = await Promise.all([
       getTodayInvoices(),
@@ -682,6 +694,7 @@ async function saveNewInvoice() {
     // If anything fails both roll back — the counter is never burned without a document.
     const previewNum = document.getElementById('invNum')?.textContent.trim();
     const { invoiceNumber } = await saveInvoice(data);
+    upsertCustomer(data.customer.name, data.customer.phone, data.customer.email, data.customer.trn).catch(() => {});
     updateEl('invNum', invoiceNumber);
     trackOfflineSave();
     if (invoiceNumber !== previewNum) {
@@ -698,6 +711,7 @@ async function saveNewInvoice() {
   } finally {
     setTimeout(() => {
       if (saved) {
+        invalidateCache();
         loadDashboardData().catch(() => {});
         loadNextInvoiceNumber().catch(() => {});
         resetInvoiceForm();
@@ -715,8 +729,9 @@ function collectInvoiceData() {
   const date  = formatDate(new Date(dateInput), 'YYYY-MM-DD');
   const today = todayUAE();
   if (date > today) { showToast('Future dates are not allowed.', 'error'); document.getElementById('invDate').value = today; return null; }
-  const customerName  = document.getElementById('custName')?.value.trim() || 'Walk-in Customer';
+  const customerName  = document.getElementById('custName')?.value.trim()  || 'Walk-in Customer';
   const customerPhone = document.getElementById('custPhone')?.value.trim() || '';
+  const customerEmail = document.getElementById('custEmail')?.value.trim() || '';
   const customerTRN   = document.getElementById('custTRN')?.value.trim()   || '';
 
   if (!currentPaymentMethod) { showToast('Please select a payment method.', 'error'); return null; }
@@ -769,7 +784,7 @@ function collectInvoiceData() {
 
   return {
     invoiceNumber, date,
-    customer: { name: customerName, phone: customerPhone, trn: customerTRN },
+    customer: { name: customerName, phone: customerPhone, email: customerEmail, trn: customerTRN },
     payment:  { method: currentPaymentMethod, subtotal, vat, grandTotal },
     items,
     status: 'Paid',
@@ -778,7 +793,7 @@ function collectInvoiceData() {
 }
 
 function resetInvoiceForm() {
-  ['custName','custPhone','custTRN'].forEach(id => {
+  ['custName','custPhone','custEmail','custTRN'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -828,6 +843,8 @@ function populateReprintForm(inv) {
   if (custPhone) custPhone.value = inv.customer?.phone || '';
   const custTRN = document.getElementById('custTRN');
   if (custTRN) custTRN.value = inv.customer?.trn || '';
+  const custEmail = document.getElementById('custEmail');
+  if (custEmail) custEmail.value = inv.customer?.email || '';
 
   // Clear ALL item rows first so stale data from a previously-loaded invoice doesn't bleed through
   for (let i = 1; i <= VALIDATION.MAX_ITEMS_PER_INVOICE; i++) {
@@ -1023,6 +1040,7 @@ async function saveAsAmendment() {
 
     updateEl('invNum', amendmentNumber);
     await saveInvoice(data);
+    upsertCustomer(data.customer.name, data.customer.phone, data.customer.email, data.customer.trn).catch(() => {});
     await markInvoiceSuperseded(reprintInvoiceData.id, amendmentNumber);
     trackOfflineSave();
     showToast(`✅ Invoice ${amendmentNumber} saved`, 'success');
@@ -1033,7 +1051,7 @@ async function saveAsAmendment() {
     showToast('❌ Save failed: ' + err.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = '📝 Save & Reprint'; }
   } finally {
-    setTimeout(() => loadDashboardData().catch(() => {}), PERF.PRINT_RESTORE_DELAY || 3000);
+    setTimeout(() => { invalidateCache(); loadDashboardData().catch(() => {}); }, PERF.PRINT_RESTORE_DELAY || 3000);
   }
 }
 
@@ -1048,6 +1066,7 @@ window.handleRefund = async function() {
   try {
     await markInvoiceAsRefunded(reprintInvoiceData.id);
     showToast(`Invoice ${refundedNumber} refunded.`, 'success');
+    invalidateCache();
     await loadDashboardData();
     resetToNewInvoice();   // empty the form back to a fresh invoice
   } catch (err) {
@@ -1221,6 +1240,7 @@ window.submitCashIn = async function() {
     await createCashIn({ amount, reference });
     showToast(`✅ Cash In AED ${amount.toFixed(2)} saved.`, 'success');
     window.closeTxModal();
+    invalidateCache();
     loadDashboardData().catch(() => {});
   } catch (err) {
     console.error('Cash In error:', err);
@@ -1271,6 +1291,7 @@ window.submitDeposit = async function() {
     trackOfflineSave();
     showToast(`✅ ${currentDepositType} deposit AED ${amount.toFixed(2)} saved.`, 'success');
     closeDepositModal();
+    invalidateCache();
     await loadDashboardData();
   } catch (err) {
     console.error('Deposit error:', err);
@@ -1313,6 +1334,7 @@ window.submitExpense = async function() {
     trackOfflineSave();
     showToast(`✅ Expense AED ${amount.toFixed(2)} saved.`, 'success');
     closeExpenseModal();
+    invalidateCache();
     await loadDashboardData();
   } catch (err) {
     console.error('Expense error:', err);
@@ -1330,13 +1352,14 @@ function setupAutoRefresh() {
   setInterval(async () => {
     if (failures >= 3) return;
     try {
+      invalidateCache();
       await loadDashboardData();
       failures = 0;
     } catch (err) {
       failures++;
       if (failures === 1) console.error('Auto-refresh error:', err);
     }
-  }, 30000);
+  }, 300_000);
 }
 
 // ─── Midnight Reset (UAE timezone) ──────────────────────────────
@@ -1497,7 +1520,7 @@ function setupKeyboard() {
     // Invoice meta: date → custName → custPhone → custTRN → model1
     if (active.closest('.invoice-meta') && e.key === 'Enter') {
       e.preventDefault();
-      const seq = ['invDate','custName','custPhone','custTRN'];
+      const seq = ['invDate','custName','custPhone','custEmail','custTRN'];
       const idx = seq.indexOf(active.id);
       if (idx >= 0 && idx < seq.length - 1) document.getElementById(seq[idx + 1])?.focus();
       else document.getElementById('model1')?.focus();

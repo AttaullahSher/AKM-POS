@@ -146,20 +146,24 @@
               <input type="date" id="invDate" required aria-label="Invoice date">
             </div>
           </div>
-          <!-- Row 2: customer name -->
+          <!-- Row 2: Customer Name | Mobile -->
           <div class="meta-row">
-            <div class="meta-field">
+            <div class="meta-field meta-field--medium">
               <label>Customer</label>
               <input type="text" id="custName" placeholder="Walk-in Customer" aria-label="Customer name" autocomplete="off">
             </div>
-          </div>
-          <!-- Row 3: mobile + TRN -->
-          <div class="meta-row">
-            <div class="meta-field">
+            <div class="meta-field meta-field--short">
               <label>Mobile</label>
               <input type="tel" id="custPhone" placeholder="e.g. 0501234567" aria-label="Customer phone" autocomplete="off">
             </div>
-            <div class="meta-field">
+          </div>
+          <!-- Row 3: Email | TRN -->
+          <div class="meta-row">
+            <div class="meta-field meta-field--medium">
+              <label>Email</label>
+              <input type="email" id="custEmail" placeholder="customer@email.com (optional)" aria-label="Customer email" autocomplete="off">
+            </div>
+            <div class="meta-field meta-field--short">
               <label>TRN</label>
               <input type="text" id="custTRN" placeholder="15-digit TRN (optional)" aria-label="Customer TRN" autocomplete="off">
             </div>

@@ -16,6 +16,7 @@ import {
   bulkDeleteCollection,
   bulkSetDocs,
   resetAllCollections,
+  invalidateCache,
 } from './firestore-utils.js';
 import { collection, query, where, orderBy, getDocs, Timestamp, serverTimestamp } from './firebase-config.js';
 import { APP_CONFIG, debugLog } from './config.js';
@@ -57,31 +58,8 @@ const TAX_QUARTERS = {
   Q4: { name: 'Q4: Jan–Mar', months: [1, 2, 3] }
 };
 
-// ─── All-Time Cash Flow Cache ────────────────────────────────────
-// Querying 5 years of invoices/deposits/expenses is expensive — cache for 5 min.
-
-let _cashFlowCache = { value: null, ts: 0 };
-const CASH_FLOW_TTL = 5 * 60 * 1000;
-
-async function loadAllTimeCashInHand() {
-  if (_cashFlowCache.value !== null && Date.now() - _cashFlowCache.ts < CASH_FLOW_TTL) {
-    return _cashFlowCache.value;
-  }
-  try {
-    const data = await getAllTimeCashFlow();
-    if (data) {
-      _cashFlowCache = { value: data.cashInHand, ts: Date.now() };
-      return data.cashInHand;
-    }
-  } catch (err) {
-    console.error('❌ Cash flow cache error:', err);
-  }
-  return _cashFlowCache.value ?? 0;
-}
-
-function invalidateCashFlowCache() {
-  _cashFlowCache.ts = 0;
-}
+// getAllTimeCashFlow is cached at the firestore-utils level (5-min TTL).
+// invalidateCache() from firestore-utils busts that cache after any write.
 
 // ─── Offline Indicator ───────────────────────────────────────────
 
@@ -109,8 +87,7 @@ async function initDashboard() {
   document.getElementById('dashboardApp').style.display  = 'block';
 
   // Set up refresh intervals unconditionally (not dependent on first load succeeding)
-  setInterval(() => loadDashboardStats(), 60_000);
-  setInterval(() => { invalidateCashFlowCache(); loadDashboardStats(); loadActivityFeed(); }, 300_000);
+  setInterval(() => { invalidateCache(); loadDashboardStats(); loadActivityFeed(); }, 300_000);
 
   try {
     await Promise.all([loadDashboardStats(), loadActivityFeed()]);
@@ -125,11 +102,12 @@ async function initDashboard() {
 
 async function loadDashboardStats() {
   try {
-    // Run today's invoice query and the (cached) all-time cash flow in parallel
-    const [cashInHand, invoices] = await Promise.all([
-      loadAllTimeCashInHand(),
+    // Both are cached at the firestore-utils level — real reads only when cache is stale
+    const [cfData, invoices] = await Promise.all([
+      getAllTimeCashFlow(),
       getTodayInvoices(),
     ]);
+    const cashInHand = cfData?.cashInHand ?? 0;
 
     let totalSales = 0, totalVAT = 0, invoiceCount = 0;
     let cash = 0, card = 0, tabby = 0, cheque = 0;
@@ -362,7 +340,7 @@ window.refundInvoice = async function(id, num) {
   try {
     await markInvoiceAsRefunded(id);
     showToast('Invoice refunded', 'success');
-    invalidateCashFlowCache();
+    invalidateCache();
     await Promise.all([loadDashboardStats(), loadActivityFeed()]);
   } catch (err) {
     console.error('❌ Refund error:', err);
@@ -387,7 +365,7 @@ window.deleteActivity = async function(type, id, refId) {
   try {
     await softDeleteDocument(COLLECTION_MAP[type], id);
     showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} ${refId} deleted`, 'success');
-    invalidateCashFlowCache();
+    invalidateCache();
     await Promise.all([loadDashboardStats(), loadActivityFeed()]);
   } catch (err) {
     console.error('❌ Delete error:', err);
@@ -1251,7 +1229,7 @@ window.importFileSelected = async function(input) {
       bulkSetDocs('expenses', expEntries),
     ]);
 
-    invalidateCashFlowCache();
+    invalidateCache();
     await Promise.all([loadDashboardStats(), loadActivityFeed()]);
     showToast(`Imported: ${invEntries.length} inv · ${depEntries.length} dep · ${expEntries.length} exp`, 'success');
   } catch (err) {

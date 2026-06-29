@@ -24,6 +24,29 @@ import { APP_CONFIG, debugLog } from './config.js';
 
 export { db };
 
+// ─── Numbering Date Gate ──────────────────────────────────────
+// Before 2026-07-01 → old format (YY-XXXXX / D-MMXX / E-MMXX / CI-MMXX)
+// From  2026-07-01 → new format (IN-26-XXXX / DP-26-XXX / EX-26-XXX / CI-26-XXX)
+const NEW_NUMBERING_START = new Date('2026-07-01');
+const useNewNumbering     = new Date() >= NEW_NUMBERING_START;
+
+// ─── Session Cache ────────────────────────────────────────────
+// Prevents repeated Firestore reads within the same browser session.
+// Today-caches expire automatically at midnight (UAE date key changes).
+// All caches are busted after any write via invalidateCache().
+const _todayCache  = Object.create(null); // { [YYYY-MM-DD]: { invoices, deposits, expenses, cashIns } }
+let   _cfCache     = { ts: 0, data: null };           // getAllTimeCashFlow — 5-min TTL
+let   _actCache    = { ts: 0, days: 0, data: null };  // getRecentActivity  — 5-min TTL
+let   _invNumCache = { year: 0, value: null };         // peekNextInvoiceNumber
+const _CACHE_TTL   = 5 * 60 * 1000;                   // 5 minutes
+
+export function invalidateCache() {
+  for (const k of Object.keys(_todayCache)) delete _todayCache[k];
+  _cfCache.ts        = 0;
+  _actCache.ts       = 0;
+  _invNumCache.value = null;
+}
+
 // ─── Date Helpers ────────────────────────────────────────────
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -78,22 +101,56 @@ function writeLocalCounter(year, lastSequence) {
 }
 
 export async function getNextInvoiceNumber() {
-  const counterRef  = doc(db, 'counters', 'invoices');
   const currentYear = new Date().getFullYear();
-  const yy          = String(currentYear).slice(-2);
-  const INIT        = APP_CONFIG.BUSINESS.STARTING_INVOICE_NUMBER;
 
-  // Offline fallback: localStorage is always available; also queues a Firestore
-  // write so the server counter catches up when connection is restored.
+  if (!useNewNumbering) {
+    // ── OLD FORMAT: YY-XXXXX ────────────────────────────────────────
+    const counterRef = doc(db, 'counters', 'invoices');
+    const yy         = String(currentYear).slice(-2);
+    const INIT       = APP_CONFIG.BUSINESS.STARTING_INVOICE_NUMBER;
+
+    const offlineFallback = () => {
+      const last = readLocalCounter(currentYear);
+      const next = Math.max(last + 1, INIT);
+      writeLocalCounter(currentYear, next);
+      return `${yy}-${String(next).padStart(5, '0')}`;
+    };
+
+    try {
+      const result = await Promise.race([
+        runTransaction(db, async (tx) => {
+          const snap = await tx.get(counterRef);
+          if (!snap.exists()) {
+            tx.set(counterRef, { year: currentYear, lastSequence: INIT, updatedAt: serverTimestamp() });
+            return { number: `${yy}-${String(INIT).padStart(5, '0')}`, sequence: INIT };
+          }
+          const data = snap.data();
+          if (data.year !== currentYear) {
+            tx.update(counterRef, { year: currentYear, lastSequence: INIT, updatedAt: serverTimestamp() });
+            return { number: `${yy}-${String(INIT).padStart(5, '0')}`, sequence: INIT };
+          }
+          const next = data.lastSequence + 1;
+          tx.update(counterRef, { lastSequence: next, updatedAt: serverTimestamp() });
+          return { number: `${yy}-${String(next).padStart(5, '0')}`, sequence: next };
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('offline')), 3000)),
+      ]);
+      writeLocalCounter(currentYear, result.sequence);
+      return result.number;
+    } catch {
+      return offlineFallback();
+    }
+  }
+
+  // ── NEW FORMAT: IN-26-XXXX ──────────────────────────────────────
+  const year       = APP_CONFIG.BUSINESS.DOC_YEAR;
+  const counterRef = doc(db, 'counters', `IN-${year}`);
+
   const offlineFallback = () => {
     const last = readLocalCounter(currentYear);
-    const next = Math.max(last + 1, INIT);
+    const next = Math.max(last + 1, 1);
     writeLocalCounter(currentYear, next);
-    // Do NOT write back to Firestore here — if another device online already
-    // incremented the counter past `next`, this setDoc would corrupt it with
-    // a lower value when we reconnect. The transaction in the try-block above
-    // is the only safe writer; localStorage is offline-only state.
-    return `${yy}-${String(next).padStart(5, '0')}`;
+    return `IN-${year}-${String(next).padStart(4, '0')}`;
   };
 
   try {
@@ -101,21 +158,27 @@ export async function getNextInvoiceNumber() {
       runTransaction(db, async (tx) => {
         const snap = await tx.get(counterRef);
         if (!snap.exists()) {
-          tx.set(counterRef, { year: currentYear, lastSequence: INIT, updatedAt: serverTimestamp() });
-          return { number: `${yy}-${String(INIT).padStart(5, '0')}`, sequence: INIT };
+          // First use: scan for any IN-26-XXXX already saved so we don't restart at 0001
+          const existing = await getDocs(query(
+            collection(db, 'invoices'),
+            where('invoiceNumber', '>=', `IN-${year}-`),
+            where('invoiceNumber', '<=', `IN-${year}-~`)
+          ));
+          let maxSeq = 0;
+          existing.forEach(d => {
+            const n = parseInt((d.data().invoiceNumber || '').split('-').pop(), 10);
+            if (!isNaN(n)) maxSeq = Math.max(maxSeq, n);
+          });
+          const next = maxSeq + 1;
+          tx.set(counterRef, { lastSequence: next, updatedAt: serverTimestamp() });
+          return { number: `IN-${year}-${String(next).padStart(4, '0')}`, sequence: next };
         }
-        const data = snap.data();
-        if (data.year !== currentYear) {
-          tx.update(counterRef, { year: currentYear, lastSequence: INIT, updatedAt: serverTimestamp() });
-          return { number: `${yy}-${String(INIT).padStart(5, '0')}`, sequence: INIT };
-        }
-        const next = data.lastSequence + 1;
+        const next = snap.data().lastSequence + 1;
         tx.update(counterRef, { lastSequence: next, updatedAt: serverTimestamp() });
-        return { number: `${yy}-${String(next).padStart(5, '0')}`, sequence: next };
+        return { number: `IN-${year}-${String(next).padStart(4, '0')}`, sequence: next };
       }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('offline')), 3000)),
     ]);
-    // Keep localStorage in sync so offline fallback has accurate base
     writeLocalCounter(currentYear, result.sequence);
     return result.number;
   } catch {
@@ -129,24 +192,47 @@ export async function getNextInvoiceNumber() {
  * The number is only committed via getNextInvoiceNumber() when an invoice saves.
  */
 export async function peekNextInvoiceNumber() {
-  const counterRef  = doc(db, 'counters', 'invoices');
   const currentYear = new Date().getFullYear();
-  const yy          = String(currentYear).slice(-2);
-  const INIT        = APP_CONFIG.BUSINESS.STARTING_INVOICE_NUMBER;
+  if (_invNumCache.year === currentYear && _invNumCache.value !== null) {
+    return _invNumCache.value;
+  }
+
+  if (!useNewNumbering) {
+    // ── OLD FORMAT ──────────────────────────────────────────────────
+    const counterRef = doc(db, 'counters', 'invoices');
+    const yy         = String(currentYear).slice(-2);
+    const INIT       = APP_CONFIG.BUSINESS.STARTING_INVOICE_NUMBER;
+    try {
+      const snap = await getDoc(counterRef);
+      if (!snap.exists())            { const v = `${yy}-${String(INIT).padStart(5, '0')}`; _invNumCache = { year: currentYear, value: v }; return v; }
+      const data = snap.data();
+      if (data.year !== currentYear) { const v = `${yy}-${String(INIT).padStart(5, '0')}`; _invNumCache = { year: currentYear, value: v }; return v; }
+      const next = (data.lastSequence || INIT) + 1;
+      writeLocalCounter(currentYear, data.lastSequence);
+      const value = `${yy}-${String(next).padStart(5, '0')}`;
+      _invNumCache = { year: currentYear, value };
+      return value;
+    } catch (err) {
+      console.error('❌ peekNextInvoiceNumber error:', err);
+      const last = readLocalCounter(currentYear);
+      return `${yy}-${String(Math.max(last + 1, INIT)).padStart(5, '0')}`;
+    }
+  }
+
+  // ── NEW FORMAT: IN-26-XXXX ──────────────────────────────────────
+  const year       = APP_CONFIG.BUSINESS.DOC_YEAR;
+  const counterRef = doc(db, 'counters', `IN-${year}`);
   try {
     const snap = await getDoc(counterRef);
-    if (!snap.exists())              return `${yy}-${String(INIT).padStart(5, '0')}`;
-    const data = snap.data();
-    if (data.year !== currentYear)   return `${yy}-${String(INIT).padStart(5, '0')}`;
-    const next = (data.lastSequence || INIT) + 1;
-    // Cache in localStorage so offline fallback starts from the right place
-    writeLocalCounter(currentYear, data.lastSequence);
-    return `${yy}-${String(next).padStart(5, '0')}`;
+    const next = snap.exists() ? snap.data().lastSequence + 1 : 1;
+    if (snap.exists()) writeLocalCounter(currentYear, snap.data().lastSequence);
+    const value = `IN-${year}-${String(next).padStart(4, '0')}`;
+    _invNumCache = { year: currentYear, value };
+    return value;
   } catch (err) {
     console.error('❌ peekNextInvoiceNumber error:', err);
-    // Offline: return what localStorage says
     const last = readLocalCounter(currentYear);
-    return `${yy}-${String(Math.max(last + 1, INIT)).padStart(5, '0')}`;
+    return `IN-${year}-${String(Math.max(last + 1, 1)).padStart(4, '0')}`;
   }
 }
 
@@ -189,9 +275,63 @@ async function getNextMonthlyId(collectionName, prefix) {
   }
 }
 
-export const getNextDepositId     = () => getNextMonthlyId('deposits', 'D');
-export const getNextExpenseId     = () => getNextMonthlyId('expenses', 'E');
-export const getNextRepairJobNumber = () => getNextMonthlyId('repairs',  'R');
+// ─── Year-Keyed Counter (new format from 2026-07-01) ─────────
+// Counter doc: counters/{PREFIX}-{DOC_YEAR}  e.g. counters/DP-26
+// On first use: scans collection for any existing new-format IDs so the
+// counter never restarts below an already-issued number.
+async function getNextYearlyId(prefix, pad, collectionName, fieldName) {
+  const year       = APP_CONFIG.BUSINESS.DOC_YEAR;
+  const counterRef = doc(db, 'counters', `${prefix}-${year}`);
+
+  const scanMaxExisting = async () => {
+    try {
+      const snap = await getDocs(query(
+        collection(db, collectionName),
+        where(fieldName, '>=', `${prefix}-${year}-`),
+        where(fieldName, '<=', `${prefix}-${year}-~`)
+      ));
+      let max = 0;
+      snap.forEach(d => {
+        const n = parseInt((d.data()[fieldName] || '').split('-').pop(), 10);
+        if (!isNaN(n)) max = Math.max(max, n);
+      });
+      return max;
+    } catch { return 0; }
+  };
+
+  try {
+    return await Promise.race([
+      runTransaction(db, async (tx) => {
+        const snap = await tx.get(counterRef);
+        if (!snap.exists()) {
+          const maxExisting = await scanMaxExisting();
+          const next = maxExisting + 1;
+          tx.set(counterRef, { lastSequence: next, updatedAt: serverTimestamp() });
+          return `${prefix}-${year}-${String(next).padStart(pad, '0')}`;
+        }
+        const next = snap.data().lastSequence + 1;
+        tx.update(counterRef, { lastSequence: next, updatedAt: serverTimestamp() });
+        return `${prefix}-${year}-${String(next).padStart(pad, '0')}`;
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('offline')), 3000)),
+    ]);
+  } catch {
+    return `${prefix}-${year}-${Date.now().toString().slice(-4)}`;
+  }
+}
+
+export const getNextDepositId = () => useNewNumbering
+  ? getNextYearlyId('DP', 3, 'deposits', 'depositId')
+  : getNextMonthlyId('deposits', 'D');
+
+export const getNextExpenseId = () => useNewNumbering
+  ? getNextYearlyId('EX', 3, 'expenses', 'expenseId')
+  : getNextMonthlyId('expenses', 'E');
+
+// RP-26-XXX — ready for future repairs page
+export const getNextRepairJobNumber = () => useNewNumbering
+  ? getNextYearlyId('RP', 3, 'repairs', 'repairNumber')
+  : getNextMonthlyId('repairs', 'R');
 
 // Aliases for callers that use uppercase
 export const getNextDepositID = getNextDepositId;
@@ -229,6 +369,7 @@ export async function createInvoice(invoiceData) {
     customer: {
       name:  customer.name  || 'Walk-in Customer',
       phone: customer.phone || '',
+      email: customer.email || '',
       trn:   customer.trn   || '',
     },
     payment,
@@ -289,6 +430,27 @@ export async function createInvoice(invoiceData) {
     await setDoc(invoiceRef, buildDoc(invoiceNumber, next));
     debugLog('📱 Invoice queued offline:', invoiceNumber, invoiceRef.id);
     return { id: invoiceRef.id, invoiceNumber };
+  }
+}
+
+export async function upsertCustomer(name, mobile, email, trn) {
+  if (!mobile || name === 'Walk-in Customer') return;
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'customers'), where('mobile', '==', mobile), limit(1))
+    );
+    const now = serverTimestamp();
+    if (snap.empty) {
+      await addDoc(collection(db, 'customers'), {
+        name, mobile, email: email || '', trn: trn || '', lastSeen: now,
+      });
+    } else {
+      const updates = { name, trn: trn || '', lastSeen: now };
+      if (email) updates.email = email;
+      await updateDoc(snap.docs[0].ref, updates);
+    }
+  } catch (err) {
+    debugLog('upsertCustomer error:', err);
   }
 }
 
@@ -408,8 +570,9 @@ export async function loadRecentExpenses(days = 90) {
 // ─── Today Queries ───────────────────────────────────────────
 
 export async function getTodayInvoices() {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dubai' });
+  if (_todayCache[today]?.invoices) return _todayCache[today].invoices;
   try {
-    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dubai' });
     // UAE midnight = 00:00 +04:00, which is 20:00 UTC the previous calendar day
     const dayStart = Timestamp.fromDate(new Date(`${today}T00:00:00+04:00`));
     const dayEnd   = Timestamp.fromDate(new Date(`${today}T23:59:59+04:00`));
@@ -430,6 +593,8 @@ export async function getTodayInvoices() {
         if (!seen.has(d.id)) { seen.add(d.id); docs.push({ id: d.id, ...d.data() }); }
       }
     }
+    if (!_todayCache[today]) _todayCache[today] = {};
+    _todayCache[today].invoices = docs;
     return docs;
   } catch (err) {
     console.error('❌ getTodayInvoices:', err);
@@ -438,11 +603,15 @@ export async function getTodayInvoices() {
 }
 
 export async function getTodayDeposits() {
+  const today = formatDate(new Date(), 'YYYY-MM-DD');
+  if (_todayCache[today]?.deposits) return _todayCache[today].deposits;
   try {
-    const today = formatDate(new Date(), 'YYYY-MM-DD');
     const q = query(collection(db, 'deposits'), where('date', '==', today));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (!_todayCache[today]) _todayCache[today] = {};
+    _todayCache[today].deposits = docs;
+    return docs;
   } catch (err) {
     console.error('❌ getTodayDeposits:', err);
     return [];
@@ -450,11 +619,15 @@ export async function getTodayDeposits() {
 }
 
 export async function getTodayExpenses() {
+  const today = formatDate(new Date(), 'YYYY-MM-DD');
+  if (_todayCache[today]?.expenses) return _todayCache[today].expenses;
   try {
-    const today = formatDate(new Date(), 'YYYY-MM-DD');
     const q = query(collection(db, 'expenses'), where('date', '==', today));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (!_todayCache[today]) _todayCache[today] = {};
+    _todayCache[today].expenses = docs;
+    return docs;
   } catch (err) {
     console.error('❌ getTodayExpenses:', err);
     return [];
@@ -462,11 +635,15 @@ export async function getTodayExpenses() {
 }
 
 export async function getTodayCashIns() {
+  const today = formatDate(new Date(), 'YYYY-MM-DD');
+  if (_todayCache[today]?.cashIns) return _todayCache[today].cashIns;
   try {
-    const today = formatDate(new Date(), 'YYYY-MM-DD');
     const q = query(collection(db, 'cash_ins'), where('date', '==', today));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (!_todayCache[today]) _todayCache[today] = {};
+    _todayCache[today].cashIns = docs;
+    return docs;
   } catch (err) {
     console.error('❌ getTodayCashIns:', err);
     return [];
@@ -489,7 +666,9 @@ export async function createCashIn({ amount, reference = '' }) {
   return docRef.id;
 }
 
-export const getNextCashInId = () => getNextMonthlyId('cash_ins_counter', 'CI');
+export const getNextCashInId = () => useNewNumbering
+  ? getNextYearlyId('CI', 3, 'cash_ins', 'cashInId')
+  : getNextMonthlyId('cash_ins_counter', 'CI');
 
 // ─── Deposits ────────────────────────────────────────────────
 
@@ -668,6 +847,9 @@ export async function softDeleteDocument(collectionName, docId) {
 // Used for the running "Cash in Hand" stat that carries forward across days.
 // Deleted documents are excluded from all totals.
 export async function getAllTimeCashFlow() {
+  if (_cfCache.data !== null && Date.now() - _cfCache.ts < _CACHE_TTL) {
+    return _cfCache.data;
+  }
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 1825); // 5 years
   try {
@@ -716,13 +898,15 @@ export async function getAllTimeCashFlow() {
       if (!d.data().deleted) totalCashIns += d.data().amount || 0;
     });
 
-    return {
+    const result = {
       totalCash,
       totalCashIns,
       totalDeposits,
       totalExpenses,
       cashInHand: totalCash + totalCashIns - totalDeposits - totalExpenses,
     };
+    _cfCache = { ts: Date.now(), data: result };
+    return result;
   } catch (err) {
     console.error('❌ getAllTimeCashFlow:', err);
     return null;
@@ -732,6 +916,9 @@ export async function getAllTimeCashFlow() {
 // ─── Unified Activity Feed ───────────────────────────────────
 // Returns invoices + deposits + expenses merged and sorted by date/time desc.
 export async function getRecentActivity(days = 90) {
+  if (_actCache.data !== null && _actCache.days === days && Date.now() - _actCache.ts < _CACHE_TTL) {
+    return _actCache.data;
+  }
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
   try {
@@ -841,6 +1028,7 @@ export async function getRecentActivity(days = 90) {
       return dc !== 0 ? dc : b.time.localeCompare(a.time);
     });
 
+    _actCache = { ts: Date.now(), days, data: items };
     return items;
   } catch (err) {
     if (err.code === 'failed-precondition') {
