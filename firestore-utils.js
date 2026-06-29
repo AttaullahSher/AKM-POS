@@ -20,6 +20,7 @@ import {
   Timestamp
 } from './firebase-config.js';
 
+import { dbFiles } from './firebase-secondary.js';
 import { APP_CONFIG, debugLog } from './config.js';
 
 export { db };
@@ -451,6 +452,25 @@ export async function upsertCustomer(name, mobile, email, trn) {
     }
   } catch (err) {
     debugLog('upsertCustomer error:', err);
+  }
+  syncCustomerToFiles(name, mobile, email, trn).catch(() => {});
+}
+
+async function syncCustomerToFiles(name, mobile, email, trn) {
+  try {
+    const docRef = doc(dbFiles, 'customers', mobile);
+    const data = {
+      name, mobile,
+      trn:       trn || '',
+      lastSeen:  serverTimestamp(),
+      source:    'POS',
+      sourceApp: 'akm-daily',
+    };
+    if (email) data.email = email;
+    await setDoc(docRef, data, { merge: true });
+    debugLog('✅ syncCustomerToFiles:', mobile);
+  } catch (err) {
+    debugLog('syncCustomerToFiles error (ignored):', err);
   }
 }
 
