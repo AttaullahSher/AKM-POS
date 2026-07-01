@@ -347,7 +347,6 @@ export async function createInvoice(invoiceData) {
     isAmendment = false, originalInvoiceId = null, originalInvoiceNumber = null,
   } = invoiceData;
 
-  const counterRef  = doc(db, 'counters', 'invoices');
   // Pre-generate a stable document ID so we know it before the write completes
   const invoiceRef  = doc(collection(db, 'invoices'));
   // processDate = UAE calendar date when the invoice was SAVED (always today, never backdated).
@@ -396,8 +395,56 @@ export async function createInvoice(invoiceData) {
     return { id: invoiceRef.id, invoiceNumber: passedNumber };
   }
 
-  // New invoice: counter increment + invoice write in ONE atomic transaction.
-  // If anything fails, BOTH roll back — counter is never burned without a matching document.
+  // ── NEW FORMAT: IN-26-XXXX (from 2026-07-01) ──────────────────────────────
+  if (useNewNumbering) {
+    const year       = APP_CONFIG.BUSINESS.DOC_YEAR;
+    const counterRef = doc(db, 'counters', `IN-${year}`);
+    try {
+      const result = await Promise.race([
+        runTransaction(db, async (tx) => {
+          const snap = await tx.get(counterRef);
+          if (!snap.exists()) {
+            // First use after reset: scan for any IN-26-XXXX already saved
+            const existing = await getDocs(query(
+              collection(db, 'invoices'),
+              where('invoiceNumber', '>=', `IN-${year}-`),
+              where('invoiceNumber', '<=', `IN-${year}-~`)
+            ));
+            let maxSeq = 0;
+            existing.forEach(d => {
+              const n = parseInt((d.data().invoiceNumber || '').split('-').pop(), 10);
+              if (!isNaN(n)) maxSeq = Math.max(maxSeq, n);
+            });
+            const next = maxSeq + 1;
+            const invoiceNumber = `IN-${year}-${String(next).padStart(4, '0')}`;
+            tx.set(counterRef, { lastSequence: next, updatedAt: serverTimestamp() });
+            tx.set(invoiceRef, buildDoc(invoiceNumber, next));
+            return { invoiceNumber, sequence: next };
+          }
+          const next = snap.data().lastSequence + 1;
+          const invoiceNumber = `IN-${year}-${String(next).padStart(4, '0')}`;
+          tx.update(counterRef, { lastSequence: next, updatedAt: serverTimestamp() });
+          tx.set(invoiceRef, buildDoc(invoiceNumber, next));
+          return { invoiceNumber, sequence: next };
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+      ]);
+      writeLocalCounter(currentYear, result.sequence);
+      debugLog('✅ Invoice saved (new format):', result.invoiceNumber, invoiceRef.id);
+      return { id: invoiceRef.id, invoiceNumber: result.invoiceNumber };
+    } catch {
+      const last = readLocalCounter(currentYear);
+      const next = Math.max(last + 1, 1);
+      writeLocalCounter(currentYear, next);
+      const invoiceNumber = `IN-${year}-${String(next).padStart(4, '0')}`;
+      await setDoc(invoiceRef, buildDoc(invoiceNumber, next));
+      debugLog('📱 Invoice queued offline (new format):', invoiceNumber, invoiceRef.id);
+      return { id: invoiceRef.id, invoiceNumber };
+    }
+  }
+
+  // ── OLD FORMAT: YY-XXXXX (before 2026-07-01) ───────────────────────────────
+  const counterRef = doc(db, 'counters', 'invoices');
   try {
     const result = await Promise.race([
       runTransaction(db, async (tx) => {
@@ -420,9 +467,6 @@ export async function createInvoice(invoiceData) {
     return { id: invoiceRef.id, invoiceNumber: result.invoiceNumber };
 
   } catch {
-    // Offline: assign number from localStorage + queue invoice write to IndexedDB.
-    // The counter on the server is NOT touched here — the next online transaction will
-    // read the real server counter and give the correct next number.
     const last = readLocalCounter(currentYear);
     const next = Math.max(last + 1, INIT);
     writeLocalCounter(currentYear, next);
@@ -1106,6 +1150,8 @@ export async function resetAllCollections() {
     bulkDeleteCollection('invoices'),
     bulkDeleteCollection('deposits'),
     bulkDeleteCollection('expenses'),
+    bulkDeleteCollection('cash_ins'),
+    bulkDeleteCollection('repairs'),
     bulkDeleteCollection('counters'),
   ]);
 }
