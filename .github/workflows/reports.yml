@@ -20,11 +20,11 @@ jobs:
 
       - name: Install script dependencies
         run: npm install
-        working-directory: AKM-POS/scripts
+        working-directory: scripts
 
       - name: Run reports
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: node send-reports.mjs
-        working-directory: AKM-POS/scripts
+        working-directory: scripts
